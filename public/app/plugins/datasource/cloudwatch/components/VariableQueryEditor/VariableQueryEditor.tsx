@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { QueryEditorProps, SelectableValue, toOption } from '@grafana/data';
+import { QueryEditorProps, SelectableValue } from '@grafana/data';
 import { VariableTextField } from './VariableTextField';
 import { CloudWatchDatasource } from '../../datasource';
 import { useDimensionKeys, useMetrics, useNamespaces, useRegions } from '../../hooks';
@@ -10,7 +10,6 @@ import { VariableQueryField } from './VariableQueryField';
 import { Dimensions } from '..';
 import { InlineField } from '@grafana/ui';
 import { MultiFilter } from './MultiFilter';
-import { union } from 'lodash';
 
 export type Props = QueryEditorProps<CloudWatchDatasource, CloudWatchQuery, CloudWatchJsonData, VariableQuery>;
 
@@ -160,21 +159,17 @@ export const VariableQueryEditor = ({ query, datasource, onChange }: Props) => {
       )}
       {parsedQuery.queryType === VariableQueryType.EC2InstanceAttributes && (
         <>
-          <VariableQueryField
+          <VariableTextField
             value={parsedQuery.attributeName}
-            options={
-              parsedQuery.attributeName ? union(ec2Attributes, [toOption(parsedQuery.attributeName)]) : ec2Attributes
-            }
-            onChange={(value: string) => onQueryChange({ ...parsedQuery, attributeName: value })}
+            placeholder="attribute name"
+            onBlur={(value: string) => onQueryChange({ ...parsedQuery, attributeName: value })}
             label="Attribute Name"
-            inputId={`variable-query-attribute-name-${query.refId}`}
-            allowCustomValue
-            tooltip='Create a "Tags.<name>" value to select a tag'
+            tooltip='Attribute or tag to query on. Tags should be formatted "Tags.<name>".'
           />
           <InlineField
             label="Filters"
             labelWidth={20}
-            tooltip='Pre-defined ec2:DescribeInstances filters and tags to filter the returned values on. Tags should be formatted "tag:<name>" '
+            tooltip='Pre-defined ec2:DescribeInstances filters/tags and the values to filter on. Tags should be formatted "tag:<name>" '
           >
             <MultiFilter
               filters={parsedQuery.ec2Filters}
@@ -206,34 +201,3 @@ export const VariableQueryEditor = ({ query, datasource, onChange }: Props) => {
     </>
   );
 };
-
-const ec2Attributes = [
-  'AmiLaunchIndex',
-  'Architecture',
-  'ClientToken',
-  'EbsOptimized',
-  'EnaSupport',
-  'Hypervisor',
-  'IamInstanceProfile',
-  'ImageId',
-  'InstanceId',
-  'InstanceLifecycle',
-  'InstanceType',
-  'KernelId',
-  'KeyName',
-  'LaunchTime',
-  'Platform',
-  'PrivateDnsName',
-  'PrivateIpAddress',
-  'PublicDnsName',
-  'PublicIpAddress',
-  'RamdiskId',
-  'RootDeviceName',
-  'RootDeviceType',
-  'SourceDestCheck',
-  'SpotInstanceRequestId',
-  'SriovNetSupport',
-  'SubnetId',
-  'VirtualizationType',
-  'VpcId',
-].map(toOption);

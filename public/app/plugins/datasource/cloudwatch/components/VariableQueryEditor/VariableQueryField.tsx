@@ -13,7 +13,6 @@ interface VariableQueryFieldProps<T> {
   inputId?: string;
   allowCustomValue?: boolean;
   isLoading?: boolean;
-  tooltip?: string;
 }
 
 export const VariableQueryField = <T extends string | VariableQueryType>({
@@ -24,10 +23,9 @@ export const VariableQueryField = <T extends string | VariableQueryType>({
   allowCustomValue = false,
   isLoading = false,
   inputId = label,
-  tooltip,
 }: VariableQueryFieldProps<T>) => {
   return (
-    <InlineField label={label} labelWidth={LABEL_WIDTH} htmlFor={inputId} tooltip={tooltip}>
+    <InlineField label={label} labelWidth={LABEL_WIDTH} htmlFor={inputId}>
       <Select
         menuShouldPortal
         aria-label={label}
