@@ -45,7 +45,7 @@ export class QueryEditorRows extends PureComponent<Props> {
     onQueriesChange(
       queries.map((item, itemIndex) => {
         if (itemIndex === index) {
-          return query;
+          return { ...item, ...query };
         }
         return item;
       })
