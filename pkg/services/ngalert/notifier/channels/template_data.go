@@ -79,11 +79,11 @@ func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *E
 	dashboardUid := alert.Annotations[ngmodels.DashboardUIDAnnotation]
 	if len(dashboardUid) > 0 {
 		u.Path = path.Join(externalPath, "/d/", dashboardUid)
-		extended.DashboardURL = u.String()
+		extended.DashboardURL = ToLogzioAppPath(u.String()) //LOGZ.IO GRAFANA CHANGE :: DEV-31356: Change grafana default username, footer URL,text to logzio ones
 		panelId := alert.Annotations[ngmodels.PanelIDAnnotation]
 		if len(panelId) > 0 {
 			u.RawQuery = "viewPanel=" + panelId
-			extended.PanelURL = u.String()
+			extended.PanelURL = ToLogzioAppPath(u.String()) //LOGZ.IO GRAFANA CHANGE :: DEV-31356: Change grafana default username, footer URL,text to logzio ones
 		}
 	}
 
@@ -99,8 +99,15 @@ func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *E
 	}
 	sort.Strings(matchers)
 	u.Path = path.Join(externalPath, "/alerting/silence/new")
-	u.RawQuery = "alertmanager=grafana&matchers=" + url.QueryEscape(strings.Join(matchers, ","))
-	extended.SilenceURL = u.String()
+
+	query := make(url.Values)
+	query.Add("alertmanager", "grafana")
+	for _, matcher := range matchers {
+		query.Add("matcher", matcher)
+	}
+
+	u.RawQuery = query.Encode()
+	extended.SilenceURL = ToLogzioAppPath(u.String()) //LOGZ.IO GRAFANA CHANGE :: DEV-31356: Change grafana default username, footer URL,text to logzio ones
 
 	return extended
 }
@@ -121,7 +128,7 @@ func ExtendData(data *template.Data, logger log.Logger) *ExtendedData {
 		CommonLabels:      removePrivateItems(data.CommonLabels),
 		CommonAnnotations: removePrivateItems(data.CommonAnnotations),
 
-		ExternalURL: data.ExternalURL,
+		ExternalURL: ToLogzioAppPath(data.ExternalURL), //LOGZ.IO GRAFANA CHANGE :: DEV-31356: Change grafana default username, footer URL,text to logzio ones
 	}
 	return extended
 }

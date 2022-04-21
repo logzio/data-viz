@@ -5,6 +5,7 @@ package eval
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"runtime/debug"
 	"sort"
 	"strconv"
@@ -119,6 +120,7 @@ type AlertExecCtx struct {
 	OrgID              int64
 	ExpressionsEnabled bool
 	Log                log.Logger
+	LogzioEvalContext  *models.LogzioAlertRuleEvalContext // LOGZ.IO GRAFANA CHANGE :: Pass headers and custom datasource to evaluate alerts
 
 	Ctx context.Context
 }
@@ -133,6 +135,18 @@ func GetExprRequest(ctx AlertExecCtx, data []models.AlertQuery, now time.Time, d
 			"X-Cache-Skip": "true",
 		},
 	}
+	// LOGZ.IO GRAFANA CHANGE :: Upgrade to 8.4.0
+	logzioEvalContext := ctx.LogzioEvalContext
+	logzioHeaders := m.LogzIoHeaders{RequestHeaders: logzioEvalContext.LogzioHeaders}
+	requestHeaders := make(map[string][]string, len(req.Headers))
+
+	for k, v := range req.Headers {
+		requestHeaders[k] = []string{v}
+	}
+
+	for k, v := range logzioHeaders.GetDatasourceQueryHeaders(requestHeaders) {
+		req.Headers[k] = v[0]
+	} // LOGZ.IO GRAFANA CHANGE :: Upgrade to 8.4.0
 
 	datasources := make(map[string]*m.DataSource, len(data))
 
@@ -163,6 +177,9 @@ func GetExprRequest(ctx AlertExecCtx, data []models.AlertQuery, now time.Time, d
 				}, true)
 				if err != nil {
 					return nil, err
+				}
+				if dsOverride, found := logzioEvalContext.DsOverrideByDsUid[q.DatasourceUID]; found {
+					ds.Url = dsOverride.UrlOverride
 				}
 			}
 			datasources[q.DatasourceUID] = ds
@@ -521,11 +538,11 @@ func (evalResults Results) AsDataFrame() data.Frame {
 }
 
 // ConditionEval executes conditions and evaluates the result.
-func (e *Evaluator) ConditionEval(condition *models.Condition, now time.Time, expressionService *expr.Service) (Results, error) {
+func (e *Evaluator) ConditionEval(condition *models.Condition, now time.Time, expressionService *expr.Service, ctx *models.LogzioAlertRuleEvalContext) (Results, error) {
 	alertCtx, cancelFn := context.WithTimeout(context.Background(), e.Cfg.UnifiedAlerting.EvaluationTimeout)
 	defer cancelFn()
 
-	alertExecCtx := AlertExecCtx{OrgID: condition.OrgID, Ctx: alertCtx, ExpressionsEnabled: e.Cfg.ExpressionsEnabled, Log: e.Log}
+	alertExecCtx := AlertExecCtx{OrgID: condition.OrgID, Ctx: alertCtx, ExpressionsEnabled: e.Cfg.ExpressionsEnabled, Log: e.Log, LogzioEvalContext: ctx}
 
 	execResult := executeCondition(alertExecCtx, condition, now, expressionService, e.DataSourceCache)
 
@@ -534,11 +551,17 @@ func (e *Evaluator) ConditionEval(condition *models.Condition, now time.Time, ex
 }
 
 // QueriesAndExpressionsEval executes queries and expressions and returns the result.
-func (e *Evaluator) QueriesAndExpressionsEval(orgID int64, data []models.AlertQuery, now time.Time, expressionService *expr.Service) (*backend.QueryDataResponse, error) {
+func (e *Evaluator) QueriesAndExpressionsEval(orgID int64, data []models.AlertQuery, now time.Time, expressionService *expr.Service, logzIoHeaders http.Header) (*backend.QueryDataResponse, error) { // LOGZ.IO GRAFANA CHANGE :: Upgrade to 8.4.0
 	alertCtx, cancelFn := context.WithTimeout(context.Background(), e.Cfg.UnifiedAlerting.EvaluationTimeout)
 	defer cancelFn()
 
-	alertExecCtx := AlertExecCtx{OrgID: orgID, Ctx: alertCtx, ExpressionsEnabled: e.Cfg.ExpressionsEnabled, Log: e.Log}
+	// LOGZ.IO GRAFANA CHANGE :: Upgrade to 8.4.0
+	alertExecCtx := AlertExecCtx{OrgID: orgID, Ctx: alertCtx, ExpressionsEnabled: e.Cfg.ExpressionsEnabled, Log: e.Log,
+		LogzioEvalContext: &models.LogzioAlertRuleEvalContext{
+			DsOverrideByDsUid: map[string]models.EvaluationDatasourceOverride{},
+			LogzioHeaders:     logzIoHeaders,
+		}}
+	// LOGZ.IO GRAFANA CHANGE :: end
 
 	execResult, err := executeQueriesAndExpressions(alertExecCtx, data, now, expressionService, e.DataSourceCache)
 	if err != nil {

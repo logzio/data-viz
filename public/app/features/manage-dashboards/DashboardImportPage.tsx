@@ -9,7 +9,7 @@ import {
   FileUpload,
   Form,
   HorizontalGroup,
-  Input,
+  // Input, // LOGZ.IO GRAFANA CHANGE :: DEV-23444 Hide import via grafana.com
   Spinner,
   stylesFactory,
   TextArea,
@@ -19,7 +19,7 @@ import {
 } from '@grafana/ui';
 import Page from 'app/core/components/Page/Page';
 import { ImportDashboardOverview } from './components/ImportDashboardOverview';
-import { validateDashboardJson, validateGcomDashboard } from './utils/validation';
+import { validateDashboardJson } from './utils/validation'; // LOGZ.IO GRAFANA CHANGE :: DEV-23444 Hide import via grafana.com
 import { fetchGcomDashboard, importDashboardJson } from './state/actions';
 import appEvents from 'app/core/app_events';
 import { getNavModel } from 'app/core/selectors/navModel';
@@ -116,6 +116,7 @@ class UnthemedDashboardImport extends PureComponent<Props> {
             Upload JSON file
           </FileUpload>
         </div>
+        {/* LOGZ.IO GRAFANA CHANGE :: DEV-23444 Hide import via grafana.com
         <div className={styles.option}>
           <Form onSubmit={this.getGcomDashboard} defaultValues={{ gcomDashboard: '' }}>
             {({ register, errors }) => (
@@ -138,6 +139,7 @@ class UnthemedDashboardImport extends PureComponent<Props> {
             )}
           </Form>
         </div>
+        */}
         <div className={styles.option}>
           <Form onSubmit={this.getDashboardFromJson} defaultValues={{ dashboardJson: '' }}>
             {({ register, errors }) => (

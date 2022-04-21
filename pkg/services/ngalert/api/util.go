@@ -249,7 +249,13 @@ func conditionEval(c *models.ReqContext, cmd ngmodels.EvalAlertConditionCommand,
 	}
 
 	evaluator := eval.Evaluator{Cfg: cfg, Log: log, DataSourceCache: datasourceCache}
-	evalResults, err := evaluator.ConditionEval(&evalCond, now, expressionService)
+	// LOGZ.IO GRAFANA CHANGE :: Pass context to datasources
+	logzioEvalContext := &ngmodels.LogzioAlertRuleEvalContext{
+		LogzioHeaders:     c.Req.Header,
+		DsOverrideByDsUid: map[string]ngmodels.EvaluationDatasourceOverride{},
+	}
+	evalResults, err := evaluator.ConditionEval(&evalCond, now, expressionService, logzioEvalContext)
+	// LOGZ.IO GRAFANA CHANGE :: End
 	if err != nil {
 		return ErrResp(http.StatusBadRequest, err, "Failed to evaluate conditions")
 	}

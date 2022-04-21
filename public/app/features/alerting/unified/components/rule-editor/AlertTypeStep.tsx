@@ -7,7 +7,7 @@ import { useFormContext } from 'react-hook-form';
 import { RuleFormType, RuleFormValues } from '../../types/rule-form';
 import { RuleFolderPicker } from './RuleFolderPicker';
 import { GroupAndNamespaceFields } from './GroupAndNamespaceFields';
-import { contextSrv } from 'app/core/services/context_srv';
+// import { contextSrv } from 'app/core/services/context_srv'; //LOGZ.IO GRAFANA CHANGE :: DEV-31356 - Restrict ‘Grafana managed alert’ as the only option when creating an alert rule
 import { CloudRulesSourcePicker } from './CloudRulesSourcePicker';
 
 interface Props {
@@ -42,20 +42,20 @@ export const AlertTypeStep: FC<Props> = ({ editingExistingRule }) => {
         description: 'Classic Grafana alerts based on thresholds.',
       },
     ];
-
-    if (contextSrv.isEditor) {
-      result.push({
-        label: 'Cortex/Loki managed alert',
-        value: RuleFormType.cloudAlerting,
-        description: 'Alert based on a system or application behavior. Based on Prometheus.',
-      });
-      result.push({
-        label: 'Cortex/Loki managed recording rule',
-        value: RuleFormType.cloudRecording,
-        description: 'Recording rule to pre-compute frequently needed or expensive calculations. Based on Prometheus.',
-      });
-    }
-
+    //LOGZ.IO GRAFANA CHANGE :: DEV-31356 - Restrict ‘Grafana managed alert’ as the only option when creating an alert rule
+    // if (contextSrv.isEditor) {
+    //   result.push({
+    //     label: 'Cortex/Loki managed alert',
+    //     value: RuleFormType.cloudAlerting,
+    //     description: 'Alert based on a system or application behavior. Based on Prometheus.',
+    //   });
+    //   result.push({
+    //     label: 'Cortex/Loki managed recording rule',
+    //     value: RuleFormType.cloudRecording,
+    //     description: 'Recording rule to pre-compute frequently needed or expensive calculations. Based on Prometheus.',
+    //   });
+    // }
+    //LOGZ.IO GRAFANA CHANGE :: end
     return result;
   }, []);
 

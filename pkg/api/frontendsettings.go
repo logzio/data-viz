@@ -107,6 +107,8 @@ func (hs *HTTPServer) getFSDataSources(c *models.ReqContext, enabledPlugins Enab
 		dataSources[ds.Name] = dsDTO
 	}
 
+	c.Logger.Debug("Org %d - datasource count : %d", c.OrgId, len(dataSources))
+
 	// add data sources that are built in (meaning they are not added via data sources page, nor have any entry in
 	// the datasource table)
 	for _, ds := range hs.pluginStore.Plugins(c.Req.Context(), plugins.DataSource) {

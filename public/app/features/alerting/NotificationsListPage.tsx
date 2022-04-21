@@ -3,11 +3,13 @@ import EmptyListCTA from 'app/core/components/EmptyListCTA/EmptyListCTA';
 import Page from 'app/core/components/Page/Page';
 import { getBackendSrv } from '@grafana/runtime';
 import { useAsyncFn } from 'react-use';
-import { appEvents } from 'app/core/core';
+// import { appEvents } from 'app/core/core'; // LOGZ.IO GRAFANA CHANGE :: comment out to prevent ts errors
 import { useNavModel } from 'app/core/hooks/useNavModel';
-import { HorizontalGroup, Button, LinkButton } from '@grafana/ui';
+// import { HorizontalGroup, Button, LinkButton } from '@grafana/ui'; // LOGZ.IO GRAFANA CHANGE :: comment out to prevent ts errors
+import { LinkButton } from '@grafana/ui'; // LOGZ.IO GRAFANA CHANGE :: reimport LinkButton
+// import { CoreEvents } from 'app/types'; // LOGZ.IO GRAFANA CHANGE :: comment out to prevent ts errors
 import { AlertNotification } from 'app/types/alerting';
-import { ShowConfirmModalEvent } from '../../types/events';
+// import { ShowConfirmModalEvent } from '../../types/events'; // LOGZ.IO GRAFANA CHANGE :: comment out to prevent ts errors
 
 const NotificationsListPage: FC = () => {
   const navModel = useNavModel('channels');
@@ -25,40 +27,52 @@ const NotificationsListPage: FC = () => {
     });
   }, [fetchNotifications]);
 
-  const deleteNotification = (id: number) => {
-    appEvents.publish(
-      new ShowConfirmModalEvent({
-        title: 'Delete',
-        text: 'Do you want to delete this notification channel?',
-        text2: `Deleting this notification channel will not delete from alerts any references to it`,
-        icon: 'trash-alt',
-        confirmText: 'Delete',
-        yesText: 'Delete',
-        onConfirm: async () => {
-          deleteNotificationConfirmed(id);
-        },
-      })
-    );
-  };
+  // LOGZ.IO GRAFANA CHANGE :: comment out to prevent ts errors
+  // const deleteNotification = (id: number) => {
+  //   appEvents.publish(
+  //     new ShowConfirmModalEvent({
+  //       title: 'Delete',
+  //       text: 'Do you want to delete this notification channel?',
+  //       text2: `Deleting this notification channel will not delete from alerts any references to it`,
+  //       icon: 'trash-alt',
+  //       confirmText: 'Delete',
+  //       yesText: 'Delete',
+  //       onConfirm: async () => {
+  //         deleteNotificationConfirmed(id);
+  //       },
+  //     })
+  //   );
+  // };
 
-  const deleteNotificationConfirmed = async (id: number) => {
-    await getBackendSrv().delete(`/api/alert-notifications/${id}`);
-    const notifications = await fetchNotifications();
-    setNotifications(notifications);
-  };
+  // const deleteNotificationConfirmed = async (id: number) => {
+  //   await getBackendSrv().delete(`/api/alert-notifications/${id}`);
+  //   const notifications = await fetchNotifications();
+  //   setNotifications(notifications);
+  // };
+  // LOGZ.IO GRAFANA CHANGE :: END
 
   return (
     <Page navModel={navModel}>
       <Page.Contents>
         {state.error && <p>{state.error}</p>}
+        {/*LOGZ.IO GRAFANA CHANGE :: (ALERTS) Open logz's alert endpoints page and show when empty*/}
+        <div className="page-action-bar">
+          <div className="page-action-bar__spacer" />
+          <LinkButton icon="channel-add" href="/#/dashboard/alerts/endpoints" target="_top">
+            New channel
+          </LinkButton>
+        </div>
+        {/*LOGZ.IO GRAFANA CHANGE :: END*/}
         {!!notifications.length && (
           <>
-            <div className="page-action-bar">
-              <div className="page-action-bar__spacer" />
-              <LinkButton icon="channel-add" href="alerting/notification/new">
-                New channel
-              </LinkButton>
-            </div>
+            {/*LOGZ.IO GRAFANA CHANGE :: (ALERTS) Open logz's alert endpoints page and show when empty*/}
+            {/*<div className="page-action-bar">*/}
+            {/*  <div className="page-action-bar__spacer" />*/}
+            {/*  <LinkButton icon="channel-add" href="alerting/notification/new">*/}
+            {/*    New channel*/}
+            {/*  </LinkButton>*/}
+            {/*</div>*/}
+            {/*LOGZ.IO GRAFANA CHANGE :: END*/}
             <table className="filter-table filter-table--hover">
               <thead>
                 <tr>
@@ -73,27 +87,35 @@ const NotificationsListPage: FC = () => {
                 {notifications.map((notification) => (
                   <tr key={notification.id}>
                     <td className="link-td">
-                      <a href={`alerting/notification/${notification.id}/edit`}>{notification.name}</a>
+                      {/*LOGZ.IO GRAFANA CHANGE :: (ALERTS) Disable endpoints editing in grafana*/}
+                      {/*<a href={`alerting/notification/${notification.id}/edit`}>{notification.name}</a>*/}
+                      {notification.name}
+                      {/*LOGZ.IO GRAFANA CHANGE :: END*/}
                     </td>
                     <td className="link-td">
-                      <a href={`alerting/notification/${notification.id}/edit`}>{notification.type}</a>
+                      {/*LOGZ.IO GRAFANA CHANGE :: (ALERTS) Disable endpoints editing in grafana*/}
+                      {/*<a href={`alerting/notification/${notification.id}/edit`}>{notification.type}</a>*/}
+                      {notification.type}
+                      {/*LOGZ.IO GRAFANA CHANGE :: END*/}
                     </td>
                     <td className="text-right">
-                      <HorizontalGroup justify="flex-end">
-                        {notification.isDefault && (
-                          <Button disabled variant="secondary" size="sm">
-                            default
-                          </Button>
-                        )}
-                        <Button
-                          variant="destructive"
-                          icon="times"
-                          size="sm"
-                          onClick={() => {
-                            deleteNotification(notification.id);
-                          }}
-                        />
-                      </HorizontalGroup>
+                      {/*LOGZ.IO GRAFANA CHANGE :: (ALERTS) Disable endpoints editing in grafana*/}
+                      {/*<HorizontalGroup justify="flex-end">*/}
+                      {/*  {notification.isDefault && (*/}
+                      {/*    <Button disabled variant="secondary" size="sm">*/}
+                      {/*      default*/}
+                      {/*    </Button>*/}
+                      {/*  )}*/}
+                      {/*  <Button*/}
+                      {/*    variant="destructive"*/}
+                      {/*    icon="times"*/}
+                      {/*    size="sm"*/}
+                      {/*    onClick={() => {*/}
+                      {/*      deleteNotification(notification.id);*/}
+                      {/*    }}*/}
+                      {/*  />*/}
+                      {/*</HorizontalGroup>*/}
+                      {/*LOGZ.IO GRAFANA CHANGE :: END*/}
                     </td>
                   </tr>
                 ))}
@@ -101,8 +123,9 @@ const NotificationsListPage: FC = () => {
             </table>
           </>
         )}
-
-        {!(notifications.length || state.loading) && (
+        {/* LOGZ.IO GRAFANA CHANGE :: (ALERTS) Creating new endpoint only from Logz alerts endpoints*/}
+        {/*{!(notifications.length || state.loading) && (*/}
+        {false && (
           <EmptyListCTA
             title="There are no notification channels defined yet"
             buttonIcon="channel-add"

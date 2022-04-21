@@ -3,6 +3,7 @@ package models
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 )
 
@@ -206,3 +207,16 @@ func (c Condition) IsValid() bool {
 	// TODO search for refIDs in QueriesAndExpressions
 	return len(c.Data) != 0
 }
+
+// LOGZ.IO GRAFANA CHANGE :: DEV-31493 Override datasource URL and pass custom headers to alert rule evaluator
+type LogzioAlertRuleEvalContext struct {
+	LogzioHeaders     http.Header
+	DsOverrideByDsUid map[string]EvaluationDatasourceOverride `json:"dsOverride"`
+}
+
+type EvaluationDatasourceOverride struct {
+	DsUid       string `json:"dsUid"`
+	UrlOverride string `json:"urlOverride"`
+}
+
+// LOGZ.IO GRAFANA CHANGE :: end

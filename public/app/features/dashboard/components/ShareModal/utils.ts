@@ -1,7 +1,7 @@
 import { config } from '@grafana/runtime';
 import { getTimeSrv } from 'app/features/dashboard/services/TimeSrv';
 import { createShortLink } from 'app/core/utils/shortLinks';
-import { dateTime, PanelModel, TimeRange, urlUtil } from '@grafana/data';
+import { dateTime, PanelModel, TimeRange, urlUtil, locationUtil } from '@grafana/data'; // LOGZ.IO GRAFANA CHANGE :: DEV-19527 add location util
 
 export interface BuildParamsArgs {
   useCurrentTimeRange: boolean;
@@ -43,14 +43,8 @@ export function buildParams({
 }
 
 export function buildBaseUrl() {
-  let baseUrl = window.location.href;
-  const queryStart = baseUrl.indexOf('?');
-
-  if (queryStart !== -1) {
-    baseUrl = baseUrl.substring(0, queryStart);
-  }
-
-  return baseUrl;
+  // LOGZ.IO GRAFANA CHANGE :: DEV-20340 Use the url without the grafana-app part
+  return window.location.origin + locationUtil.stripBaseFromUrl(window.location.pathname);
 }
 
 export async function buildShareUrl(

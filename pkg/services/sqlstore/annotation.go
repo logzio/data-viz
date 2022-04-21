@@ -121,6 +121,7 @@ func (r *SQLAnnotationRepo) Find(query *annotations.ItemQuery) ([]*annotations.I
 	var sql bytes.Buffer
 	params := make([]interface{}, 0)
 
+	// LOGZ.IO GRAFANA CHANGE :: DEV-19056 - usr.login to usr.name as login field
 	sql.WriteString(`
 		SELECT
 			annotation.id,
@@ -137,7 +138,7 @@ func (r *SQLAnnotationRepo) Find(query *annotations.ItemQuery) ([]*annotations.I
 			annotation.created,
 			annotation.updated,
 			usr.email,
-			usr.login,
+			usr.name as login,
 			alert.name as alert_name
 		FROM annotation
 		LEFT OUTER JOIN ` + dialect.Quote("user") + ` as usr on usr.id = annotation.user_id

@@ -2,6 +2,9 @@ package api
 
 import (
 	"context"
+	"github.com/benbjohnson/clock"
+	"github.com/grafana/grafana/pkg/services/ngalert/eval"
+	"github.com/grafana/grafana/pkg/services/sqlstore"
 	"net/url"
 	"time"
 
@@ -70,6 +73,9 @@ type API struct {
 	MultiOrgAlertmanager *notifier.MultiOrgAlertmanager
 	StateManager         *state.Manager
 	SecretsService       secrets.Service
+	// LOGZ.IO GRAFANA CHANGE :: DEV-30705,DEV-30713 - Migration endpoints by org ID
+	SQLStore *sqlstore.SQLStore
+	// LOGZ.IO GRAFANA CHANGE :: end
 }
 
 // RegisterAPIEndpoints registers API handlers
@@ -112,4 +118,19 @@ func (api *API) RegisterAPIEndpoints(m *metrics.API) {
 			scheduler: api.Schedule,
 		},
 	), m)
+	// LOGZ.IO GRAFANA CHANGE :: DEV-30169,DEV-30170,DEV-30275: add logzio alerting endpoints
+	api.RegisterLogzioAlertingApiEndpoints(NewLogzioAlertingApi(
+		NewLogzioAlertingService(proxy,
+			api.Cfg,
+			eval.Evaluator{Cfg: api.Cfg, Log: logger, DataSourceCache: api.DatasourceCache},
+			clock.New(),
+			api.ExpressionService,
+			api.StateManager,
+			api.MultiOrgAlertmanager,
+			api.InstanceStore,
+			logger,
+			api.SQLStore,
+		),
+	), m)
+	// LOGZ.IO GRAFANA CHANGE :: end
 }

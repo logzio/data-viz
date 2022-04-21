@@ -4,6 +4,7 @@ import { connect, ConnectedProps } from 'react-redux';
 import { locationService } from '@grafana/runtime';
 import { selectors } from '@grafana/e2e-selectors';
 import { CustomScrollbar, stylesFactory, Themeable2, withTheme2 } from '@grafana/ui';
+import { debounce } from 'lodash'; // LOGZ.IO GRAFANA CHANGE :: DEV-28669 :: Global Filters :: Enable/Disable filters and debounce refresh-subscribers
 
 import { createErrorNotification } from 'app/core/copy/appNotification';
 import { Branding } from 'app/core/components/Branding/Branding';
@@ -24,7 +25,7 @@ import { dashboardWatcher } from 'app/features/live/dashboard/dashboardWatcher';
 import { GrafanaRouteComponentProps } from 'app/core/navigation/types';
 import { getTimeSrv } from '../services/TimeSrv';
 import { getKioskMode } from 'app/core/navigation/kiosk';
-import { GrafanaTheme2, TimeRange, UrlQueryValue } from '@grafana/data';
+import { GrafanaTheme2, TimeRange, UrlQueryValue, logzioServices } from '@grafana/data'; // LOGZ.IO GRAFANA CHANGE :: DEV-27954 :: Global Filters :: Import logzioServices
 import { DashboardLoading } from '../components/DashboardLoading/DashboardLoading';
 import { DashboardFailed } from '../components/DashboardLoading/DashboardFailed';
 import { DashboardPrompt } from '../components/DashboardPrompt/DashboardPrompt';
@@ -84,6 +85,12 @@ export interface State {
 
 export class UnthemedDashboardPage extends PureComponent<Props, State> {
   private forceRouteReloadCounter = 0;
+  // LOGZ.IO GRAFANA CHANGE :: DEV-27954 :: Unified Filters :: Listen to unified filters changes
+  private logzioUnifiedFiltersSubscriber: any;
+  private logzioUnifiedVariablesSubscriber: any;
+  private logzioEnabledFiltersStatusSubscriber: any;
+  // LOGZ.IO GRAFANA CHANGE :: DEV-27954 :: Unified Filters :: Listen to unified filters changes :: End
+
   state: State = this.getCleanState();
 
   getCleanState(): State {
@@ -109,6 +116,7 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
   closeDashboard() {
     this.props.cleanUpDashboardAndVariables();
     this.setState(this.getCleanState());
+    this.unsubscribeFromLogzioUnifiedFilters(); // LOGZ.IO GRAFANA CHANGE :: DEV-27954 :: Global Filters :: Listen to global filters changes
   }
 
   initDashboard() {
@@ -129,6 +137,8 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
 
     // small delay to start live updates
     setTimeout(this.updateLiveTimer, 250);
+
+    this.subscribeToLogzioUnifiedFilters(); // LOGZ.IO GRAFANA CHANGE :: DEV-27954 :: Unified Filters :: Listen to filters changes
   }
 
   componentDidUpdate(prevProps: Props, prevState: State) {
@@ -310,6 +320,32 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
 
     return inspectPanel;
   }
+
+  // LOGZ.IO GRAFANA CHANGE :: DEV-27954 :: Unified Filters :: Listen to filters changes
+  subscribeToLogzioUnifiedFilters() {
+    this.unsubscribeFromLogzioUnifiedFilters();
+
+    const debouncedRefresh = debounce(() => getTimeSrv().refreshDashboard(), 50);
+    const { unifiedFilters, unifiedVariables, isEnabled } = logzioServices.unifiedFiltersStateService;
+    try {
+      this.logzioUnifiedFiltersSubscriber = unifiedFilters.subscribe(debouncedRefresh);
+      this.logzioUnifiedVariablesSubscriber = unifiedVariables.subscribe(debouncedRefresh);
+      this.logzioEnabledFiltersStatusSubscriber = isEnabled.subscribe(debouncedRefresh);
+    } catch (e) {
+      logzioServices.LoggerService.logError({
+        origin: logzioServices.LoggerService.Origin.GRAFANA,
+        message: 'Could not subscribe to unifiedFiltersStateService',
+        error: e,
+      });
+    }
+  }
+
+  unsubscribeFromLogzioUnifiedFilters() {
+    this.logzioUnifiedFiltersSubscriber?.();
+    this.logzioUnifiedVariablesSubscriber?.();
+    this.logzioEnabledFiltersStatusSubscriber?.();
+  }
+  // LOGZ.IO GRAFANA CHANGE :: DEV-27954 :: Unified Filters :: Listen to filters changes :: End
 
   render() {
     const { dashboard, isInitSlow, initError, queryParams, theme } = this.props;

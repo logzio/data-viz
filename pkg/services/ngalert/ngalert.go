@@ -2,7 +2,6 @@ package ngalert
 
 import (
 	"context"
-	"net/url"
 	"time"
 
 	"github.com/benbjohnson/clock"
@@ -105,16 +104,18 @@ func (ng *AlertNG) init() error {
 		Logger:          ng.Log,
 	}
 
-	decryptFn := ng.SecretsService.GetDecryptedValue
-	multiOrgMetrics := ng.Metrics.GetMultiOrgAlertmanagerMetrics()
-	ng.MultiOrgAlertmanager, err = notifier.NewMultiOrgAlertmanager(ng.Cfg, store, store, ng.KVStore, decryptFn, multiOrgMetrics, ng.NotificationService, log.New("ngalert.multiorg.alertmanager"))
-	if err != nil {
-		return err
-	}
+	if ng.Cfg.UnifiedAlerting.AlertManagerEnabled {
+		decryptFn := ng.SecretsService.GetDecryptedValue
+		multiOrgMetrics := ng.Metrics.GetMultiOrgAlertmanagerMetrics()
+		ng.MultiOrgAlertmanager, err = notifier.NewMultiOrgAlertmanager(ng.Cfg, store, store, ng.KVStore, decryptFn, multiOrgMetrics, ng.NotificationService, log.New("ngalert.multiorg.alertmanager"))
+		if err != nil {
+			return err
+		}
 
-	// Let's make sure we're able to complete an initial sync of Alertmanagers before we start the alerting components.
-	if err := ng.MultiOrgAlertmanager.LoadAndSyncAlertmanagersForOrgs(context.Background()); err != nil {
-		return err
+		// Let's make sure we're able to complete an initial sync of Alertmanagers before we start the alerting components.
+		if err := ng.MultiOrgAlertmanager.LoadAndSyncAlertmanagersForOrgs(context.Background()); err != nil {
+			return err
+		}
 	}
 
 	schedCfg := schedule.SchedulerCfg{
@@ -134,11 +135,7 @@ func (ng *AlertNG) init() error {
 		MinRuleInterval:         ng.getRuleMinInterval(),
 	}
 
-	appUrl, err := url.Parse(ng.Cfg.AppURL)
-	if err != nil {
-		ng.Log.Error("Failed to parse application URL. Continue without it.", "error", err)
-		appUrl = nil
-	}
+	appUrl := ng.Cfg.ParsedAppURL // LOGZ.IO GRAFANA CHANGE :: DEV-31554 - Set APP url to logzio grafana for alert notification URLs
 	stateManager := state.NewManager(ng.Log, ng.Metrics.GetStateMetrics(), appUrl, store, store)
 	scheduler := schedule.NewScheduler(schedCfg, ng.ExpressionService, appUrl, stateManager)
 
@@ -160,6 +157,7 @@ func (ng *AlertNG) init() error {
 		AdminConfigStore:     store,
 		MultiOrgAlertmanager: ng.MultiOrgAlertmanager,
 		StateManager:         ng.stateManager,
+		SQLStore:             ng.SQLStore,
 	}
 	api.RegisterAPIEndpoints(ng.Metrics.GetAPIMetrics())
 
@@ -178,9 +176,13 @@ func (ng *AlertNG) Run(ctx context.Context) error {
 			return ng.schedule.Run(subCtx)
 		})
 	}
-	children.Go(func() error {
-		return ng.MultiOrgAlertmanager.Run(subCtx)
-	})
+	if ng.Cfg.UnifiedAlerting.AlertManagerEnabled {
+		children.Go(func() error {
+			return ng.MultiOrgAlertmanager.Run(subCtx)
+		})
+	} else {
+		ng.Log.Debug("Alert manager is disabled")
+	}
 	return children.Wait()
 }
 

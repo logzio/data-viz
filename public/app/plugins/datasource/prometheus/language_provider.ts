@@ -16,7 +16,7 @@ import { CompletionItem, CompletionItemGroup, SearchFunctionType, TypeaheadInput
 import {
   addLimitInfo,
   extractLabelMatchers,
-  fixSummariesMetadata,
+  // fixSummariesMetadata, // LOGZ.IO GRAFANA CHANGE :: DEV-24838: Remove fixSummariesMetadata
   parseSelector,
   processHistogramMetrics,
   processLabels,
@@ -132,7 +132,7 @@ export default class PromQlLanguageProvider extends LanguageProvider {
     // TODO #33976: make those requests parallel
     await this.fetchLabels();
     this.metrics = (await this.fetchLabelValues('__name__')) || [];
-    this.metricsMetadata = fixSummariesMetadata(await this.request('/api/v1/metadata', {}));
+    this.metricsMetadata = {}; // LOGZ.IO GRAFANA CHANGE :: DEV-24838: Mock metadata requests
     this.histogramMetrics = processHistogramMetrics(this.metrics).sort();
     return [];
   };

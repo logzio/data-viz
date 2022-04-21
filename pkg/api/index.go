@@ -264,7 +264,7 @@ func (hs *HTTPServer) getNavTree(c *models.ReqContext, hasEditPerm bool) ([]*dto
 		})
 	}
 
-	if enableTeams(hs, c) {
+	if c.OrgRole == models.ROLE_ADMIN { // LOGZ.IO GRAFANA CHANGE :: Limit configuration for admins
 		configNodes = append(configNodes, &dtos.NavLink{
 			Text:        "Teams",
 			Id:          "teams",
@@ -343,7 +343,7 @@ func (hs *HTTPServer) getNavTree(c *models.ReqContext, hasEditPerm bool) ([]*dto
 		configNode := &dtos.NavLink{
 			Id:         dtos.NavIDCfg,
 			Text:       "Configuration",
-			SubTitle:   "Organization: " + c.OrgName,
+			SubTitle:   "", // LOGZ.IO GRAFANA CHANGE :: DEV-20609 Enable change home dashboard
 			Icon:       "cog",
 			Url:        configNodes[0].Url,
 			SortWeight: dtos.WeightConfig,

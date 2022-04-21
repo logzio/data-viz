@@ -62,7 +62,7 @@ export const GrafanaConditionsStep: FC = () => {
           <InlineLabel
             htmlFor={evaluateEveryId}
             width={16}
-            tooltip="How often the alert will be evaluated to see if it fires"
+            // tooltip="How often the alert will be evaluated to see if it fires" // LOGZ.IO Changes
           >
             Evaluate every
           </InlineLabel>
@@ -72,7 +72,12 @@ export const GrafanaConditionsStep: FC = () => {
             invalid={!!errors.evaluateEvery?.message}
             validationMessageHorizontalOverflow={true}
           >
-            <Input id={evaluateEveryId} width={8} {...register('evaluateEvery', evaluateEveryValidationOptions)} />
+            <Input
+              readOnly={true} // LOGZ.IO Changes
+              id={evaluateEveryId}
+              width={8}
+              {...register('evaluateEvery', evaluateEveryValidationOptions)}
+            />
           </Field>
           <InlineLabel
             htmlFor={evaluateForId}

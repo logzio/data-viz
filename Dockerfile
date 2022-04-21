@@ -1,45 +1,42 @@
-FROM node:16-alpine3.15 as js-builder
+FROM registry.internal.logz.io:5000/node:14.16.0-alpine3.13 as js-builder
 
-ENV NODE_OPTIONS=--max_old_space_size=8000
+WORKDIR /usr/src/app/
 
-WORKDIR /grafana
+COPY grafana/package.json grafana/yarn.lock ./
+COPY grafana/packages packages
 
-COPY package.json yarn.lock .yarnrc.yml ./
-COPY .yarn .yarn
-COPY packages packages
-COPY plugins-bundled plugins-bundled
+RUN apk --no-cache add git
+# LOGZ.IO GRAFANA CHANGE :: add -- offline to yarn install
+RUN yarn install --pure-lockfile --no-progress
 
-RUN yarn install
-
-COPY tsconfig.json .eslintrc .editorconfig .browserslistrc .prettierrc.js babel.config.json ./
-COPY public public
-COPY tools tools
-COPY scripts scripts
-COPY emails emails
+COPY grafana/tsconfig.json grafana/.eslintrc grafana/.editorconfig grafana/.browserslistrc grafana/.prettierrc.js ./
+COPY grafana/public public
+COPY grafana/tools tools
+COPY grafana/scripts scripts
+COPY grafana/emails emails
 
 ENV NODE_ENV production
 RUN yarn build
 
-FROM golang:1.17.6-alpine3.15 as go-builder
+FROM registry.internal.logz.io:5000/logzio-golang:1.16.1-alpine3.13 as go-builder
 
-RUN apk add --no-cache gcc g++ make
+RUN apk add --no-cache gcc g++
 
-WORKDIR /grafana
+WORKDIR $GOPATH/src/github.com/grafana/grafana
 
-COPY go.mod go.sum embed.go Makefile build.go package.json ./
-COPY cue cue
-COPY packages/grafana-schema packages/grafana-schema
-COPY public/app/plugins public/app/plugins
-COPY pkg pkg
-COPY scripts scripts
-COPY cue.mod cue.mod
-COPY .bingo .bingo
+COPY grafana/go.mod grafana/go.sum grafana/embed.go ./
 
 RUN go mod verify
-RUN make build-go
+
+COPY grafana/cue cue
+COPY grafana/public/app/plugins public/app/plugins
+COPY grafana/pkg pkg
+COPY grafana/build.go grafana/package.json ./
+
+RUN go run build.go build
 
 # Final stage
-FROM alpine:3.15
+FROM registry.internal.logz.io:5000/logzio-alpine:3.13
 
 LABEL maintainer="Grafana team <hello@grafana.com>"
 
@@ -56,12 +53,10 @@ ENV PATH="/usr/share/grafana/bin:$PATH" \
 
 WORKDIR $GF_PATHS_HOME
 
-RUN apk add --no-cache ca-certificates bash tzdata musl-utils
-RUN apk add --no-cache openssl ncurses-libs ncurses-terminfo-base --repository=http://dl-cdn.alpinelinux.org/alpine/edge/main
-RUN apk upgrade ncurses-libs ncurses-terminfo-base --repository=http://dl-cdn.alpinelinux.org/alpine/edge/main
-RUN apk info -vv | sort
+RUN apk add --no-cache ca-certificates bash tzdata && \
+  apk add --no-cache openssl musl-utils
 
-COPY conf ./conf
+COPY ./grafana/conf ./conf
 
 RUN if [ ! $(getent group "$GF_GID") ]; then \
   addgroup -S -g $GF_GID grafana; \
@@ -83,13 +78,23 @@ RUN export GF_GID_NAME=$(getent group $GF_GID | cut -d':' -f1) && \
   chown -R "grafana:$GF_GID_NAME" "$GF_PATHS_DATA" "$GF_PATHS_HOME/.aws" "$GF_PATHS_LOGS" "$GF_PATHS_PLUGINS" "$GF_PATHS_PROVISIONING" && \
   chmod -R 777 "$GF_PATHS_DATA" "$GF_PATHS_HOME/.aws" "$GF_PATHS_LOGS" "$GF_PATHS_PLUGINS" "$GF_PATHS_PROVISIONING"
 
-COPY --from=go-builder /grafana/bin/*/grafana-server /grafana/bin/*/grafana-cli ./bin/
-COPY --from=js-builder /grafana/public ./public
-COPY --from=js-builder /grafana/tools ./tools
+COPY --from=go-builder /go/src/github.com/grafana/grafana/bin/*/grafana-server /go/src/github.com/grafana/grafana/bin/*/grafana-cli ./bin/
+COPY --from=js-builder /usr/src/app/public ./public
+COPY --from=js-builder /usr/src/app/tools ./tools
+
+# LOGZ.IO GRAFANA CHANGE :: Copy custom.ini
+COPY custom.ini conf/custom.ini
+RUN cp "$GF_PATHS_HOME/conf/custom.ini" "$GF_PATHS_CONFIG"
+# LOGZ.IO GRAFANA CHANGE :: Preinstall plugins
+COPY ./grafana/data/plugins "$GF_PATHS_PLUGINS"
+# LOGZ.IO GRAFANA CHANGE :: Remove news panel
+RUN rm -rf ./public/app/plugins/panel/news
+# LOGZ.IO GRAFANA CHANGE :: Remove pluginlist panel
+RUN rm -rf ./public/app/plugins/panel/pluginlist
 
 EXPOSE 3000
 
-COPY ./packaging/docker/run.sh /run.sh
+COPY ./grafana/packaging/docker/run.sh /run.sh
 
 USER grafana
 ENTRYPOINT [ "/run.sh" ]

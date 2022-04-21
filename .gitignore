@@ -19,6 +19,8 @@ vendor/
 /requests
 
 # Yarn
+# LOGZ.IO GRAFANA CHANGE :: add yarnrc to git
+!.yarnrc
 .yarn/*
 !.yarn/patches
 !.yarn/releases
@@ -67,7 +69,11 @@ public/css/*.min.css
 .eslintcache
 .stylelintcache
 
-/data/*
+# LOGZ.IO GRAFANA CHANGE :: keep data for preinstalled plugins
+# /data/*
+/data/log
+/data/alerting
+# LOGZ.IO GRAFANA CHANGE :: end
 /bin/*
 
 # devenv
@@ -163,4 +169,5 @@ public/locales/_build/
 public/locales/**/*.js
 
 deployment_tools_config.json
-
+# LOGZ.IO GRAFANA CHANGE :: exclude dist from .gitignore
+!packages/grafana-schema/src/scuemata/dashboard/dist

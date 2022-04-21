@@ -106,6 +106,7 @@ type HTTPServer struct {
 	ContextHandler            *contexthandler.ContextHandler
 	SQLStore                  *sqlstore.SQLStore
 	AlertEngine               *alerting.AlertEngine
+	AlertEvaluatorEngine      *alerting.AlertEvaluatorEngine
 	LoadSchemaService         *schemaloader.SchemaLoaderService
 	AlertNG                   *ngalert.AlertNG
 	LibraryPanelService       librarypanels.Service
@@ -132,7 +133,7 @@ type ServerOptions struct {
 
 func ProvideHTTPServer(opts ServerOptions, cfg *setting.Cfg, routeRegister routing.RouteRegister, bus bus.Bus,
 	renderService rendering.Service, licensing models.Licensing, hooksService *hooks.HooksService,
-	cacheService *localcache.CacheService, sqlStore *sqlstore.SQLStore, alertEngine *alerting.AlertEngine,
+	cacheService *localcache.CacheService, sqlStore *sqlstore.SQLStore, alertEngine *alerting.AlertEngine, alertEvaluatorEngine *alerting.AlertEvaluatorEngine,
 	pluginRequestValidator models.PluginRequestValidator, pluginStaticRouteResolver plugins.StaticRouteResolver,
 	pluginDashboardManager plugins.PluginDashboardManager, pluginStore plugins.Store, pluginClient plugins.Client,
 	pluginErrorResolver plugins.ErrorResolver, settingsProvider setting.Provider,
@@ -163,6 +164,7 @@ func ProvideHTTPServer(opts ServerOptions, cfg *setting.Cfg, routeRegister routi
 		CacheService:              cacheService,
 		SQLStore:                  sqlStore,
 		AlertEngine:               alertEngine,
+		AlertEvaluatorEngine:      alertEvaluatorEngine,
 		PluginRequestValidator:    pluginRequestValidator,
 		pluginClient:              pluginClient,
 		pluginStore:               pluginStore,

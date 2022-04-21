@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/grafana/grafana/pkg/services/ngalert/eval"
 	"regexp"
 
 	"github.com/grafana/grafana/pkg/tsdb/prometheus/promclient"
@@ -33,9 +34,15 @@ type Service struct {
 
 func ProvideService(httpClientProvider httpclient.Provider, tracer tracing.Tracer) *Service {
 	plog.Debug("initializing")
+	// LOGZ.IO GRAFANA CHANGE :: DEV-31493 Override datasource URL on alert evaluation
+	ip := &eval.LogzioInstanceProvider{
+		Delegate: datasource.NewInstanceProvider(newInstanceSettings(httpClientProvider)),
+	}
+	im := instancemgmt.New(ip)
+	// LOGZ.IO GRAFANA CHANGE :: end
 	return &Service{
 		intervalCalculator: intervalv2.NewCalculator(),
-		im:                 datasource.NewInstanceManager(newInstanceSettings(httpClientProvider)),
+		im:                 im, // LOGZ.IO GRAFANA CHANGE :: DEV-31493 Override datasource URL on alert evaluation
 		tracer:             tracer,
 	}
 }

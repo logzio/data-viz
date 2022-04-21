@@ -12,12 +12,17 @@ export enum DataSourceType {
   Prometheus = 'prometheus',
 }
 
-export const RulesDataSourceTypes: string[] = [DataSourceType.Loki, DataSourceType.Prometheus];
+//LOGZ.IO GRAFANA CHANGE :: Disable fetching of rules from Prometheus(M3) datasources
+// export const RulesDataSourceTypes: string[] = [DataSourceType.Loki, DataSourceType.Prometheus];
+//LOGZ.IO GRAFANA CHANGE :: end
 
-export function getRulesDataSources() {
-  return getAllDataSources()
-    .filter((ds) => RulesDataSourceTypes.includes(ds.type) && ds.jsonData.manageAlerts !== false)
-    .sort((a, b) => a.name.localeCompare(b.name));
+export function getRulesDataSources(): Array<DataSourceInstanceSettings<DataSourceJsonData>> {
+  //LOGZ.IO GRAFANA CHANGE :: DEV-31356: Disable fetching of rules from Prometheus(M3) datasources
+  // return getAllDataSources()
+  //   .filter((ds) => RulesDataSourceTypes.includes(ds.type) && ds.jsonData.manageAlerts !== false)
+  //   .sort((a, b) => a.name.localeCompare(b.name));
+  return [];
+  //LOGZ.IO GRAFANA CHANGE :: end
 }
 
 export function getAlertManagerDataSources() {

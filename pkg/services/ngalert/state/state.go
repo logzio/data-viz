@@ -184,5 +184,5 @@ func (a *State) setEndsAt(alertRule *ngModels.AlertRule, result eval.Result) {
 		ends = time.Second * time.Duration(alertRule.IntervalSeconds)
 	}
 
-	a.EndsAt = result.EvaluatedAt.Add(ends * 3)
+	a.EndsAt = result.EvaluatedAt.Add(ends * 10) //LOGZ.IO GRAFANA CHANGE :: Increase interval to keep last state of alert
 }

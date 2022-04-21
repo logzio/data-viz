@@ -1,7 +1,6 @@
 package alerting
 
 import (
-	"context"
 	"errors"
 	"time"
 
@@ -51,11 +50,12 @@ func (handler *defaultResultHandler) handle(evalContext *EvalContext) error {
 		handler.log.Info("New state change", "ruleId", evalContext.Rule.ID, "newState", evalContext.Rule.State, "prev state", evalContext.PrevAlertState)
 
 		cmd := &models.SetAlertStateCommand{
-			AlertId:  evalContext.Rule.ID,
-			OrgId:    evalContext.Rule.OrgID,
-			State:    evalContext.Rule.State,
-			Error:    executionError,
-			EvalData: annotationData,
+			AlertId:      evalContext.Rule.ID,
+			OrgId:        evalContext.Rule.OrgID,
+			State:        evalContext.Rule.State,
+			Error:        executionError,
+			EvalData:     annotationData,
+			NewStateDate: evalContext.StartTime, // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - Add NewStateDate
 		}
 
 		if err := bus.Dispatch(evalContext.Ctx, cmd); err != nil {
@@ -77,7 +77,7 @@ func (handler *defaultResultHandler) handle(evalContext *EvalContext) error {
 			evalContext.Rule.StateChanges = cmd.Result.StateChanges
 
 			// Update the last state change of the alert rule in memory
-			evalContext.Rule.LastStateChange = time.Now()
+			evalContext.Rule.LastStateChange = evalContext.StartTime // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - change time.now to the eveltime.
 		}
 
 		// save annotation
@@ -89,7 +89,7 @@ func (handler *defaultResultHandler) handle(evalContext *EvalContext) error {
 			Text:        "",
 			NewState:    string(evalContext.Rule.State),
 			PrevState:   string(evalContext.PrevAlertState),
-			Epoch:       time.Now().UnixNano() / int64(time.Millisecond),
+			Epoch:       evalContext.StartTime.UnixNano() / int64(time.Millisecond), // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - change to StartTime()
 			Data:        annotationData,
 		}
 
@@ -99,6 +99,8 @@ func (handler *defaultResultHandler) handle(evalContext *EvalContext) error {
 		}
 	}
 
+	// LOGZ.IO GRAFANA CHANGE :: DEV-17992 - Remove notify send after alert evaluate
+	/*
 	if err := handler.notifier.SendIfNeeded(evalContext); err != nil {
 		switch {
 		case errors.Is(err, context.Canceled):
@@ -109,6 +111,8 @@ func (handler *defaultResultHandler) handle(evalContext *EvalContext) error {
 			handler.log.Error("handler.notifier.SendIfNeeded failed", "err", err)
 		}
 	}
+	*/
+	// LOGZ.IO GRAFANA CHANGE :: DEV-17992 - end
 
 	return nil
 }

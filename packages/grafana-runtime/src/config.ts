@@ -4,6 +4,7 @@ import {
   createTheme,
   DataSourceInstanceSettings,
   FeatureToggles,
+  logzioConfigs, // LOGZ.IO GRAFANA CHANGE :: DEV-20247 Use logzio provider
   GrafanaConfig,
   GrafanaTheme,
   GrafanaTheme2,
@@ -14,6 +15,8 @@ import {
   systemDateFormats,
   SystemDateFormatSettings,
 } from '@grafana/data';
+
+import { changeDatasourceLogos } from './changeDatasourceLogos.logzio'; // LOGZ.IO GRAFANA CHANGE :: DEV-19985: add datasource logos
 
 export interface AzureSettings {
   cloud?: string;
@@ -123,7 +126,15 @@ export class GrafanaBootConfig implements GrafanaConfig {
       disableSanitizeHtml: false,
     };
 
-    merge(this, defaults, options);
+    // LOGZ.IO GRAFANA CHANGE :: DEV-19985: add datasource logos
+    changeDatasourceLogos(options.datasources);
+
+    // LOGZ.IO GRAFANA CHANGE :: Add logzio presets to grafana config
+    if (Object.keys(logzioConfigs).length === 0) {
+      console.error('Error loading logzioConfigs');
+    }
+    merge(this, defaults, options, logzioConfigs);
+    // LOGZ.IO GRAFANA CHANGE :: end
 
     if (this.dateFormats) {
       systemDateFormats.update(this.dateFormats);
@@ -136,6 +147,20 @@ const bootData = (window as any).grafanaBootData || {
   user: {},
   navTree: [],
 };
+
+// LOGZ.IO GRAFANA CHANGE :: DEV-26843: add datasource logos
+const isPanelEnabled = (window as any).logzio?.configs?.featureFlags?.grafanaFlowchartingPanel;
+
+const panels = bootData?.settings?.panels;
+
+if (panels && !isPanelEnabled) {
+  const filteredPanels = Object.fromEntries(
+    Object.entries(panels).filter(([key]) => key !== 'agenty-flowcharting-panel')
+  );
+
+  bootData.settings.panels = filteredPanels;
+}
+// LOGZ.IO GRAFANA CHANGE :: end
 
 const options = bootData.settings;
 options.bootData = bootData;

@@ -1,7 +1,7 @@
 import { CombinedRuleNamespace } from 'app/types/unified-alerting';
 import React, { FC, useMemo } from 'react';
 import { isCloudRulesSource, isGrafanaRulesSource } from '../../utils/datasource';
-import { CloudRules } from './CloudRules';
+// import { CloudRules } from './CloudRules'; // LOGZ.IO Changes
 import { GrafanaRules } from './GrafanaRules';
 
 interface Props {
@@ -10,7 +10,7 @@ interface Props {
 }
 
 export const RuleListGroupView: FC<Props> = ({ namespaces, expandAll }) => {
-  const [grafanaNamespaces, cloudNamespaces] = useMemo(() => {
+  const [grafanaNamespaces /*, cloudNamespaces LOGZ.IO Change */] = useMemo(() => {
     const sorted = namespaces
       .map((namespace) => ({
         ...namespace,
@@ -26,7 +26,7 @@ export const RuleListGroupView: FC<Props> = ({ namespaces, expandAll }) => {
   return (
     <>
       <GrafanaRules namespaces={grafanaNamespaces} expandAll={expandAll} />
-      <CloudRules namespaces={cloudNamespaces} expandAll={expandAll} />
+      {/* <CloudRules namespaces={cloudNamespaces} expandAll={expandAll} /> // LOGZ.IO Changes */}
     </>
   );
 };
