@@ -29,9 +29,9 @@ import (
 //go:generate mockery --name Evaluator --structname FakeEvaluator --inpackage --filename evaluator_mock.go --with-expecter
 type Evaluator interface {
 	// ConditionEval executes conditions and evaluates the result.
-	ConditionEval(condition *models.Condition, now time.Time, expressionService *expr.Service) (Results, error)
+	ConditionEval(condition *models.Condition, now time.Time, expressionService *expr.Service, ctx *models.LogzioAlertRuleEvalContext) (Results, error)
 	// QueriesAndExpressionsEval executes queries and expressions and returns the result.
-	QueriesAndExpressionsEval(orgID int64, data []models.AlertQuery, now time.Time, expressionService *expr.Service) (*backend.QueryDataResponse, error)
+	QueriesAndExpressionsEval(orgID int64, data []models.AlertQuery, now time.Time, expressionService *expr.Service, logzIoHeaders http.Header) (*backend.QueryDataResponse, error)
 }
 
 type evaluatorImpl struct {
@@ -601,11 +601,11 @@ func (evalResults Results) AsDataFrame() data.Frame {
 }
 
 // ConditionEval executes conditions and evaluates the result.
-func (e *Evaluator) ConditionEval(condition *models.Condition, now time.Time, expressionService *expr.Service, ctx *models.LogzioAlertRuleEvalContext) (Results, error) { // LOGZ.IO GRAFANA CHANGES
-	alertCtx, cancelFn := context.WithTimeout(context.Background(), e.Cfg.UnifiedAlerting.EvaluationTimeout)
+func (e *evaluatorImpl) ConditionEval(condition *models.Condition, now time.Time, expressionService *expr.Service, ctx *models.LogzioAlertRuleEvalContext) (Results, error) { // LOGZ.IO GRAFANA CHANGES
+	alertCtx, cancelFn := context.WithTimeout(context.Background(), e.cfg.UnifiedAlerting.EvaluationTimeout)
 	defer cancelFn()
 
-	alertExecCtx := AlertExecCtx{OrgID: condition.OrgID, Ctx: alertCtx, ExpressionsEnabled: e.Cfg.ExpressionsEnabled, Log: e.Log, LogzioEvalContext: ctx} // LOGZ.IO GRAFANA CHANGES
+	alertExecCtx := AlertExecCtx{OrgID: condition.OrgID, Ctx: alertCtx, ExpressionsEnabled: e.cfg.ExpressionsEnabled, Log: e.log, LogzioEvalContext: ctx} // LOGZ.IO GRAFANA CHANGES
 
 	execResult := executeCondition(alertExecCtx, condition, now, expressionService, e.dataSourceCache, e.secretsService)
 
@@ -615,11 +615,11 @@ func (e *Evaluator) ConditionEval(condition *models.Condition, now time.Time, ex
 
 // QueriesAndExpressionsEval executes queries and expressions and returns the result.
 func (e *evaluatorImpl) QueriesAndExpressionsEval(orgID int64, data []models.AlertQuery, now time.Time, expressionService *expr.Service, logzIoHeaders http.Header) (*backend.QueryDataResponse, error) { // LOGZ.IO GRAFANA CHANGE :: Upgrade to 8.4.0
-	alertCtx, cancelFn := context.WithTimeout(context.Background(), e.Cfg.UnifiedAlerting.EvaluationTimeout)
+	alertCtx, cancelFn := context.WithTimeout(context.Background(), e.cfg.UnifiedAlerting.EvaluationTimeout)
 	defer cancelFn()
 
 	// LOGZ.IO GRAFANA CHANGE :: Upgrade to 8.4.0
-	alertExecCtx := AlertExecCtx{OrgID: orgID, Ctx: alertCtx, ExpressionsEnabled: e.Cfg.ExpressionsEnabled, Log: e.Log,
+	alertExecCtx := AlertExecCtx{OrgID: orgID, Ctx: alertCtx, ExpressionsEnabled: e.cfg.ExpressionsEnabled, Log: e.log,
 		LogzioEvalContext: &models.LogzioAlertRuleEvalContext{
 			DsOverrideByDsUid: map[string]models.EvaluationDatasourceOverride{},
 			LogzioHeaders:     logzIoHeaders,
