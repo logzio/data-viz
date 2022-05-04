@@ -12,51 +12,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import React from 'react';
 import { css } from '@emotion/css';
 import cx from 'classnames';
-import { DataLinkButton, TextArea, useStyles2 } from '@grafana/ui';
-import { GrafanaTheme2, LinkModel } from '@grafana/data';
+import React from 'react';
 import IoLink from 'react-icons/lib/io/link';
+
+import { GrafanaTheme2, LinkModel } from '@grafana/data';
+import { DataLinkButton, TextArea, useStyles2 } from '@grafana/ui';
+
+import { autoColor } from '../../Theme';
+import { Divider } from '../../common/Divider';
+import LabeledList from '../../common/LabeledList';
+import { SpanLinkFunc, TNil } from '../../types';
+import { TraceKeyValuePair, TraceLink, TraceLog, TraceSpan, TraceSpanReference } from '../../types/trace';
+import { uAlignIcon, ubM0, ubMb1, ubMy1, ubTxRightAlign } from '../../uberUtilityStyles';
+import { formatDuration } from '../utils';
 
 import AccordianKeyValues from './AccordianKeyValues';
 import AccordianLogs from './AccordianLogs';
+import AccordianReferences from './AccordianReferences';
 import AccordianText from './AccordianText';
 import DetailState from './DetailState';
-import { formatDuration } from '../utils';
-import LabeledList from '../../common/LabeledList';
-import { SpanLinkFunc, TNil } from '../../types';
-import { TraceKeyValuePair, TraceLink, TraceLog, TraceSpan } from '../../types/trace';
-import AccordianReferences from './AccordianReferences';
-import { autoColor } from '../../Theme';
-import { UIDivider } from '../../uiElementsContext';
-import {
-  uAlignIcon,
-  ubFlex,
-  ubFlexAuto,
-  ubItemsCenter,
-  ubM0,
-  ubMb1,
-  ubMy1,
-  ubTxRightAlign,
-} from '../../uberUtilityStyles';
 
 const getStyles = (theme: GrafanaTheme2) => {
   return {
-    divider: css`
-      label: divider;
-      background: ${autoColor(theme, '#ddd')};
+    header: css`
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0 1rem;
+      margin-bottom: 0.25rem;
     `,
-    dividerVertical: css`
-      label: dividerVertical;
-      display: block;
-      height: 1px;
-      width: 100%;
-      margin: 24px 0;
-      clear: both;
-      vertical-align: middle;
-      position: relative;
-      top: -0.06em;
+    listWrapper: css`
+      overflow: hidden;
     `,
     debugInfo: css`
       label: debugInfo;
@@ -125,6 +113,7 @@ type SpanDetailProps = {
   traceStartTime: number;
   warningsToggle: (spanID: string) => void;
   stackTracesToggle: (spanID: string) => void;
+  referenceItemToggle: (spanID: string, reference: TraceSpanReference) => void;
   referencesToggle: (spanID: string) => void;
   focusSpan: (uiFind: string) => void;
   createSpanLink?: SpanLinkFunc;
@@ -145,6 +134,7 @@ export default function SpanDetail(props: SpanDetailProps) {
     warningsToggle,
     stackTracesToggle,
     referencesToggle,
+    referenceItemToggle,
     focusSpan,
     createSpanLink,
     createFocusSpanLink,
@@ -154,7 +144,7 @@ export default function SpanDetail(props: SpanDetailProps) {
     isProcessOpen,
     logs: logsState,
     isWarningsOpen,
-    isReferencesOpen,
+    references: referencesState,
     isStackTracesOpen,
   } = detailState;
   const {
@@ -186,6 +176,15 @@ export default function SpanDetail(props: SpanDetailProps) {
       label: 'Start Time:',
       value: formatDuration(relativeStartTime),
     },
+    ...(span.childSpanCount > 0
+      ? [
+          {
+            key: 'child_count',
+            label: 'Child Count:',
+            value: span.childSpanCount,
+          },
+        ]
+      : []),
   ];
   const styles = useStyles2(getStyles);
   const link = createSpanLink?.(span);
@@ -193,14 +192,16 @@ export default function SpanDetail(props: SpanDetailProps) {
 
   return (
     <div>
-      <div className={cx(ubFlex, ubItemsCenter, ubMb1)}>
-        <h2 className={cx(ubFlexAuto, ubM0)}>{operationName}</h2>
-        <LabeledList className={ubTxRightAlign} dividerClassName={styles.divider} items={overviewItems} />
+      <div className={styles.header}>
+        <h2 className={cx(ubM0)}>{operationName}</h2>
+        <div className={styles.listWrapper}>
+          <LabeledList className={ubTxRightAlign} divider={true} items={overviewItems} />
+        </div>
       </div>
       {link ? (
         <DataLinkButton link={{ ...link, title: 'Logs for this span' } as any} buttonProps={{ icon: 'gf-logs' }} />
       ) : null}
-      <UIDivider className={cx(styles.divider, styles.dividerVertical, ubMy1)} />
+      <Divider className={ubMy1} type={'horizontal'} />
       <div>
         <div>
           <AccordianKeyValues
@@ -273,8 +274,10 @@ export default function SpanDetail(props: SpanDetailProps) {
         {references && references.length > 0 && (references.length > 1 || references[0].refType !== 'CHILD_OF') && (
           <AccordianReferences
             data={references}
-            isOpen={isReferencesOpen}
+            isOpen={referencesState.isOpen}
+            openedItems={referencesState.openedItems}
             onToggle={() => referencesToggle(spanID)}
+            onItemToggle={(reference) => referenceItemToggle(spanID, reference)}
             focusSpan={focusSpan}
           />
         )}

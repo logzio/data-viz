@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
-	"time"  // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - import time
+	"time" // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - import time
 
 	"github.com/grafana/grafana/pkg/components/null"
 	"github.com/grafana/grafana/pkg/components/simplejson"
@@ -30,7 +30,7 @@ var (
 )
 
 func (s *AlertNotificationService) HandleNotificationTestCommand(ctx context.Context, cmd *NotificationTestCommand) error {
-	notificationSvc := newNotificationService(nil, nil)
+	notificationSvc := newNotificationService(nil, nil, nil, nil)
 
 	model := models.AlertNotification{
 		Id:       cmd.ID,
@@ -58,8 +58,8 @@ func createTestEvalContext(cmd *NotificationTestCommand) *EvalContext {
 		ID:          rand.Int63(),
 	}
 
-  	// LOGZ.IO GRAFANA CHANGE :: DEV-17927 - Add time.now()
-  	ctx := NewEvalContext(context.Background(), testRule, time.Now(), fakeRequestValidator{})
+	// LOGZ.IO GRAFANA CHANGE :: DEV-17927 - Add time.now()
+	ctx := NewEvalContext(context.Background(), testRule, time.Now(), fakeRequestValidator{}, nil)
 	if cmd.Settings.Get("uploadImage").MustBool(true) {
 		ctx.ImagePublicURL = "https://grafana.com/assets/img/blog/mixed_styles.png"
 	}

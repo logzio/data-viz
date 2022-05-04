@@ -1,14 +1,19 @@
+import { intersectionWith, isEqual } from 'lodash';
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, HorizontalGroup, IconButton } from '@grafana/ui';
+
+import { Button, ConfirmModal, HorizontalGroup, IconButton } from '@grafana/ui';
+import { contextSrv } from 'app/core/services/context_srv';
+
 import { AmRouteReceiver, FormAmRoute } from '../../types/amroutes';
+import { getNotificationsPermissions } from '../../utils/access-control';
+import { matcherFieldToMatcher, parseMatchers } from '../../utils/alertmanager';
 import { prepareItems } from '../../utils/dynamicTable';
 import { DynamicTable, DynamicTableColumnProps, DynamicTableItemProps } from '../DynamicTable';
+import { EmptyArea } from '../EmptyArea';
+import { Matchers } from '../silences/Matchers';
+
 import { AmRoutesExpandedForm } from './AmRoutesExpandedForm';
 import { AmRoutesExpandedRead } from './AmRoutesExpandedRead';
-import { Matchers } from '../silences/Matchers';
-import { matcherFieldToMatcher, parseMatchers } from '../../utils/alertmanager';
-import { intersectionWith, isEqual } from 'lodash';
-import { EmptyArea } from '../EmptyArea';
 
 export interface AmRoutesTableProps {
   isAddMode: boolean;
@@ -18,6 +23,7 @@ export interface AmRoutesTableProps {
   routes: FormAmRoute[];
   filters?: { queryString?: string; contactPoint?: string };
   readOnly?: boolean;
+  alertManagerSourceName: string;
 }
 
 type RouteTableColumnProps = DynamicTableColumnProps<FormAmRoute>;
@@ -44,6 +50,23 @@ export const getFilteredRoutes = (routes: FormAmRoute[], labelMatcherQuery?: str
   return filteredRoutes;
 };
 
+export const updatedRoute = (routes: FormAmRoute[], updatedRoute: FormAmRoute): FormAmRoute[] => {
+  const newRoutes = [...routes];
+  const editIndex = newRoutes.findIndex((route) => route.id === updatedRoute.id);
+
+  if (editIndex >= 0) {
+    newRoutes[editIndex] = {
+      ...newRoutes[editIndex],
+      ...updatedRoute,
+    };
+  }
+  return newRoutes;
+};
+
+export const deleteRoute = (routes: FormAmRoute[], routeToRemove: FormAmRoute): FormAmRoute[] => {
+  return routes.filter((route) => route.id !== routeToRemove.id);
+};
+
 export const AmRoutesTable: FC<AmRoutesTableProps> = ({
   isAddMode,
   onCancelAdd,
@@ -52,9 +75,16 @@ export const AmRoutesTable: FC<AmRoutesTableProps> = ({
   routes,
   filters,
   readOnly = false,
+  alertManagerSourceName,
 }) => {
   const [editMode, setEditMode] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [expandedId, setExpandedId] = useState<string | number>();
+  const permissions = getNotificationsPermissions(alertManagerSourceName);
+  const canEditRoutes = contextSrv.hasPermission(permissions.update);
+  const canDeleteRoutes = contextSrv.hasPermission(permissions.delete);
+
+  const showActions = !readOnly && (canEditRoutes || canDeleteRoutes);
 
   const expandItem = useCallback((item: RouteTableItemProps) => setExpandedId(item.id), []);
   const collapseItem = useCallback(() => setExpandedId(undefined), []);
@@ -64,7 +94,13 @@ export const AmRoutesTable: FC<AmRoutesTableProps> = ({
       id: 'matchingCriteria',
       label: 'Matching labels',
       // eslint-disable-next-line react/display-name
-      renderCell: (item) => <Matchers matchers={item.data.object_matchers.map(matcherFieldToMatcher)} />,
+      renderCell: (item) => {
+        return item.data.object_matchers.length ? (
+          <Matchers matchers={item.data.object_matchers.map(matcherFieldToMatcher)} />
+        ) : (
+          <span>Matches all alert instances</span>
+        );
+      },
       size: 10,
     },
     {
@@ -85,14 +121,14 @@ export const AmRoutesTable: FC<AmRoutesTableProps> = ({
       renderCell: (item) => item.data.muteTimeIntervals.join(', ') || '-',
       size: 5,
     },
-    ...(readOnly
+    ...(!showActions
       ? []
       : [
           {
             id: 'actions',
             label: 'Actions',
             // eslint-disable-next-line react/display-name
-            renderCell: (item, index) => {
+            renderCell: (item) => {
               if (item.renderExpandedContent) {
                 return null;
               }
@@ -103,30 +139,40 @@ export const AmRoutesTable: FC<AmRoutesTableProps> = ({
               };
 
               return (
-                <HorizontalGroup>
-                  <Button
-                    aria-label="Edit route"
-                    icon="pen"
-                    onClick={expandWithCustomContent}
-                    size="sm"
-                    type="button"
-                    variant="secondary"
-                  >
-                    Edit
-                  </Button>
-                  <IconButton
-                    aria-label="Delete route"
-                    name="trash-alt"
-                    onClick={() => {
-                      const newRoutes = [...routes];
-
-                      newRoutes.splice(index, 1);
-
+                <>
+                  <HorizontalGroup>
+                    <Button
+                      aria-label="Edit route"
+                      icon="pen"
+                      onClick={expandWithCustomContent}
+                      size="sm"
+                      type="button"
+                      variant="secondary"
+                    >
+                      Edit
+                    </Button>
+                    <IconButton
+                      aria-label="Delete route"
+                      name="trash-alt"
+                      onClick={() => {
+                        setShowDeleteModal(true);
+                      }}
+                      type="button"
+                    />
+                  </HorizontalGroup>
+                  <ConfirmModal
+                    isOpen={showDeleteModal}
+                    title="Delete notification policy"
+                    body="Deleting this notification policy will permanently remove it. Are you sure you want to delete this policy?"
+                    confirmText="Yes, delete"
+                    icon="exclamation-triangle"
+                    onConfirm={() => {
+                      const newRoutes = deleteRoute(routes, item.data);
                       onChange(newRoutes);
                     }}
-                    type="button"
+                    onDismiss={() => setShowDeleteModal(false)}
                   />
-                </HorizontalGroup>
+                </>
               );
             },
             size: '100px',
@@ -134,21 +180,23 @@ export const AmRoutesTable: FC<AmRoutesTableProps> = ({
         ]),
   ];
 
-  const filteredRoutes = useMemo(() => getFilteredRoutes(routes, filters?.queryString, filters?.contactPoint), [
-    routes,
-    filters,
-  ]);
+  const filteredRoutes = useMemo(
+    () => getFilteredRoutes(routes, filters?.queryString, filters?.contactPoint),
+    [routes, filters]
+  );
 
-  const dynamicTableRoutes = useMemo(() => prepareItems(isAddMode ? routes : filteredRoutes), [
-    isAddMode,
-    routes,
-    filteredRoutes,
-  ]);
+  const dynamicTableRoutes = useMemo(
+    () => prepareItems(isAddMode ? routes : filteredRoutes),
+    [isAddMode, routes, filteredRoutes]
+  );
 
-  // expand the last item when adding
+  // expand the last item when adding or reset when the length changed
   useEffect(() => {
     if (isAddMode && dynamicTableRoutes.length) {
       setExpandedId(dynamicTableRoutes[dynamicTableRoutes.length - 1].id);
+    }
+    if (!isAddMode && dynamicTableRoutes.length) {
+      setExpandedId(undefined);
     }
   }, [isAddMode, dynamicTableRoutes]);
 
@@ -169,7 +217,7 @@ export const AmRoutesTable: FC<AmRoutesTableProps> = ({
       onCollapse={collapseItem}
       onExpand={expandItem}
       isExpanded={(item) => expandedId === item.id}
-      renderExpandedContent={(item: RouteTableItemProps, index) =>
+      renderExpandedContent={(item: RouteTableItemProps) =>
         isAddMode || editMode ? (
           <AmRoutesExpandedForm
             onCancel={() => {
@@ -179,12 +227,8 @@ export const AmRoutesTable: FC<AmRoutesTableProps> = ({
               setEditMode(false);
             }}
             onSave={(data) => {
-              const newRoutes = [...routes];
+              const newRoutes = updatedRoute(routes, data);
 
-              newRoutes[index] = {
-                ...newRoutes[index],
-                ...data,
-              };
               setEditMode(false);
               onChange(newRoutes);
             }}
@@ -194,18 +238,13 @@ export const AmRoutesTable: FC<AmRoutesTableProps> = ({
         ) : (
           <AmRoutesExpandedRead
             onChange={(data) => {
-              const newRoutes = [...routes];
-
-              newRoutes[index] = {
-                ...item.data,
-                ...data,
-              };
-
+              const newRoutes = updatedRoute(routes, data);
               onChange(newRoutes);
             }}
             receivers={receivers}
             routes={item.data}
             readOnly={readOnly}
+            alertManagerSourceName={alertManagerSourceName}
           />
         )
       }

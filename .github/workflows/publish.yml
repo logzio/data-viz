@@ -3,7 +3,7 @@ name: publish_docs
 on:
   push:
     branches:
-    - main
+    - v8.5.x
     paths:
     - 'docs/sources/**'
     - 'packages/grafana-*/**'
@@ -20,7 +20,7 @@ jobs:
       uses: actions/setup-node@v2.5.1
       id: generate-docs
       with:
-        node-version: '14'
+        node-version: '16'
     - name: Get yarn cache directory path
       id: yarn-cache-dir-path
       run: echo "::set-output name=dir::$(yarn config get cacheFolder)"
@@ -41,7 +41,7 @@ jobs:
         host: github.com
         github_pat: '${{ secrets.GH_BOT_ACCESS_TOKEN }}'
         source_folder: docs/sources
-        target_folder: content/docs/grafana/next
+        target_folder: content/docs/grafana/latest
         allow_no_changes: 'true'
     - shell: bash
       run: |

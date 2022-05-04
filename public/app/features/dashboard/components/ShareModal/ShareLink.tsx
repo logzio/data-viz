@@ -1,11 +1,13 @@
 import React, { PureComponent } from 'react';
+
+import { AppEvents, SelectableValue, logzioServices, logzioConfigs } from '@grafana/data'; // LOGZ.IO GRAFANA CHANGE :: DEV-20247 Use logzio provider
 import { selectors as e2eSelectors } from '@grafana/e2e-selectors';
 import { Alert, ClipboardButton, Field, FieldSet, Icon, Input, RadioButtonGroup, Switch } from '@grafana/ui';
-import { AppEvents, SelectableValue, logzioServices, logzioConfigs } from '@grafana/data'; // LOGZ.IO GRAFANA CHANGE :: DEV-20247 Use logzio provider
-import { buildImageUrl, buildShareUrl } from './utils';
-import { appEvents } from 'app/core/core';
 import config from 'app/core/config';
+import { appEvents } from 'app/core/core';
+
 import { ShareModalTabProps } from './types';
+import { buildImageUrl, buildShareUrl } from './utils';
 
 const themeOptions: Array<SelectableValue<string>> = [
   { label: 'Current', value: 'current' },
@@ -51,7 +53,7 @@ export class ShareLink extends PureComponent<Props, State> {
   }
 
   buildUrl = async () => {
-    const { panel } = this.props;
+    const { panel, dashboard } = this.props;
     const { useCurrentTimeRange, useShortUrl, selectedTheme } = this.state;
 
     // LOGZ.IO GRAFANA CHANGE :: DEV-19527 Add await to function call
@@ -62,8 +64,7 @@ export class ShareLink extends PureComponent<Props, State> {
       switchToAccountId: logzioConfigs.account.accountId,
     });
     // LOGZ.IO GRAFANA CHANGE :: end
-
-    const imageUrl = buildImageUrl(useCurrentTimeRange, selectedTheme, panel);
+    const imageUrl = buildImageUrl(useCurrentTimeRange, dashboard.uid, selectedTheme, panel);
 
     this.setState({ shareUrl, imageUrl });
   };

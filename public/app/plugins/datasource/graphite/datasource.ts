@@ -1,7 +1,7 @@
 import { each, indexOf, isArray, isString, map as _map } from 'lodash';
 import { lastValueFrom, Observable, of, OperatorFunction, pipe, throwError } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
-import { getBackendSrv } from '@grafana/runtime';
+
 import {
   DataFrame,
   DataQueryRequest,
@@ -18,11 +18,15 @@ import {
   TimeRange,
   toDataFrame,
 } from '@grafana/data';
-
+import { getBackendSrv } from '@grafana/runtime';
 import { isVersionGtOrEq, SemVersion } from 'app/core/utils/version';
-import gfunc, { FuncDefs, FuncInstance } from './gfunc';
 import { getTemplateSrv, TemplateSrv } from 'app/features/templating/template_srv';
-// Types
+import { getRollupNotice, getRuntimeConsolidationNotice } from 'app/plugins/datasource/graphite/meta';
+
+import { getSearchFilterScopedVar } from '../../../features/variables/utils';
+
+import gfunc, { FuncDefs, FuncInstance } from './gfunc';
+import { default as GraphiteQueryModel } from './graphite_query';
 import {
   GraphiteLokiMapping,
   GraphiteMetricLokiMatcher,
@@ -32,11 +36,8 @@ import {
   GraphiteType,
   MetricTankRequestMeta,
 } from './types';
-import { getRollupNotice, getRuntimeConsolidationNotice } from 'app/plugins/datasource/graphite/meta';
-import { getSearchFilterScopedVar } from '../../../features/variables/utils';
-import { DEFAULT_GRAPHITE_VERSION } from './versions';
 import { reduceError } from './utils';
-import { default as GraphiteQueryModel } from './graphite_query';
+import { DEFAULT_GRAPHITE_VERSION } from './versions';
 
 const GRAPHITE_TAG_COMPARATORS = {
   '=': AbstractLabelOperator.Equal,
@@ -58,7 +59,8 @@ function convertGlobToRegEx(text: string): string {
 
 export class GraphiteDatasource
   extends DataSourceApi<GraphiteQuery, GraphiteOptions, GraphiteQueryImportConfiguration>
-  implements DataSourceWithQueryExportSupport<GraphiteQuery> {
+  implements DataSourceWithQueryExportSupport<GraphiteQuery>
+{
   basicAuth: string;
   url: string;
   name: string;
@@ -327,12 +329,12 @@ export class GraphiteDatasource
     // Graphite metric as annotation
     if (options.annotation.target) {
       const target = this.templateSrv.replace(options.annotation.target, {}, 'glob');
-      const graphiteQuery = ({
+      const graphiteQuery = {
         range: options.range,
         targets: [{ target: target }],
         format: 'json',
         maxDataPoints: 100,
-      } as unknown) as DataQueryRequest<GraphiteQuery>;
+      } as unknown as DataQueryRequest<GraphiteQuery>;
 
       return lastValueFrom(
         this.query(graphiteQuery).pipe(
@@ -416,7 +418,7 @@ export class GraphiteDatasource
   }
 
   targetContainsTemplate(target: GraphiteQuery) {
-    return this.templateSrv.variableExists(target.target ?? '');
+    return this.templateSrv.containsTemplate(target.target ?? '');
   }
 
   translateTime(date: any, roundUp: any, timezone: any) {
@@ -768,6 +770,15 @@ export class GraphiteDatasource
           } else {
             this.funcDefs = gfunc.parseFuncDefs(results.data);
           }
+
+          // When /functions endpoint returns application/json response but containing invalid JSON the fix above
+          // wont' be triggered due to the changes in https://github.com/grafana/grafana/pull/45598 (parsing happens
+          // in fetch and Graphite receives an empty object and no error). In such cases, when the provided JSON
+          // seems empty we fallback to the hardcoded list of functions.
+          // See also: https://github.com/grafana/grafana/issues/45948
+          if (Object.keys(this.funcDefs).length === 0) {
+            this.funcDefs = gfunc.getFuncDefs(this.graphiteVersion);
+          }
           return this.funcDefs;
         }),
         catchError((error: any) => {
@@ -780,7 +791,7 @@ export class GraphiteDatasource
   }
 
   testDatasource() {
-    const query = ({
+    const query = {
       panelId: 3,
       rangeRaw: { from: 'now-1h', to: 'now' },
       range: {
@@ -788,7 +799,7 @@ export class GraphiteDatasource
       },
       targets: [{ target: 'constantLine(100)' }],
       maxDataPoints: 300,
-    } as unknown) as DataQueryRequest<GraphiteQuery>;
+    } as unknown as DataQueryRequest<GraphiteQuery>;
 
     return lastValueFrom(this.query(query)).then(() => ({ status: 'success', message: 'Data source is working' }));
   }

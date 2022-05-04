@@ -12,19 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import React from 'react';
 import { css } from '@emotion/css';
+import React from 'react';
+
+import { GrafanaTheme2, LinkModel } from '@grafana/data';
+import { stylesFactory, withTheme2 } from '@grafana/ui';
+
+import { autoColor } from '../Theme';
+import { SpanLinkFunc } from '../types';
+import { TraceLog, TraceSpan, TraceKeyValuePair, TraceLink, TraceSpanReference } from '../types/trace';
 
 import SpanDetail from './SpanDetail';
 import DetailState from './SpanDetail/DetailState';
 import SpanTreeOffset from './SpanTreeOffset';
 import TimelineRow from './TimelineRow';
-import { autoColor } from '../Theme';
-import { stylesFactory, withTheme2 } from '@grafana/ui';
-import { GrafanaTheme2, LinkModel } from '@grafana/data';
-
-import { TraceLog, TraceSpan, TraceKeyValuePair, TraceLink } from '../types/trace';
-import { SpanLinkFunc } from '../types';
 
 const getStyles = stylesFactory((theme: GrafanaTheme2) => {
   return {
@@ -77,6 +78,7 @@ type SpanDetailRowProps = {
   logItemToggle: (spanID: string, log: TraceLog) => void;
   logsToggle: (spanID: string) => void;
   processToggle: (spanID: string) => void;
+  referenceItemToggle: (spanID: string, reference: TraceSpanReference) => void;
   referencesToggle: (spanID: string) => void;
   warningsToggle: (spanID: string) => void;
   stackTracesToggle: (spanID: string) => void;
@@ -111,6 +113,7 @@ export class UnthemedSpanDetailRow extends React.PureComponent<SpanDetailRowProp
       logItemToggle,
       logsToggle,
       processToggle,
+      referenceItemToggle,
       referencesToggle,
       warningsToggle,
       stackTracesToggle,
@@ -156,6 +159,7 @@ export class UnthemedSpanDetailRow extends React.PureComponent<SpanDetailRowProp
               logItemToggle={logItemToggle}
               logsToggle={logsToggle}
               processToggle={processToggle}
+              referenceItemToggle={referenceItemToggle}
               referencesToggle={referencesToggle}
               warningsToggle={warningsToggle}
               stackTracesToggle={stackTracesToggle}

@@ -1,5 +1,6 @@
 import { ArrayVector, createTheme, FieldType, ThresholdsMode, toDataFrame } from '@grafana/data';
 import { LegendDisplayMode } from '@grafana/schema';
+
 import {
   findNextStateIndex,
   fmtDuration,
@@ -55,11 +56,11 @@ describe('prepare timeline graph', () => {
     expect(field?.values.toArray()).toMatchInlineSnapshot(`
       Array [
         1,
+        1,
         undefined,
-        undefined,
-        undefined,
+        1,
         2,
-        undefined,
+        2,
         null,
         2,
         3,
@@ -178,16 +179,8 @@ describe('prepareTimelineLegendItems', () => {
               },
             },
             values: new ArrayVector([
-              1634092733455,
-              1634092763455,
-              1634092793455,
-              1634092823455,
-              1634092853455,
-              1634092883455,
-              1634092913455,
-              1634092943455,
-              1634092973455,
-              1634093003455,
+              1634092733455, 1634092763455, 1634092793455, 1634092823455, 1634092853455, 1634092883455, 1634092913455,
+              1634092943455, 1634092973455, 1634093003455,
             ]),
             display: (value: string) => ({
               text: value,

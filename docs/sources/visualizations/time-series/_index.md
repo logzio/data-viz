@@ -23,7 +23,7 @@ These options are available whether you are graphing your time series as lines, 
 
 ### Legend calculations
 
-Choose which of the [standard calculations]({{< relref "../../panels/reference-calculation-types.md">}}) to show in the legend. You can have more than one.
+Choose which of the [standard calculations]({{< relref "../../panels/calculation-types.md">}}) to show in the legend. You can have more than one.
 
 ## Graph styles
 
@@ -34,6 +34,15 @@ Use these options to choose how to display your time series data.
 - [Graph time series as points]({{< relref "./graph-time-series-as-points.md" >}})
 - [Graph stacked time series]({{< relref "./graph-time-series-stacking.md" >}})
 - [Graph and color schemes]({{< relref "./graph-color-scheme.md" >}})
+
+### Transform
+
+Use this option to transform the series values without affecting the values shown in the tooltip, context menu, and legend.
+
+- **Negative Y transform -** Flip the results to negative values on the Y axis.
+- **Constant -** Show first value as a constant line.
+
+> **Note:** Transform option is only available as an override.
 
 ## Axis
 

@@ -1,11 +1,13 @@
-import { SelectableValue } from '@grafana/data';
-import { MultiSelect } from '@grafana/ui';
 import React, { FunctionComponent, useMemo } from 'react';
 
-import { Aggregation, QueryEditorRow } from '.';
+import { SelectableValue } from '@grafana/data';
+import { MultiSelect } from '@grafana/ui';
+
 import { INPUT_WIDTH, SYSTEM_LABELS } from '../constants';
 import { labelsToGroupedOptions } from '../functions';
 import { MetricDescriptor, MetricQuery } from '../types';
+
+import { Aggregation, QueryEditorRow } from '.';
 
 export interface Props {
   refId: string;
@@ -24,10 +26,10 @@ export const GroupBy: FunctionComponent<Props> = ({
   variableOptionGroup,
   metricDescriptor,
 }) => {
-  const options = useMemo(() => [variableOptionGroup, ...labelsToGroupedOptions([...groupBys, ...SYSTEM_LABELS])], [
-    groupBys,
-    variableOptionGroup,
-  ]);
+  const options = useMemo(
+    () => [variableOptionGroup, ...labelsToGroupedOptions([...groupBys, ...SYSTEM_LABELS])],
+    [groupBys, variableOptionGroup]
+  );
 
   return (
     <QueryEditorRow

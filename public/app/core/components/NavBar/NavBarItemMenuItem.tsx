@@ -1,15 +1,15 @@
-import React, { ReactElement, useRef, useState } from 'react';
 import { css } from '@emotion/css';
-import { useTheme2 } from '@grafana/ui';
-import { GrafanaTheme2, NavModelItem } from '@grafana/data';
-import { useMenuItem } from '@react-aria/menu';
 import { useFocus, useKeyboard } from '@react-aria/interactions';
-import { TreeState } from '@react-stately/tree';
+import { useMenuItem } from '@react-aria/menu';
 import { mergeProps } from '@react-aria/utils';
+import { TreeState } from '@react-stately/tree';
 import { Node } from '@react-types/shared';
+import React, { ReactElement, useRef, useState } from 'react';
+
+import { GrafanaTheme2, NavModelItem } from '@grafana/data';
+import { useTheme2 } from '@grafana/ui';
 
 import { useNavBarItemMenuContext } from './context';
-import { UpgradeBox } from '../Upgrade/UpgradeBox';
 
 export interface NavBarItemMenuItemProps {
   item: Node<NavModelItem>;
@@ -61,11 +61,6 @@ export function NavBarItemMenuItem({ item, state, onNavigate }: NavBarItemMenuIt
       <li {...mergeProps(menuItemProps, focusProps, keyboardProps)} ref={ref} className={styles.menuItem}>
         {rendered}
       </li>
-      {item.value.highlightText && (
-        <li className={styles.upgradeBoxContainer}>
-          <UpgradeBox text={item.value.highlightText} className={styles.upgradeBox} size={'sm'} />
-        </li>
-      )}
     </>
   );
 }

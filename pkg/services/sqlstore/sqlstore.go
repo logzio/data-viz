@@ -15,7 +15,6 @@ import (
 	_ "github.com/lib/pq"
 	"xorm.io/xorm"
 
-	"github.com/grafana/grafana/pkg/bus"
 	"github.com/grafana/grafana/pkg/infra/fs"
 	"github.com/grafana/grafana/pkg/infra/localcache"
 	"github.com/grafana/grafana/pkg/infra/log"
@@ -44,7 +43,6 @@ type ContextSessionKey struct{}
 
 type SQLStore struct {
 	Cfg          *setting.Cfg
-	Bus          bus.Bus
 	CacheService *localcache.CacheService
 
 	dbCfg                       DatabaseConfig
@@ -56,18 +54,17 @@ type SQLStore struct {
 	tracer                      tracing.Tracer
 }
 
-func ProvideService(cfg *setting.Cfg, cacheService *localcache.CacheService, bus bus.Bus, migrations registry.DatabaseMigrator, tracer tracing.Tracer,
-) (*SQLStore, error) {
+func ProvideService(cfg *setting.Cfg, cacheService *localcache.CacheService, migrations registry.DatabaseMigrator, tracer tracing.Tracer) (*SQLStore, error) {
 	// This change will make xorm use an empty default schema for postgres and
 	// by that mimic the functionality of how it was functioning before
 	// xorm's changes above.
 	xorm.DefaultPostgresSchema = ""
-	s, err := newSQLStore(cfg, cacheService, bus, nil, migrations, tracer)
+	s, err := newSQLStore(cfg, cacheService, nil, migrations, tracer)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := s.Migrate(); err != nil {
+	if err := s.Migrate(cfg.IsFeatureToggleEnabled(featuremgmt.FlagMigrationLocking)); err != nil {
 		return nil, err
 	}
 
@@ -82,11 +79,10 @@ func ProvideServiceForTests(migrations registry.DatabaseMigrator) (*SQLStore, er
 	return initTestDB(migrations, InitTestDBOpt{EnsureDefaultOrgAndUser: true})
 }
 
-func newSQLStore(cfg *setting.Cfg, cacheService *localcache.CacheService, bus bus.Bus, engine *xorm.Engine,
+func newSQLStore(cfg *setting.Cfg, cacheService *localcache.CacheService, engine *xorm.Engine,
 	migrations registry.DatabaseMigrator, tracer tracing.Tracer, opts ...InitTestDBOpt) (*SQLStore, error) {
 	ss := &SQLStore{
 		Cfg:                         cfg,
-		Bus:                         bus,
 		CacheService:                cacheService,
 		log:                         log.New("sqlstore"),
 		skipEnsureDefaultOrgAndUser: false,
@@ -110,28 +106,8 @@ func newSQLStore(cfg *setting.Cfg, cacheService *localcache.CacheService, bus bu
 	dialect = ss.Dialect
 
 	// Init repo instances
-	annotations.SetRepository(&SQLAnnotationRepo{})
+	annotations.SetRepository(&SQLAnnotationRepo{sql: ss})
 	annotations.SetAnnotationCleaner(&AnnotationCleanupService{batchSize: ss.Cfg.AnnotationCleanupJobBatchSize, log: log.New("annotationcleaner")})
-	ss.Bus.SetTransactionManager(ss)
-
-	// Register handlers
-	ss.addUserQueryAndCommandHandlers()
-	ss.addAlertNotificationUidByIdHandler()
-	ss.addPreferencesQueryAndCommandHandlers()
-	ss.addDashboardQueryAndCommandHandlers()
-	ss.addDashboardACLQueryAndCommandHandlers()
-	ss.addQuotaQueryAndCommandHandlers()
-	ss.addOrgUsersQueryAndCommandHandlers()
-	ss.addStarQueryAndCommandHandlers()
-	ss.addAlertQueryAndCommandHandlers()
-	ss.addTempUserQueryAndCommandHandlers()
-	ss.addDashboardVersionQueryAndCommandHandlers()
-	ss.addAPIKeysQueryAndCommandHandlers()
-	ss.addPlaylistQueryAndCommandHandlers()
-	ss.addLoginAttemptQueryAndCommandHandlers()
-	ss.addTeamQueryAndCommandHandlers()
-	ss.addDashboardProvisioningQueryAndCommandHandlers()
-	ss.addOrgQueryAndCommandHandlers()
 
 	// if err := ss.Reset(); err != nil {
 	// 	return nil, err
@@ -157,7 +133,7 @@ func (ss *SQLStore) BuildMigrator() *migrator.Migrator {
 // Migrate performs database migrations.
 // Has to be done in a second phase (after initialization), since other services can register migrations during
 // the initialization phase.
-func (ss *SQLStore) Migrate() error {
+func (ss *SQLStore) Migrate(isDatabaseLockingEnabled bool) error {
 	if ss.dbCfg.SkipMigrations {
 		return nil
 	}
@@ -165,7 +141,7 @@ func (ss *SQLStore) Migrate() error {
 	migrator := migrator.NewMigrator(ss.engine, ss.Cfg)
 	ss.migrations.AddMigration(migrator)
 
-	return migrator.Start()
+	return migrator.Start(isDatabaseLockingEnabled, ss.dbCfg.MigrationLockAttemptTimeout)
 }
 
 // Sync syncs changes to the database.
@@ -447,6 +423,7 @@ func (ss *SQLStore) readConfig() error {
 
 	ss.dbCfg.CacheMode = sec.Key("cache_mode").MustString("private")
 	ss.dbCfg.SkipMigrations = sec.Key("skip_migrations").MustBool()
+	ss.dbCfg.MigrationLockAttemptTimeout = sec.Key("locking_attempt_timeout_sec").MustInt()
 	return nil
 }
 
@@ -465,6 +442,12 @@ var testSQLStoreMutex sync.Mutex
 type InitTestDBOpt struct {
 	// EnsureDefaultOrgAndUser flags whether to ensure that default org and user exist.
 	EnsureDefaultOrgAndUser bool
+	FeatureFlags            []string
+}
+
+var featuresEnabledDuringTests = []string{
+	featuremgmt.FlagDashboardPreviews,
+	featuremgmt.FlagDashboardComments,
 }
 
 // InitTestDBWithMigration initializes the test DB given custom migrations.
@@ -490,12 +473,21 @@ func InitTestDB(t ITestDB, opts ...InitTestDBOpt) *SQLStore {
 func initTestDB(migration registry.DatabaseMigrator, opts ...InitTestDBOpt) (*SQLStore, error) {
 	testSQLStoreMutex.Lock()
 	defer testSQLStoreMutex.Unlock()
+
+	if len(opts) == 0 {
+		opts = []InitTestDBOpt{{EnsureDefaultOrgAndUser: false, FeatureFlags: []string{}}}
+	}
+
+	features := make([]string, len(featuresEnabledDuringTests))
+	copy(features, featuresEnabledDuringTests)
+	for _, opt := range opts {
+		if len(opt.FeatureFlags) > 0 {
+			features = append(features, opt.FeatureFlags...)
+		}
+	}
+
 	if testSQLStore == nil {
 		dbType := migrator.SQLite
-
-		if len(opts) == 0 {
-			opts = []InitTestDBOpt{{EnsureDefaultOrgAndUser: false}}
-		}
 
 		// environment variable present for test db?
 		if db, present := os.LookupEnv("GRAFANA_TEST_DB"); present {
@@ -504,7 +496,14 @@ func initTestDB(migration registry.DatabaseMigrator, opts ...InitTestDBOpt) (*SQ
 
 		// set test db config
 		cfg := setting.NewCfg()
-		cfg.IsFeatureToggleEnabled = func(key string) bool { return false }
+		cfg.IsFeatureToggleEnabled = func(key string) bool {
+			for _, enabledFeature := range features {
+				if enabledFeature == key {
+					return true
+				}
+			}
+			return false
+		}
 		sec, err := cfg.Raw.NewSection("database")
 		if err != nil {
 			return nil, err
@@ -512,7 +511,6 @@ func initTestDB(migration registry.DatabaseMigrator, opts ...InitTestDBOpt) (*SQ
 		if _, err := sec.NewKey("type", dbType); err != nil {
 			return nil, err
 		}
-
 		switch dbType {
 		case "mysql":
 			if _, err := sec.NewKey("connection_string", sqlutil.MySQLTestDB().ConnStr); err != nil {
@@ -549,12 +547,12 @@ func initTestDB(migration registry.DatabaseMigrator, opts ...InitTestDBOpt) (*SQ
 		if err != nil {
 			return nil, err
 		}
-		testSQLStore, err = newSQLStore(cfg, localcache.New(5*time.Minute, 10*time.Minute), bus.GetBus(), engine, migration, tracer, opts...)
+		testSQLStore, err = newSQLStore(cfg, localcache.New(5*time.Minute, 10*time.Minute), engine, migration, tracer, opts...)
 		if err != nil {
 			return nil, err
 		}
 
-		if err := testSQLStore.Migrate(); err != nil {
+		if err := testSQLStore.Migrate(false); err != nil {
 			return nil, err
 		}
 
@@ -577,6 +575,15 @@ func initTestDB(migration registry.DatabaseMigrator, opts ...InitTestDBOpt) (*SQ
 		// temp global var until we get rid of global vars
 		dialect = testSQLStore.Dialect
 		return testSQLStore, nil
+	}
+
+	testSQLStore.Cfg.IsFeatureToggleEnabled = func(key string) bool {
+		for _, enabledFeature := range features {
+			if enabledFeature == key {
+				return true
+			}
+		}
+		return false
 	}
 
 	if err := dialect.TruncateDBTables(); err != nil {
@@ -614,23 +621,24 @@ func IsTestDBMSSQL() bool {
 }
 
 type DatabaseConfig struct {
-	Type             string
-	Host             string
-	Name             string
-	User             string
-	Pwd              string
-	Path             string
-	SslMode          string
-	CaCertPath       string
-	ClientKeyPath    string
-	ClientCertPath   string
-	ServerCertName   string
-	ConnectionString string
-	IsolationLevel   string
-	MaxOpenConn      int
-	MaxIdleConn      int
-	ConnMaxLifetime  int
-	CacheMode        string
-	UrlQueryParams   map[string][]string
-	SkipMigrations   bool
+	Type                        string
+	Host                        string
+	Name                        string
+	User                        string
+	Pwd                         string
+	Path                        string
+	SslMode                     string
+	CaCertPath                  string
+	ClientKeyPath               string
+	ClientCertPath              string
+	ServerCertName              string
+	ConnectionString            string
+	IsolationLevel              string
+	MaxOpenConn                 int
+	MaxIdleConn                 int
+	ConnMaxLifetime             int
+	CacheMode                   string
+	UrlQueryParams              map[string][]string
+	SkipMigrations              bool
+	MigrationLockAttemptTimeout int
 }

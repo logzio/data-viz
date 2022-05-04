@@ -1,4 +1,5 @@
-import { LinkModel, locationUtil } from '@grafana/data'; // LOGZ.IO GRAFANA CHANGE :: DEV-23541 Use the url without the grafana-app part
+import { LinkModel, locationUtil } from '@grafana/data';
+
 import { MenuItemProps } from '../components/Menu/MenuItem';
 import { IconName } from '../types';
 

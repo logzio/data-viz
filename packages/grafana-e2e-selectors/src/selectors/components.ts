@@ -33,7 +33,11 @@ export const Components = {
         seriesCount: 'TestData series count',
         spread: 'TestData spread',
         startValue: 'TestData start value',
+        drop: 'TestData drop values',
       },
+    },
+    DataSourceHttpSettings: {
+      urlInput: 'Datasource HTTP settings url',
     },
     Jaeger: {
       traceIDInput: 'Trace ID',
@@ -167,6 +171,7 @@ export const Components = {
   QueryEditorRow: {
     actionButton: (title: string) => `${title} query operation action`,
     title: (refId: string) => `Query editor row title ${refId}`,
+    container: (refId: string) => `Query editor row ${refId}`,
   },
   AlertTab: {
     content: 'Alert editor tab content',

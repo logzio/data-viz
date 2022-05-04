@@ -63,6 +63,9 @@ func (*OSSMigrations) AddMigration(mg *Migrator) {
 		if mg.Cfg.IsFeatureToggleEnabled(featuremgmt.FlagLiveConfig) {
 			addLiveChannelMigrations(mg)
 		}
+		if mg.Cfg.IsFeatureToggleEnabled(featuremgmt.FlagDashboardPreviews) {
+			addDashboardThumbsMigrations(mg)
+		}
 	}
 	// LOGZ.IO GRAFANA CHANGE :: DEV-30275 - Disable migrations for all alerts
 	//ualert.RerunDashAlertMigration(mg)
@@ -73,6 +76,22 @@ func (*OSSMigrations) AddMigration(mg *Migrator) {
 	//ualert.AddDashboardUIDPanelIDMigration(mg)
 	// LOGZ.IO GRAFANA CHANGE :: end
 	accesscontrol.AddMigration(mg)
+	addQueryHistoryMigrations(mg)
+
+	if mg.Cfg != nil && mg.Cfg.IsFeatureToggleEnabled != nil {
+		if mg.Cfg.IsFeatureToggleEnabled(featuremgmt.FlagAccesscontrol) {
+			accesscontrol.AddTeamMembershipMigrations(mg)
+			accesscontrol.AddDashboardPermissionsMigrator(mg)
+		}
+	}
+	addQueryHistoryStarMigrations(mg)
+
+	if mg.Cfg != nil && mg.Cfg.IsFeatureToggleEnabled != nil {
+		if mg.Cfg.IsFeatureToggleEnabled(featuremgmt.FlagDashboardComments) || mg.Cfg.IsFeatureToggleEnabled(featuremgmt.FlagAnnotationComments) {
+			addCommentGroupMigrations(mg)
+			addCommentMigrations(mg)
+		}
+	}
 }
 
 func addMigrationLogMigrations(mg *Migrator) {

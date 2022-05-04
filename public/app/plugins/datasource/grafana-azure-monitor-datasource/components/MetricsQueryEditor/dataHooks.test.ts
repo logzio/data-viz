@@ -1,9 +1,9 @@
 import { renderHook } from '@testing-library/react-hooks';
-import { MockedObjectDeep } from 'ts-jest/dist/utils/testing';
 
 import createMockDatasource from '../../__mocks__/datasource';
 import Datasource from '../../datasource';
 import { AzureMetricQuery, AzureMonitorOption, AzureMonitorQuery, AzureQueryType } from '../../types';
+
 import {
   DataHook,
   updateSubscriptions,
@@ -282,7 +282,7 @@ describe('AzureMonitor: metrics dataHooks', () => {
     },
   ];
 
-  let datasource: MockedObjectDeep<Datasource>;
+  let datasource: Datasource;
   let onChange: jest.Mock<any, any>;
   let setError: jest.Mock<any, any>;
 

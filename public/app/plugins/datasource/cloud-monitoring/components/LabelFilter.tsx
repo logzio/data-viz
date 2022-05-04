@@ -1,13 +1,15 @@
-import { SelectableValue, toOption } from '@grafana/data';
-import { Button, HorizontalGroup, Select, VerticalGroup } from '@grafana/ui';
-import { CustomControlProps } from '@grafana/ui/src/components/Select/types';
 import { flatten } from 'lodash';
 import React, { FunctionComponent, useCallback, useMemo } from 'react';
 
-import { QueryEditorRow } from '.';
+import { SelectableValue, toOption } from '@grafana/data';
+import { Button, HorizontalGroup, Select, VerticalGroup } from '@grafana/ui';
+import { CustomControlProps } from '@grafana/ui/src/components/Select/types';
+
 import { SELECT_WIDTH } from '../constants';
 import { labelsToGroupedOptions, stringArrayToFilters } from '../functions';
 import { Filter } from '../types';
+
+import { QueryEditorRow } from '.';
 
 export interface Props {
   labels: { [key: string]: string[] };
@@ -41,10 +43,10 @@ export const LabelFilter: FunctionComponent<Props> = ({
   variableOptionGroup,
 }) => {
   const filters = useMemo(() => stringArrayToFilters(filterArray), [filterArray]);
-  const options = useMemo(() => [variableOptionGroup, ...labelsToGroupedOptions(Object.keys(labels))], [
-    labels,
-    variableOptionGroup,
-  ]);
+  const options = useMemo(
+    () => [variableOptionGroup, ...labelsToGroupedOptions(Object.keys(labels))],
+    [labels, variableOptionGroup]
+  );
 
   const filtersToStringArray = useCallback((filters: Filter[]) => {
     const strArr = flatten(filters.map(({ key, operator, value, condition }) => [key, operator, value, condition!]));

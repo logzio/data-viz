@@ -14,7 +14,7 @@ Grafana has default and custom configuration files. You can customize your Grafa
 
 ## Configuration file location
 
-The default settings for a Grafana instance are stored in the `$WORKING_DIR/conf/defaults.ini` file. _Do not_ change the location in this file.
+The default settings for a Grafana instance are stored in the `$WORKING_DIR/conf/defaults.ini` file. _Do not_ change this file.
 
 Depending on your OS, your custom configuration file is either the `$WORKING_DIR/conf/defaults.ini` file or the `/usr/local/etc/grafana/grafana.ini` file. The custom configuration file path can be overridden using the `--config` parameter.
 
@@ -202,6 +202,8 @@ Another way is to put a web server like Nginx or Apache in front of Grafana and 
 
 ### domain
 
+This setting is only used in as a part of the `root_url` setting (see below). Important if you use GitHub or Google OAuth.
+
 ### enforce_domain
 
 Redirect to correct domain if the host header does not match the domain. Prevents DNS rebinding attacks. Default is `false`.
@@ -314,6 +316,10 @@ The maximum number of open connections to the database.
 
 Sets the maximum amount of time a connection may be reused. The default is 14400 (which means 14400 seconds or 4 hours). For MySQL, this setting should be shorter than the [`wait_timeout`](https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_wait_timeout) variable.
 
+### locking_attempt_timeout_sec
+
+For "mysql", if `lockingMigration` feature toggle is set, specify the time (in seconds) to wait before failing to lock the database for the migrations. Default is 0.
+
 ### log_queries
 
 Set to `true` to log the sql calls and execution times.
@@ -356,6 +362,8 @@ Defaults to `private`.
 <hr />
 
 ## [remote_cache]
+
+Caches authentication details and session information in the configured database, Redis or Memcached. This setting does not configure [Query Caching in Grafana Enterprise]({{< relref "../enterprise/query-caching.md" >}}).
 
 ### type
 
@@ -453,7 +461,13 @@ value is `true`.
 
 ### check_for_updates
 
-Set to false to disable all checks to https://grafana.com for new versions of installed plugins and to the Grafana GitHub repository to check for a newer version of Grafana. The version information is used in some UI views to notify that a new Grafana update or a plugin update exists. This option does not cause any auto updates, nor send any sensitive information. The check is run every 10 minutes.
+Set to false, disables checking for new versions of Grafana from Grafana's GitHub repository. When enabled, the check for a new version runs every 10 minutes. It will notify, via the UI, when a new version is available. The check itself will not prompt any auto-updates of the Grafana software, nor will it send any sensitive information.
+
+### check_for_plugin_updates
+
+> **Note**: Available in Grafana v8.5.0 and later versions.
+
+Set to false disables checking for new versions of installed plugins from https://grafana.com. When enabled, the check for a new plugin runs every 10 minutes. It will notify, via the UI, when a new plugin update exists. The check itself will not prompt any auto-updates of the plugin, nor will it send any sensitive information.
 
 ### google_analytics_ua_id
 
@@ -494,6 +508,10 @@ If you want to track Grafana usage via Azure Application Insights, then specify 
     	Optionally, use this option to override the default endpoint address for Application Insights data collecting. For details, refer to the [Azure documentation](https://docs.microsoft.com/en-us/azure/azure-monitor/app/custom-endpoints?tabs=js).
 
 <hr />
+
+### enable_feedback_links
+
+If set to false will remove all feedback links from the UI. Defaults to true.
 
 ## [security]
 
@@ -578,6 +596,21 @@ Set Content Security Policy template used when adding the Content-Security-Polic
 
 <hr />
 
+### angular_support_enabled
+
+This currently defaults to `true` but will in Grafana v9 default to `false`. When set to false the angular framework and support components will not be loaded. This means that
+all plugins and core features that depend on angular support will stop working.
+
+Current core features that will stop working:
+
+- Heatmap panel
+- Old graph panel
+- Old table panel
+- Postgres, MySQL and MSSQL data source query editors
+- Legacy alerting edit rule UI
+
+Before we disable angular support by default we plan to migrate these remaining areas to React.
+
 ## [snapshots]
 
 ### external_enabled
@@ -631,7 +664,7 @@ Path to the default home dashboard. If this value is empty, then Grafana uses St
 
 Set to `false` to prohibit users from being able to sign up / create
 user accounts. Default is `false`. The admin user can still create
-users from the [Grafana Admin Pages]({{< relref "../manage-users/server-admin/server-admin-manage-users.md" >}}).
+users. For more information about creating a user, refer to [Add a user]({{< relref "../administration/manage-users-and-permissions/manage-server-users/add-user.md" >}}).
 
 ### allow_org_create
 
@@ -747,6 +780,12 @@ This setting is ignored if multiple OAuth providers are configured. Default is `
 How many seconds the OAuth state cookie lives before being deleted. Default is `600` (seconds)
 Administrators can increase this if they experience OAuth login state mismatch errors.
 
+### oauth_skip_org_role_update_sync
+
+Skip forced assignment of OrgID `1` or `auto_assign_org_id` for external logins. Default is `false`.
+Use this setting to distribute users with external login to multiple organizations.
+Otherwise, the users' organization would get reset on every new login, for example, via AzureAD.
+
 ### api_key_max_seconds_to_live
 
 Limit of API key seconds to live before expiration. Default is -1 (unlimited).
@@ -756,6 +795,12 @@ Limit of API key seconds to live before expiration. Default is -1 (unlimited).
 > Only available in Grafana 7.3+.
 
 Set to `true` to enable the AWS Signature Version 4 Authentication option for HTTP-based datasources. Default is `false`.
+
+### sigv4_verbose_logging
+
+> Only available in Grafana 8.4+.
+
+Set to `true` to enable verbose request signature logging when AWS Signature Version 4 Authentication is enabled. Default is `false`.
 
 <hr />
 
@@ -1309,6 +1354,22 @@ For more information about this feature, refer to [Explore]({{< relref "../explo
 ### enabled
 
 Enable or disable the Explore section. Default is `enabled`.
+
+## [help]
+
+Configures the help section.
+
+### enabled
+
+Enable or disable the Help section. Default is `enabled`.
+
+## [profile]
+
+Configures the Profile section.
+
+### enabled
+
+Enable or disable the Profile section. Default is `enabled`.
 
 ## [metrics]
 

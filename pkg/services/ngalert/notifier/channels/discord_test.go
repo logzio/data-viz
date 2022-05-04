@@ -3,6 +3,7 @@ package channels
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/url"
 	"testing"
 
@@ -97,7 +98,15 @@ func TestDiscordNotifier(t *testing.T) {
 		{
 			name:         "Error in initialization",
 			settings:     `{}`,
-			expInitError: `failed to validate receiver "discord_testing" of type "discord": could not find webhook url property in settings`,
+			expInitError: `could not find webhook url property in settings`,
+		},
+		{
+			name: "Invalid template returns error",
+			settings: `{
+				"url": "http://localhost",
+				"message": "{{ template \"invalid.template\" }}"
+			}`,
+			expMsgError: errors.New("template: :1:12: executing \"\" at <{{template \"invalid.template\"}}>: template \"invalid.template\" not defined"),
 		},
 		{
 			name: "Default config with one alert, use default discord username",
@@ -142,7 +151,7 @@ func TestDiscordNotifier(t *testing.T) {
 			}
 
 			webhookSender := mockNotificationService()
-			dn, err := NewDiscordNotifier(m, webhookSender, tmpl)
+			cfg, err := NewDiscordConfig(m)
 			if c.expInitError != "" {
 				require.Equal(t, c.expInitError, err.Error())
 				return
@@ -151,6 +160,7 @@ func TestDiscordNotifier(t *testing.T) {
 
 			ctx := notify.WithGroupKey(context.Background(), "alertname")
 			ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
+			dn := NewDiscordNotifier(cfg, webhookSender, tmpl)
 			ok, err := dn.Notify(ctx, c.alerts...)
 			if c.expMsgError != nil {
 				require.False(t, ok)

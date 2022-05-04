@@ -1,20 +1,24 @@
+import { css, cx } from '@emotion/css';
+import { cloneDeep } from 'lodash';
 import React, { useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import { useLocation } from 'react-router-dom';
-import { css, cx } from '@emotion/css';
-import { cloneDeep } from 'lodash';
+
 import { GrafanaTheme2, NavModelItem, NavSection } from '@grafana/data';
-import { Icon, IconName, useTheme2 } from '@grafana/ui';
 import { locationService } from '@grafana/runtime';
+import { Icon, IconName, useTheme2 } from '@grafana/ui';
 import { Branding } from 'app/core/components/Branding/Branding';
 import config from 'app/core/config';
-import { StoreState, KioskMode } from 'app/types';
-import { enrichConfigItems, getActiveItem, isMatchOrChildMatch, isSearchActive, SEARCH_ITEM_ID } from './utils';
+import { getKioskMode } from 'app/core/navigation/kiosk';
+import { KioskMode, StoreState } from 'app/types';
+
 import { OrgSwitcher } from '../OrgSwitcher';
+
 import NavBarItem from './NavBarItem';
-import { NavBarSection } from './NavBarSection';
-import { NavBarMenu } from './NavBarMenu';
 import { NavBarItemWithoutMenu } from './NavBarItemWithoutMenu';
+import { NavBarMenu } from './NavBarMenu';
+import { NavBarSection } from './NavBarSection';
+import { enrichConfigItems, getActiveItem, isMatchOrChildMatch, isSearchActive, SEARCH_ITEM_ID } from './utils';
 
 const homeUrl = config.appSubUrl || '/';
 
@@ -43,8 +47,7 @@ export const NavBarUnconnected = React.memo(({ navBarTree }: Props) => {
   const theme = useTheme2();
   const styles = getStyles(theme);
   const location = useLocation();
-  const query = new URLSearchParams(location.search);
-  const kiosk = query.get('kiosk') as KioskMode;
+  const kiosk = getKioskMode();
   const [showSwitcherModal, setShowSwitcherModal] = useState(false);
   const toggleSwitcherModal = () => {
     setShowSwitcherModal(!showSwitcherModal);
@@ -60,7 +63,7 @@ export const NavBarUnconnected = React.memo(({ navBarTree }: Props) => {
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  if (kiosk !== null) {
+  if (kiosk !== KioskMode.Off) {
     return null;
   }
 

@@ -104,9 +104,91 @@ func TestTeamsNotifier(t *testing.T) {
 			},
 			expMsgError: nil,
 		}, {
+			name: "Missing field in template",
+			settings: `{
+				"url": "http://localhost",
+				"message": "I'm a custom template {{ .NotAField }} bad template"
+			}`,
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"ann1": "annv1"},
+					},
+				}, {
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val2"},
+						Annotations: model.LabelSet{"ann1": "annv2"},
+					},
+				},
+			},
+			expMsg: map[string]interface{}{
+				"@type":      "MessageCard",
+				"@context":   "http://schema.org/extensions",
+				"summary":    "[FIRING:2]  ",
+				"title":      "[FIRING:2]  ",
+				"themeColor": "#D63232",
+				"sections": []map[string]interface{}{
+					{
+						"title": "Details",
+						"text":  "I'm a custom template ",
+					},
+				},
+				"potentialAction": []map[string]interface{}{
+					{
+						"@context": "http://schema.org",
+						"@type":    "OpenUri",
+						"name":     "View Rule",
+						"targets":  []map[string]interface{}{{"os": "default", "uri": "http://localhost/alerting/list"}},
+					},
+				},
+			},
+			expMsgError: nil,
+		}, {
+			name: "Invalid template",
+			settings: `{
+				"url": "http://localhost",
+				"message": "I'm a custom template {{ {.NotAField }} bad template"
+			}`,
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"ann1": "annv1"},
+					},
+				}, {
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val2"},
+						Annotations: model.LabelSet{"ann1": "annv2"},
+					},
+				},
+			},
+			expMsg: map[string]interface{}{
+				"@type":      "MessageCard",
+				"@context":   "http://schema.org/extensions",
+				"summary":    "[FIRING:2]  ",
+				"title":      "[FIRING:2]  ",
+				"themeColor": "#D63232",
+				"sections": []map[string]interface{}{
+					{
+						"title": "Details",
+						"text":  "",
+					},
+				},
+				"potentialAction": []map[string]interface{}{
+					{
+						"@context": "http://schema.org",
+						"@type":    "OpenUri",
+						"name":     "View Rule",
+						"targets":  []map[string]interface{}{{"os": "default", "uri": "http://localhost/alerting/list"}},
+					},
+				},
+			},
+			expMsgError: nil,
+		}, {
 			name:         "Error in initing",
 			settings:     `{}`,
-			expInitError: `failed to validate receiver "teams_testing" of type "teams": could not find url property in settings`,
+			expInitError: `could not find url property in settings`,
 		},
 	}
 
@@ -122,7 +204,7 @@ func TestTeamsNotifier(t *testing.T) {
 			}
 
 			webhookSender := mockNotificationService()
-			pn, err := NewTeamsNotifier(m, webhookSender, tmpl)
+			cfg, err := NewTeamsConfig(m)
 			if c.expInitError != "" {
 				require.Error(t, err)
 				require.Equal(t, c.expInitError, err.Error())
@@ -132,6 +214,7 @@ func TestTeamsNotifier(t *testing.T) {
 
 			ctx := notify.WithGroupKey(context.Background(), "alertname")
 			ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
+			pn := NewTeamsNotifier(cfg, webhookSender, tmpl)
 			ok, err := pn.Notify(ctx, c.alerts...)
 			if c.expMsgError != nil {
 				require.False(t, ok)
@@ -141,6 +224,8 @@ func TestTeamsNotifier(t *testing.T) {
 			}
 			require.True(t, ok)
 			require.NoError(t, err)
+
+			require.NotEmpty(t, webhookSender.Webhook.Url)
 
 			expBody, err := json.Marshal(c.expMsg)
 			require.NoError(t, err)

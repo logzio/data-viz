@@ -1,14 +1,17 @@
-import { AnyAction } from 'redux';
-import { DataSourceSrv, getDataSourceSrv, locationService } from '@grafana/runtime';
-import { ExploreUrlState, serializeStateToUrlParam, SplitOpen, UrlQueryMap } from '@grafana/data';
-import { GetExploreUrlArguments, stopQueryState } from 'app/core/utils/explore';
-import { ExploreId, ExploreItemState, ExploreState } from 'app/types/explore';
-import { paneReducer } from './explorePane';
 import { createAction } from '@reduxjs/toolkit';
-import { getUrlStateFromPaneState, makeExplorePaneState } from './utils';
+import { AnyAction } from 'redux';
+
+import { ExploreUrlState, serializeStateToUrlParam, SplitOpen, UrlQueryMap } from '@grafana/data';
+import { DataSourceSrv, getDataSourceSrv, locationService } from '@grafana/runtime';
+import { GetExploreUrlArguments, stopQueryState } from 'app/core/utils/explore';
+import { PanelModel } from 'app/features/dashboard/state';
+import { ExploreId, ExploreItemState, ExploreState, RichHistoryQuery } from 'app/types/explore';
+
 import { ThunkResult } from '../../../types';
 import { TimeSrv } from '../../dashboard/services/TimeSrv';
-import { PanelModel } from 'app/features/dashboard/state';
+
+import { paneReducer } from './explorePane';
+import { getUrlStateFromPaneState, makeExplorePaneState } from './utils';
 
 //
 // Actions and Payloads
@@ -19,8 +22,9 @@ export interface SyncTimesPayload {
 }
 export const syncTimesAction = createAction<SyncTimesPayload>('explore/syncTimes');
 
-export const richHistoryUpdatedAction = createAction<any>('explore/richHistoryUpdated');
-export const localStorageFullAction = createAction('explore/localStorageFullAction');
+export const richHistoryUpdatedAction =
+  createAction<{ richHistory: RichHistoryQuery[]; exploreId: ExploreId }>('explore/richHistoryUpdated');
+export const richHistoryStorageFullAction = createAction('explore/richHistoryStorageFullAction');
 export const richHistoryLimitExceededAction = createAction('explore/richHistoryLimitExceededAction');
 
 /**
@@ -157,8 +161,7 @@ export const initialExploreState: ExploreState = {
   syncedTimes: false,
   left: initialExploreItemState,
   right: undefined,
-  richHistory: [],
-  localStorageFull: false,
+  richHistoryStorageFull: false,
   richHistoryLimitExceededWarningShown: false,
 };
 
@@ -207,17 +210,10 @@ export const exploreReducer = (state = initialExploreState, action: AnyAction): 
     return { ...state, syncedTimes: action.payload.syncedTimes };
   }
 
-  if (richHistoryUpdatedAction.match(action)) {
+  if (richHistoryStorageFullAction.match(action)) {
     return {
       ...state,
-      richHistory: action.payload.richHistory,
-    };
-  }
-
-  if (localStorageFullAction.match(action)) {
-    return {
-      ...state,
-      localStorageFull: true,
+      richHistoryStorageFull: true,
     };
   }
 
@@ -237,7 +233,7 @@ export const exploreReducer = (state = initialExploreState, action: AnyAction): 
       stopQueryState(rightState.querySubscription);
     }
 
-    if (payload.force || !Number.isInteger(state.left.originPanelId)) {
+    if (payload.force) {
       return initialExploreState;
     }
 
@@ -246,7 +242,6 @@ export const exploreReducer = (state = initialExploreState, action: AnyAction): 
       left: {
         ...initialExploreItemState,
         queries: state.left.queries,
-        originPanelId: state.left.originPanelId,
       },
     };
   }

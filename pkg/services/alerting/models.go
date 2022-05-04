@@ -5,6 +5,7 @@ import (
 	"time" // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - Add import time()
 
 	"github.com/grafana/grafana/pkg/components/null"
+	"github.com/grafana/grafana/pkg/models"
 )
 
 // Job holds state about when the alert rule should be evaluated.
@@ -45,4 +46,10 @@ type EvalMatch struct {
 	Value  null.Float        `json:"value"`
 	Metric string            `json:"metric"`
 	Tags   map[string]string `json:"tags"`
+}
+
+type DashAlertInfo struct {
+	User  *models.SignedInUser
+	Dash  *models.Dashboard
+	OrgID int64
 }

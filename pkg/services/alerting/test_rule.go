@@ -12,9 +12,12 @@ import (
 // AlertTest makes a test alert.
 func (e *AlertEngine) AlertTest(orgID int64, dashboard *simplejson.Json, panelID int64, user *models.SignedInUser, LogzIoHeaders *models.LogzIoHeaders) (*EvalContext, error) { // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - add LogzIoHeaders
 	dash := models.NewDashboardFromJson(dashboard)
-
-	extractor := NewDashAlertExtractor(dash, orgID, user)
-	alerts, err := extractor.GetAlerts(context.Background())
+	dashInfo := DashAlertInfo{
+		User:  user,
+		Dash:  dash,
+		OrgID: orgID,
+	}
+	alerts, err := e.dashAlertExtractor.GetAlerts(context.Background(), dashInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -23,7 +26,7 @@ func (e *AlertEngine) AlertTest(orgID int64, dashboard *simplejson.Json, panelID
 		if alert.PanelId != panelID {
 			continue
 		}
-		rule, err := NewRuleFromDBAlert(context.Background(), alert, true)
+		rule, err := NewRuleFromDBAlert(context.Background(), e.sqlStore, alert, true)
 		if err != nil {
 			return nil, err
 		}
@@ -32,7 +35,7 @@ func (e *AlertEngine) AlertTest(orgID int64, dashboard *simplejson.Json, panelID
 
 		handler := NewEvalHandler(e.DataService)
 
-		context := NewEvalContext(context.Background(), rule, time.Now(), fakeRequestValidator{}) // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - Add time.now()
+		context := NewEvalContext(context.Background(), rule, time.Now(), fakeRequestValidator{}, e.sqlStore) // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - Add time.now()
 		context.IsTestRun = true
 		context.IsDebug = true
 

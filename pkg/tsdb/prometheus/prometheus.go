@@ -5,10 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/grafana/grafana/pkg/services/ngalert/eval"
 	"regexp"
 
-	"github.com/grafana/grafana/pkg/tsdb/prometheus/promclient"
+	"github.com/grafana/grafana/pkg/services/ngalert/eval"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/datasource"
@@ -16,7 +15,11 @@ import (
 	"github.com/grafana/grafana/pkg/infra/httpclient"
 	"github.com/grafana/grafana/pkg/infra/log"
 	"github.com/grafana/grafana/pkg/infra/tracing"
+	"github.com/grafana/grafana/pkg/services/featuremgmt"
+	"github.com/grafana/grafana/pkg/setting"
 	"github.com/grafana/grafana/pkg/tsdb/intervalv2"
+	"github.com/grafana/grafana/pkg/tsdb/prometheus/promclient"
+	"github.com/grafana/grafana/pkg/util/maputil"
 	apiv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 )
 
@@ -32,11 +35,11 @@ type Service struct {
 	tracer             tracing.Tracer
 }
 
-func ProvideService(httpClientProvider httpclient.Provider, tracer tracing.Tracer) *Service {
+func ProvideService(httpClientProvider httpclient.Provider, cfg *setting.Cfg, features featuremgmt.FeatureToggles, tracer tracing.Tracer) *Service {
 	plog.Debug("initializing")
 	// LOGZ.IO GRAFANA CHANGE :: DEV-31493 Override datasource URL on alert evaluation
 	ip := &eval.LogzioInstanceProvider{
-		Delegate: datasource.NewInstanceProvider(newInstanceSettings(httpClientProvider)),
+		Delegate: datasource.NewInstanceProvider(newInstanceSettings(httpClientProvider, cfg, features)),
 	}
 	im := instancemgmt.New(ip)
 	// LOGZ.IO GRAFANA CHANGE :: end
@@ -47,16 +50,21 @@ func ProvideService(httpClientProvider httpclient.Provider, tracer tracing.Trace
 	}
 }
 
-func newInstanceSettings(httpClientProvider httpclient.Provider) datasource.InstanceFactoryFunc {
+func newInstanceSettings(httpClientProvider httpclient.Provider, cfg *setting.Cfg, features featuremgmt.FeatureToggles) datasource.InstanceFactoryFunc {
 	return func(settings backend.DataSourceInstanceSettings) (instancemgmt.Instance, error) {
-		var jsonData promclient.JsonData
+		var jsonData map[string]interface{}
 		err := json.Unmarshal(settings.JSONData, &jsonData)
 		if err != nil {
 			return nil, fmt.Errorf("error reading settings: %w", err)
 		}
 
-		p := promclient.NewProvider(settings, jsonData, httpClientProvider, plog)
+		p := promclient.NewProvider(settings, jsonData, httpClientProvider, cfg, features, plog)
 		pc, err := promclient.NewProviderCache(p)
+		if err != nil {
+			return nil, err
+		}
+
+		timeInterval, err := maputil.GetStringOptional(jsonData, "timeInterval")
 		if err != nil {
 			return nil, err
 		}
@@ -64,7 +72,7 @@ func newInstanceSettings(httpClientProvider httpclient.Provider) datasource.Inst
 		mdl := DatasourceInfo{
 			ID:           settings.ID,
 			URL:          settings.URL,
-			TimeInterval: jsonData.TimeInterval,
+			TimeInterval: timeInterval,
 			getClient:    pc.GetClient,
 		}
 

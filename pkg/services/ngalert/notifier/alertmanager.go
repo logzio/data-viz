@@ -48,8 +48,6 @@ const (
 	silencesFilename        = "silences"
 
 	workingDir = "alerting"
-	// How long should we keep silences and notification entries on-disk after they've served their purpose.
-	retentionNotificationsAndSilences = 5 * 24 * time.Hour
 	// maintenanceNotificationAndSilences how often should we flush and gargabe collect notifications and silences
 	maintenanceNotificationAndSilences = 15 * time.Minute
 	// defaultResolveTimeout is the default timeout used for resolving an alert
@@ -58,6 +56,10 @@ const (
 	// memoryAlertsGCInterval is the interval at which we'll remove resolved alerts from memory.
 	memoryAlertsGCInterval = 30 * time.Minute
 )
+
+// How long should we keep silences and notification entries on-disk after they've served their purpose.
+var retentionNotificationsAndSilences = 5 * 24 * time.Hour
+var silenceMaintenanceInterval = 15 * time.Minute
 
 func init() {
 	silence.ValidateMatcher = func(m *pb.Matcher) error {
@@ -184,7 +186,14 @@ func newAlertmanager(ctx context.Context, orgID int64, cfg *setting.Cfg, store s
 
 	am.wg.Add(1)
 	go func() {
-		am.silences.Maintenance(15*time.Minute, silencesFilePath, am.stopc, func() (int64, error) {
+		am.silences.Maintenance(silenceMaintenanceInterval, silencesFilePath, am.stopc, func() (int64, error) {
+			// Delete silences older than the retention period.
+			if _, err := am.silences.GC(); err != nil {
+				am.logger.Error("silence garbage collection", "err", err)
+				// Don't return here - we need to snapshot our state first.
+			}
+
+			// Snapshot our silences to the Grafana KV store
 			return am.fileStore.Persist(ctx, silencesFilename, am.silences)
 		})
 		am.wg.Done()
@@ -231,7 +240,7 @@ func (am *Alertmanager) StopAndWait() {
 
 // SaveAndApplyDefaultConfig saves the default configuration the database and applies the configuration to the Alertmanager.
 // It rollbacks the save if we fail to apply the configuration.
-func (am *Alertmanager) SaveAndApplyDefaultConfig() error {
+func (am *Alertmanager) SaveAndApplyDefaultConfig(ctx context.Context) error {
 	am.reloadConfigMtx.Lock()
 	defer am.reloadConfigMtx.Unlock()
 
@@ -247,7 +256,7 @@ func (am *Alertmanager) SaveAndApplyDefaultConfig() error {
 		return err
 	}
 
-	err = am.Store.SaveAlertmanagerConfigurationWithCallback(cmd, func() error {
+	err = am.Store.SaveAlertmanagerConfigurationWithCallback(ctx, cmd, func() error {
 		if err := am.applyConfig(cfg, []byte(am.Settings.UnifiedAlerting.DefaultConfiguration)); err != nil {
 			return err
 		}
@@ -262,7 +271,7 @@ func (am *Alertmanager) SaveAndApplyDefaultConfig() error {
 
 // SaveAndApplyConfig saves the configuration the database and applies the configuration to the Alertmanager.
 // It rollbacks the save if we fail to apply the configuration.
-func (am *Alertmanager) SaveAndApplyConfig(cfg *apimodels.PostableUserConfig) error {
+func (am *Alertmanager) SaveAndApplyConfig(ctx context.Context, cfg *apimodels.PostableUserConfig) error {
 	rawConfig, err := json.Marshal(&cfg)
 	if err != nil {
 		return fmt.Errorf("failed to serialize to the Alertmanager configuration: %w", err)
@@ -277,7 +286,7 @@ func (am *Alertmanager) SaveAndApplyConfig(cfg *apimodels.PostableUserConfig) er
 		OrgID:                     am.orgID,
 	}
 
-	err = am.Store.SaveAlertmanagerConfigurationWithCallback(cmd, func() error {
+	err = am.Store.SaveAlertmanagerConfigurationWithCallback(ctx, cmd, func() error {
 		if err := am.applyConfig(cfg, rawConfig); err != nil {
 			return err
 		}
@@ -446,11 +455,6 @@ func (am *Alertmanager) buildIntegrationsMap(receivers []*apimodels.PostableApiR
 	return integrationsMap, nil
 }
 
-type NotificationChannel interface {
-	notify.Notifier
-	notify.ResolvedSender
-}
-
 // buildReceiverIntegrations builds a list of integration notifiers off of a receiver config.
 func (am *Alertmanager) buildReceiverIntegrations(receiver *apimodels.PostableApiReceiver, tmpl *template.Template) ([]notify.Integration, error) {
 	var integrations []notify.Integration
@@ -464,7 +468,7 @@ func (am *Alertmanager) buildReceiverIntegrations(receiver *apimodels.PostableAp
 	return integrations, nil
 }
 
-func (am *Alertmanager) buildReceiverIntegration(r *apimodels.PostableGrafanaReceiver, tmpl *template.Template) (NotificationChannel, error) {
+func (am *Alertmanager) buildReceiverIntegration(r *apimodels.PostableGrafanaReceiver, tmpl *template.Template) (channels.NotificationChannel, error) {
 	// secure settings are already encrypted at this point
 	secureSettings := make(map[string][]byte, len(r.SecureSettings))
 
@@ -489,60 +493,28 @@ func (am *Alertmanager) buildReceiverIntegration(r *apimodels.PostableGrafanaRec
 			Settings:              r.Settings,
 			SecureSettings:        secureSettings,
 		}
-		n   NotificationChannel
-		err error
 	)
-	switch r.Type {
-	case "email":
-		n, err = channels.NewEmailNotifier(cfg, am.NotificationService, tmpl) // Email notifier already has a default template.
-	case "pagerduty":
-		n, err = channels.NewPagerdutyNotifier(cfg, am.NotificationService, tmpl, am.decryptFn)
-	case "pushover":
-		n, err = channels.NewPushoverNotifier(cfg, am.NotificationService, tmpl, am.decryptFn)
-	case "slack":
-		n, err = channels.NewSlackNotifier(cfg, tmpl, am.decryptFn)
-	case "telegram":
-		n, err = channels.NewTelegramNotifier(cfg, am.NotificationService, tmpl, am.decryptFn)
-	case "victorops":
-		n, err = channels.NewVictoropsNotifier(cfg, am.NotificationService, tmpl)
-	case "teams":
-		n, err = channels.NewTeamsNotifier(cfg, am.NotificationService, tmpl)
-	case "dingding":
-		n, err = channels.NewDingDingNotifier(cfg, am.NotificationService, tmpl)
-	case "kafka":
-		n, err = channels.NewKafkaNotifier(cfg, am.NotificationService, tmpl)
-	case "webhook":
-		n, err = channels.NewWebHookNotifier(cfg, am.NotificationService, tmpl, am.decryptFn)
-	case "wecom":
-		n, err = channels.NewWeComNotifier(cfg, am.NotificationService, tmpl, am.decryptFn)
-	case "sensugo":
-		n, err = channels.NewSensuGoNotifier(cfg, am.NotificationService, tmpl, am.decryptFn)
-	case "discord":
-		n, err = channels.NewDiscordNotifier(cfg, am.NotificationService, tmpl)
-	case "googlechat":
-		n, err = channels.NewGoogleChatNotifier(cfg, am.NotificationService, tmpl)
-	case "LINE":
-		n, err = channels.NewLineNotifier(cfg, am.NotificationService, tmpl, am.decryptFn)
-	case "threema":
-		n, err = channels.NewThreemaNotifier(cfg, am.NotificationService, tmpl, am.decryptFn)
-	case "opsgenie":
-		n, err = channels.NewOpsgenieNotifier(cfg, am.NotificationService, tmpl, am.decryptFn)
-	case "prometheus-alertmanager":
-		n, err = channels.NewAlertmanagerNotifier(cfg, tmpl, am.decryptFn)
-	default:
-		return nil, InvalidReceiverError{
-			Receiver: r,
-			Err:      fmt.Errorf("notifier %s is not supported", r.Type),
-		}
-	}
-
+	factoryConfig, err := channels.NewFactoryConfig(cfg, am.NotificationService, am.decryptFn, tmpl)
 	if err != nil {
 		return nil, InvalidReceiverError{
 			Receiver: r,
 			Err:      err,
 		}
 	}
-
+	receiverFactory, exists := channels.Factory(r.Type)
+	if !exists {
+		return nil, InvalidReceiverError{
+			Receiver: r,
+			Err:      fmt.Errorf("notifier %s is not supported", r.Type),
+		}
+	}
+	n, err := receiverFactory(factoryConfig)
+	if err != nil {
+		return nil, InvalidReceiverError{
+			Receiver: r,
+			Err:      err,
+		}
+	}
 	return n, nil
 }
 

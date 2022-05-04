@@ -2,21 +2,26 @@ package api
 
 import (
 	"context"
+	"net/url"
+	"time"
+
 	"github.com/benbjohnson/clock"
 	"github.com/grafana/grafana/pkg/services/ngalert/eval"
 	"github.com/grafana/grafana/pkg/services/sqlstore"
-	"net/url"
-	"time"
 
 	"github.com/grafana/grafana/pkg/api/routing"
 	"github.com/grafana/grafana/pkg/expr"
 	"github.com/grafana/grafana/pkg/infra/log"
+	"github.com/grafana/grafana/pkg/services/accesscontrol"
 	"github.com/grafana/grafana/pkg/services/datasourceproxy"
 	"github.com/grafana/grafana/pkg/services/datasources"
+	"github.com/grafana/grafana/pkg/services/featuremgmt"
 	apimodels "github.com/grafana/grafana/pkg/services/ngalert/api/tooling/definitions"
+	"github.com/grafana/grafana/pkg/services/ngalert/eval"
 	"github.com/grafana/grafana/pkg/services/ngalert/metrics"
 	"github.com/grafana/grafana/pkg/services/ngalert/models"
 	"github.com/grafana/grafana/pkg/services/ngalert/notifier"
+	"github.com/grafana/grafana/pkg/services/ngalert/provisioning"
 	"github.com/grafana/grafana/pkg/services/ngalert/schedule"
 	"github.com/grafana/grafana/pkg/services/ngalert/state"
 	"github.com/grafana/grafana/pkg/services/ngalert/store"
@@ -35,8 +40,8 @@ type Scheduler interface {
 
 type Alertmanager interface {
 	// Configuration
-	SaveAndApplyConfig(config *apimodels.PostableUserConfig) error
-	SaveAndApplyDefaultConfig() error
+	SaveAndApplyConfig(ctx context.Context, config *apimodels.PostableUserConfig) error
+	SaveAndApplyDefaultConfig(ctx context.Context) error
 	GetStatus() apimodels.GettableStatus
 
 	// Silences
@@ -54,7 +59,7 @@ type Alertmanager interface {
 }
 
 type AlertingStore interface {
-	GetLatestAlertmanagerConfiguration(query *models.GetLatestAlertmanagerConfigurationQuery) error
+	GetLatestAlertmanagerConfiguration(ctx context.Context, query *models.GetLatestAlertmanagerConfigurationQuery) error
 }
 
 // API handlers.
@@ -65,6 +70,7 @@ type API struct {
 	ExpressionService    *expr.Service
 	QuotaService         *quota.QuotaService
 	Schedule             schedule.ScheduleService
+	TransactionManager   provisioning.TransactionManager
 	RuleStore            store.RuleStore
 	InstanceStore        store.InstanceStore
 	AlertingStore        AlertingStore
@@ -76,6 +82,9 @@ type API struct {
 	// LOGZ.IO GRAFANA CHANGE :: DEV-30705,DEV-30713 - Migration endpoints by org ID
 	SQLStore *sqlstore.SQLStore
 	// LOGZ.IO GRAFANA CHANGE :: end
+	AccessControl       accesscontrol.AccessControl
+	Policies            *provisioning.NotificationPolicyService
+	ContactPointService *provisioning.ContactPointService
 }
 
 // RegisterAPIEndpoints registers API handlers
@@ -89,30 +98,40 @@ func (api *API) RegisterAPIEndpoints(m *metrics.API) {
 	api.RegisterAlertmanagerApiEndpoints(NewForkedAM(
 		api.DatasourceCache,
 		NewLotexAM(proxy, logger),
-		AlertmanagerSrv{store: api.AlertingStore, mam: api.MultiOrgAlertmanager, secrets: api.SecretsService, log: logger},
+		&AlertmanagerSrv{crypto: api.MultiOrgAlertmanager.Crypto, log: logger, ac: api.AccessControl, mam: api.MultiOrgAlertmanager},
 	), m)
 	// Register endpoints for proxying to Prometheus-compatible backends.
 	api.RegisterPrometheusApiEndpoints(NewForkedProm(
 		api.DatasourceCache,
 		NewLotexProm(proxy, logger),
-		PrometheusSrv{log: logger, manager: api.StateManager, store: api.RuleStore},
+		&PrometheusSrv{log: logger, manager: api.StateManager, store: api.RuleStore, ac: api.AccessControl},
 	), m)
 	// Register endpoints for proxying to Cortex Ruler-compatible backends.
 	api.RegisterRulerApiEndpoints(NewForkedRuler(
 		api.DatasourceCache,
 		NewLotexRuler(proxy, logger),
-		RulerSrv{DatasourceCache: api.DatasourceCache, QuotaService: api.QuotaService, scheduleService: api.Schedule, store: api.RuleStore, log: logger},
+		&RulerSrv{
+			DatasourceCache: api.DatasourceCache,
+			QuotaService:    api.QuotaService,
+			scheduleService: api.Schedule,
+			store:           api.RuleStore,
+			xactManager:     api.TransactionManager,
+			log:             logger,
+			cfg:             &api.Cfg.UnifiedAlerting,
+			ac:              api.AccessControl,
+		},
 	), m)
 	api.RegisterTestingApiEndpoints(NewForkedTestingApi(
-		TestingApiSrv{
+		&TestingApiSrv{
 			AlertingProxy:     proxy,
-			Cfg:               api.Cfg,
 			ExpressionService: api.ExpressionService,
 			DatasourceCache:   api.DatasourceCache,
 			log:               logger,
+			accessControl:     api.AccessControl,
+			evaluator:         eval.NewEvaluator(api.Cfg, log.New("ngalert.eval"), api.DatasourceCache, api.SecretsService),
 		}), m)
 	api.RegisterConfigurationApiEndpoints(NewForkedConfiguration(
-		AdminSrv{
+		&AdminSrv{
 			store:     api.AdminConfigStore,
 			log:       logger,
 			scheduler: api.Schedule,
@@ -133,4 +152,12 @@ func (api *API) RegisterAPIEndpoints(m *metrics.API) {
 		),
 	), m)
 	// LOGZ.IO GRAFANA CHANGE :: end
+
+	if api.Cfg.IsFeatureToggleEnabled(featuremgmt.FlagAlertProvisioning) {
+		api.RegisterProvisioningApiEndpoints(NewForkedProvisioningApi(&ProvisioningSrv{
+			log:                 logger,
+			policies:            api.Policies,
+			contactPointService: api.ContactPointService,
+		}), m)
+	}
 }

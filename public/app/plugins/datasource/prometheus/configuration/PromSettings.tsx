@@ -1,3 +1,5 @@
+import React, { SyntheticEvent } from 'react';
+
 import {
   DataSourcePluginOptionsEditorProps,
   onUpdateDatasourceJsonDataOptionChecked,
@@ -5,8 +7,9 @@ import {
   updateDatasourcePluginJsonDataOption,
 } from '@grafana/data';
 import { EventsWithValidation, InlineFormLabel, LegacyForms, regexValidation } from '@grafana/ui';
-import React, { SyntheticEvent } from 'react';
+
 import { PromOptions } from '../types';
+
 import { ExemplarsSettings } from './ExemplarsSettings';
 const { Select, Input, FormField, Switch } = LegacyForms;
 
@@ -149,16 +152,14 @@ export const getValueFromEventItem = (eventItem: SyntheticEvent<HTMLInputElement
   return (eventItem as SelectableValue<string>).value;
 };
 
-const onChangeHandler = (
-  key: keyof PromOptions,
-  options: Props['options'],
-  onOptionsChange: Props['onOptionsChange']
-) => (eventItem: SyntheticEvent<HTMLInputElement> | SelectableValue<string>) => {
-  onOptionsChange({
-    ...options,
-    jsonData: {
-      ...options.jsonData,
-      [key]: getValueFromEventItem(eventItem),
-    },
-  });
-};
+const onChangeHandler =
+  (key: keyof PromOptions, options: Props['options'], onOptionsChange: Props['onOptionsChange']) =>
+  (eventItem: SyntheticEvent<HTMLInputElement> | SelectableValue<string>) => {
+    onOptionsChange({
+      ...options,
+      jsonData: {
+        ...options.jsonData,
+        [key]: getValueFromEventItem(eventItem),
+      },
+    });
+  };

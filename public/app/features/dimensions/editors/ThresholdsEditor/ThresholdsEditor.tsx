@@ -1,5 +1,7 @@
-import React, { PureComponent, ChangeEvent } from 'react';
 import { css } from '@emotion/css';
+import { isNumber } from 'lodash';
+import React, { PureComponent, ChangeEvent } from 'react';
+
 import {
   Threshold,
   sortThresholds,
@@ -8,7 +10,6 @@ import {
   SelectableValue,
   GrafanaTheme,
 } from '@grafana/data';
-import { isNumber } from 'lodash';
 import {
   Input,
   colors,
@@ -290,47 +291,45 @@ interface ThresholdStyles {
   trashIcon: string;
 }
 
-const getStyles = stylesFactory(
-  (theme: GrafanaTheme): ThresholdStyles => {
-    return {
-      wrapper: css`
-        display: flex;
-        flex-direction: column;
-      `,
-      thresholds: css`
-        display: flex;
-        flex-direction: column;
-        margin-bottom: ${theme.spacing.formSpacingBase * 2}px;
-      `,
-      item: css`
-        margin-bottom: ${theme.spacing.sm};
+const getStyles = stylesFactory((theme: GrafanaTheme): ThresholdStyles => {
+  return {
+    wrapper: css`
+      display: flex;
+      flex-direction: column;
+    `,
+    thresholds: css`
+      display: flex;
+      flex-direction: column;
+      margin-bottom: ${theme.spacing.formSpacingBase * 2}px;
+    `,
+    item: css`
+      margin-bottom: ${theme.spacing.sm};
 
-        &:last-child {
-          margin-bottom: 0;
-        }
-      `,
-      colorPicker: css`
-        padding: 0 ${theme.spacing.sm};
-      `,
-      addButton: css`
-        margin-bottom: ${theme.spacing.sm};
-      `,
-      percentIcon: css`
-        font-size: ${theme.typography.size.sm};
-        color: ${theme.colors.textWeak};
-      `,
-      inputPrefix: css`
-        display: flex;
-        align-items: center;
-      `,
-      trashIcon: css`
-        color: ${theme.colors.textWeak};
-        cursor: pointer;
+      &:last-child {
+        margin-bottom: 0;
+      }
+    `,
+    colorPicker: css`
+      padding: 0 ${theme.spacing.sm};
+    `,
+    addButton: css`
+      margin-bottom: ${theme.spacing.sm};
+    `,
+    percentIcon: css`
+      font-size: ${theme.typography.size.sm};
+      color: ${theme.colors.textWeak};
+    `,
+    inputPrefix: css`
+      display: flex;
+      align-items: center;
+    `,
+    trashIcon: css`
+      color: ${theme.colors.textWeak};
+      cursor: pointer;
 
-        &:hover {
-          color: ${theme.colors.text};
-        }
-      `,
-    };
-  }
-);
+      &:hover {
+        color: ${theme.colors.text};
+      }
+    `,
+  };
+});

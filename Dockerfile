@@ -9,7 +9,7 @@ RUN apk --no-cache add git
 # LOGZ.IO GRAFANA CHANGE :: add -- offline to yarn install
 RUN yarn install --pure-lockfile --no-progress
 
-COPY grafana/tsconfig.json grafana/.eslintrc grafana/.editorconfig grafana/.browserslistrc grafana/.prettierrc.js ./
+COPY grafana/tsconfig.json grafana/.eslintrc grafana/.editorconfig grafana/.browserslistrc grafana/.prettierrc.js grafana/babel.config.json grafana/.linguirc ./
 COPY grafana/public public
 COPY grafana/tools tools
 COPY grafana/scripts scripts
@@ -18,25 +18,29 @@ COPY grafana/emails emails
 ENV NODE_ENV production
 RUN yarn build
 
-FROM registry.internal.logz.io:5000/logzio-golang:1.16.1-alpine3.13 as go-builder
+FROM registry.internal.logz.io:5000/logzio-golang:1.17.9-alpine3.15 as go-builder
 
 RUN apk add --no-cache gcc g++
 
 WORKDIR $GOPATH/src/github.com/grafana/grafana
 
-COPY grafana/go.mod grafana/go.sum grafana/embed.go ./
-
-RUN go mod verify
+COPY grafana/go.mod grafana/go.sum grafana/embed.go grafana/Makefile grafana/build.go grafana/package.json ./
 
 COPY grafana/cue cue
+COPY grafana/packages/grafana-schema packages/grafana-schema
 COPY grafana/public/app/plugins public/app/plugins
+COPY grafana/public/api-spec.json public/api-spec.json
 COPY grafana/pkg pkg
+COPY grafana/scripts scripts
+COPY grafana/cue.mod cue.mod
+COPY grafana/.bingo .bingo
 COPY grafana/build.go grafana/package.json ./
 
-RUN go run build.go build
+RUN go mod verify
+RUN make build-go
 
 # Final stage
-FROM registry.internal.logz.io:5000/logzio-alpine:3.13
+FROM registry.internal.logz.io:5000/logzio-alpine:3.15
 
 LABEL maintainer="Grafana team <hello@grafana.com>"
 

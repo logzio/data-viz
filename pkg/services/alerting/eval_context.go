@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/grafana/grafana/pkg/bus"
 	"github.com/grafana/grafana/pkg/infra/log"
 	"github.com/grafana/grafana/pkg/models"
 	"github.com/grafana/grafana/pkg/setting"
@@ -36,11 +35,13 @@ type EvalContext struct {
 	RequestValidator models.PluginRequestValidator
 
 	Ctx context.Context
+
+	Store AlertStore
 }
 
 // NewEvalContext is the EvalContext constructor.
 // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - Add evaltime param
-func NewEvalContext(alertCtx context.Context, rule *Rule, evalTime time.Time, requestValidator models.PluginRequestValidator) *EvalContext {
+func NewEvalContext(alertCtx context.Context, rule *Rule, evalTime time.Time, requestValidator models.PluginRequestValidator, sqlStore AlertStore) *EvalContext {
 	return &EvalContext{
 		Ctx:              alertCtx,
 		StartTime:        evalTime, // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - Change now to evalTime
@@ -50,6 +51,7 @@ func NewEvalContext(alertCtx context.Context, rule *Rule, evalTime time.Time, re
 		Log:              log.New("alerting.evalContext"),
 		PrevAlertState:   rule.State,
 		RequestValidator: requestValidator,
+		Store:            sqlStore,
 	}
 }
 
@@ -109,7 +111,7 @@ func (c *EvalContext) GetDashboardUID() (*models.DashboardRef, error) {
 	}
 
 	uidQuery := &models.GetDashboardRefByIdQuery{Id: c.Rule.DashboardID}
-	if err := bus.Dispatch(c.Ctx, uidQuery); err != nil {
+	if err := c.Store.GetDashboardUIDById(c.Ctx, uidQuery); err != nil {
 		return nil, err
 	}
 
@@ -139,7 +141,7 @@ func (c *EvalContext) GetNewState() models.AlertStateType {
 		return ns
 	}
 
-	since := c.StartTime.Sub(c.Rule.LastStateChange) // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - change time to StartTime
+	since := c.StartTime.Sub(c.Rule.LastStateChange)                         // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - change time to StartTime
 	if c.PrevAlertState == models.AlertStatePending && since >= c.Rule.For { // LOGZ.IO GRAFANA CHANGE :: DEV-18900 - fix For check to be inclusive
 		return models.AlertStateAlerting
 	}

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
+
 	"github.com/grafana/grafana/pkg/services/ngalert/eval"
 
 	"github.com/Masterminds/semver"
@@ -101,8 +103,17 @@ func newInstanceSettings() datasource.InstanceFactoryFunc {
 			timeInterval = ""
 		}
 
-		maxConcurrentShardRequests, ok := jsonData["maxConcurrentShardRequests"].(float64)
-		if !ok {
+		var maxConcurrentShardRequests float64
+
+		switch v := jsonData["maxConcurrentShardRequests"].(type) {
+		case float64:
+			maxConcurrentShardRequests = v
+		case string:
+			maxConcurrentShardRequests, err = strconv.ParseFloat(v, 64)
+			if err != nil {
+				maxConcurrentShardRequests = 256
+			}
+		default:
 			maxConcurrentShardRequests = 256
 		}
 

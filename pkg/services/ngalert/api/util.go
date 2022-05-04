@@ -12,6 +12,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
+
 	"github.com/grafana/grafana-plugin-sdk-go/data"
 	"github.com/grafana/grafana/pkg/api/response"
 	"github.com/grafana/grafana/pkg/expr"
@@ -25,8 +28,6 @@ import (
 	"github.com/grafana/grafana/pkg/setting"
 	"github.com/grafana/grafana/pkg/util"
 	"github.com/grafana/grafana/pkg/web"
-	"github.com/pkg/errors"
-	"gopkg.in/yaml.v3"
 )
 
 var searchRegex = regexp.MustCompile(`\{(\w+)\}`)
@@ -42,9 +43,6 @@ func toMacaronPath(path string) string {
 
 func backendType(ctx *models.ReqContext, cache datasources.CacheService) (apimodels.Backend, error) {
 	recipient := web.Params(ctx.Req)[":Recipient"]
-	if recipient == apimodels.GrafanaBackend.String() {
-		return apimodels.GrafanaBackend, nil
-	}
 	if datasourceID, err := strconv.ParseInt(recipient, 10, 64); err == nil {
 		if ds, err := cache.GetDatasource(ctx.Req.Context(), datasourceID, ctx.SignedInUser, ctx.SkipCache); err == nil {
 			switch ds.Type {
@@ -201,6 +199,13 @@ func validateCondition(ctx context.Context, c ngmodels.Condition, user *models.S
 		return fmt.Errorf("condition %s not found in any query or expression: it should be one of: [%s]", c.Condition, strings.Join(t, ","))
 	}
 	return nil
+}
+
+// conditionValidator returns a curried validateCondition that accepts only condition
+func conditionValidator(c *models.ReqContext, cache datasources.CacheService) func(ngmodels.Condition) error {
+	return func(condition ngmodels.Condition) error {
+		return validateCondition(c.Req.Context(), condition, c.SignedInUser, c.SkipCache, cache)
+	}
 }
 
 func validateQueriesAndExpressions(ctx context.Context, data []ngmodels.AlertQuery, user *models.SignedInUser, skipCache bool, datasourceCache datasources.CacheService) (map[string]struct{}, error) {

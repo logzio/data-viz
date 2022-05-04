@@ -19,13 +19,6 @@ const (
 	RenderPNG RenderType = "png"
 )
 
-type Theme string
-
-const (
-	ThemeLight Theme = "light"
-	ThemeDark  Theme = "dark"
-)
-
 type TimeoutOpts struct {
 	Timeout                  time.Duration // Timeout param passed to image-renderer service
 	RequestTimeoutMultiplier time.Duration // RequestTimeoutMultiplier used for plugin/HTTP request context timeout
@@ -56,7 +49,7 @@ type Opts struct {
 	ConcurrentLimit   int
 	DeviceScaleFactor float64
 	Headers           map[string][]string
-	Theme             Theme
+	Theme             models.Theme
 }
 
 type CSVOpts struct {
@@ -96,12 +89,18 @@ type Session interface {
 	Dispose(ctx context.Context)
 }
 
+type CapabilitySupportRequestResult struct {
+	IsSupported      bool
+	SemverConstraint string
+}
+
 type Service interface {
 	IsAvailable() bool
 	Version() string
 	Render(ctx context.Context, opts Opts, session Session) (*RenderResult, error)
 	RenderCSV(ctx context.Context, opts CSVOpts, session Session) (*RenderCSVResult, error)
-	RenderErrorImage(theme Theme, error error) (*RenderResult, error)
+	RenderErrorImage(theme models.Theme, error error) (*RenderResult, error)
 	GetRenderUser(ctx context.Context, key string) (*RenderUser, bool)
+	HasCapability(capability CapabilityName) (CapabilitySupportRequestResult, error)
 	CreateRenderingSession(ctx context.Context, authOpts AuthOpts, sessionOpts SessionOpts) (Session, error)
 }

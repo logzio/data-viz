@@ -1,37 +1,39 @@
-import React, { PureComponent } from 'react';
 import { css } from '@emotion/css';
+import classnames from 'classnames';
+import React, { PureComponent } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
-import { locationService } from '@grafana/runtime';
-import { selectors } from '@grafana/e2e-selectors';
-import { CustomScrollbar, stylesFactory, Themeable2, withTheme2 } from '@grafana/ui';
 import { debounce } from 'lodash'; // LOGZ.IO GRAFANA CHANGE :: DEV-28669 :: Global Filters :: Enable/Disable filters and debounce refresh-subscribers
 
-import { createErrorNotification } from 'app/core/copy/appNotification';
-import { Branding } from 'app/core/components/Branding/Branding';
-import { DashboardGrid } from '../dashgrid/DashboardGrid';
-import { DashNav } from '../components/DashNav';
-import { DashboardSettings } from '../components/DashboardSettings';
-import { PanelEditor } from '../components/PanelEditor/PanelEditor';
-import { initDashboard } from '../state/initDashboard';
+import { GrafanaTheme2, TimeRange, logzioServices } from '@grafana/data'; // LOGZ.IO GRAFANA CHANGE :: DEV-27954 :: Global Filters :: Import logzioServices
+import { selectors } from '@grafana/e2e-selectors';
+import { locationService } from '@grafana/runtime';
+import { CustomScrollbar, stylesFactory, Themeable2, withTheme2 } from '@grafana/ui';
 import { notifyApp } from 'app/core/actions';
-import { KioskMode, StoreState } from 'app/types';
+import { Branding } from 'app/core/components/Branding/Branding';
+import { createErrorNotification } from 'app/core/copy/appNotification';
+import { getKioskMode } from 'app/core/navigation/kiosk';
+import { GrafanaRouteComponentProps } from 'app/core/navigation/types';
 import { PanelModel } from 'app/features/dashboard/state';
-import { PanelInspector } from '../components/Inspector/PanelInspector';
-import { SubMenu } from '../components/SubMenu/SubMenu';
-import { cleanUpDashboardAndVariables } from '../state/actions';
+import { dashboardWatcher } from 'app/features/live/dashboard/dashboardWatcher';
+import { KioskMode, StoreState } from 'app/types';
+import { PanelEditEnteredEvent, PanelEditExitedEvent } from 'app/types/events';
+
 import { cancelVariables, templateVarsChangedInUrl } from '../../variables/state/actions';
 import { findTemplateVarChanges } from '../../variables/utils';
-import { dashboardWatcher } from 'app/features/live/dashboard/dashboardWatcher';
-import { GrafanaRouteComponentProps } from 'app/core/navigation/types';
-import { getTimeSrv } from '../services/TimeSrv';
-import { getKioskMode } from 'app/core/navigation/kiosk';
-import { GrafanaTheme2, TimeRange, UrlQueryValue, logzioServices } from '@grafana/data'; // LOGZ.IO GRAFANA CHANGE :: DEV-27954 :: Global Filters :: Import logzioServices
-import { DashboardLoading } from '../components/DashboardLoading/DashboardLoading';
+import { DashNav } from '../components/DashNav';
 import { DashboardFailed } from '../components/DashboardLoading/DashboardFailed';
+import { DashboardLoading } from '../components/DashboardLoading/DashboardLoading';
 import { DashboardPrompt } from '../components/DashboardPrompt/DashboardPrompt';
-import classnames from 'classnames';
-import { PanelEditEnteredEvent, PanelEditExitedEvent } from 'app/types/events';
+import { DashboardSettings } from '../components/DashboardSettings';
+import { PanelInspector } from '../components/Inspector/PanelInspector';
+import { PanelEditor } from '../components/PanelEditor/PanelEditor';
+import { SubMenu } from '../components/SubMenu/SubMenu';
+import { DashboardGrid } from '../dashgrid/DashboardGrid';
 import { liveTimer } from '../dashgrid/liveTimer';
+import { getTimeSrv } from '../services/TimeSrv';
+import { cleanUpDashboardAndVariables } from '../state/actions';
+import { initDashboard } from '../state/initDashboard';
+
 
 export interface DashboardPageRouteParams {
   uid?: string;
@@ -46,7 +48,6 @@ type DashboardPageRouteSearchParams = {
   viewPanel?: string;
   editview?: string;
   inspect?: string;
-  kiosk?: UrlQueryValue;
   from?: string;
   to?: string;
   refresh?: string;
@@ -54,7 +55,6 @@ type DashboardPageRouteSearchParams = {
 
 export const mapStateToProps = (state: StoreState) => ({
   initPhase: state.dashboard.initPhase,
-  isInitSlow: state.dashboard.isInitSlow,
   initError: state.dashboard.initError,
   dashboard: state.dashboard.getModel(),
 });
@@ -81,6 +81,7 @@ export interface State {
   showLoadingState: boolean;
   panelNotFound: boolean;
   editPanelAccessDenied: boolean;
+  scrollElement?: HTMLDivElement;
 }
 
 export class UnthemedDashboardPage extends PureComponent<Props, State> {
@@ -179,7 +180,7 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
       const templateVarChanges = findTemplateVarChanges(this.props.queryParams, prevProps.queryParams);
 
       if (templateVarChanges) {
-        templateVarsChangedInUrl(templateVarChanges);
+        templateVarsChangedInUrl(dashboard.uid, templateVarChanges);
       }
     }
 
@@ -236,14 +237,14 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
       }
 
       if (dashboard.canEditPanel(panel)) {
-        return { ...state, editPanel: panel };
+        return { ...state, editPanel: panel, rememberScrollTop: state.scrollElement?.scrollTop };
       } else {
         return { ...state, editPanelAccessDenied: true };
       }
     }
     // Leaving edit mode
     else if (state.editPanel && !urlEditPanelId) {
-      return { ...state, editPanel: null };
+      return { ...state, editPanel: null, updateScrollTop: state.rememberScrollTop };
     }
 
     // Entering view mode
@@ -257,11 +258,7 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
       // Should move this state out of dashboard in the future
       dashboard.initViewPanel(panel);
 
-      return {
-        ...state,
-        viewPanel: panel,
-        updateScrollTop: 0,
-      };
+      return { ...state, viewPanel: panel, rememberScrollTop: state.scrollElement?.scrollTop, updateScrollTop: 0 };
     }
     // Leaving view mode
     else if (state.viewPanel && !urlViewPanelId) {
@@ -300,6 +297,10 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
 
     // scroll to top after adding panel
     this.setState({ updateScrollTop: 0 });
+  };
+
+  setScrollRef = (scrollElement: HTMLDivElement): void => {
+    this.setState({ scrollElement });
   };
 
   getInspectPanel() {
@@ -348,17 +349,13 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
   // LOGZ.IO GRAFANA CHANGE :: DEV-27954 :: Unified Filters :: Listen to filters changes :: End
 
   render() {
-    const { dashboard, isInitSlow, initError, queryParams, theme } = this.props;
+    const { dashboard, initError, queryParams, theme } = this.props;
     const { editPanel, viewPanel, updateScrollTop } = this.state;
-    const kioskMode = getKioskMode(queryParams.kiosk);
+    const kioskMode = getKioskMode();
     const styles = getStyles(theme, kioskMode);
 
     if (!dashboard) {
-      if (isInitSlow) {
-        return <DashboardLoading initPhase={this.props.initPhase} />;
-      }
-
-      return null;
+      return <DashboardLoading initPhase={this.props.initPhase} />;
     }
 
     const inspectPanel = this.getInspectPanel();
@@ -388,6 +385,7 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
         <div className={styles.dashboardScroll}>
           <CustomScrollbar
             autoHeightMin="100%"
+            scrollRefCallback={this.setScrollRef}
             scrollTop={updateScrollTop}
             hideHorizontalTrack={true}
             updateAfterMountMs={500}
@@ -416,7 +414,7 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
 /*
  * Styles
  */
-export const getStyles = stylesFactory((theme: GrafanaTheme2, kioskMode) => {
+export const getStyles = stylesFactory((theme: GrafanaTheme2, kioskMode: KioskMode) => {
   const contentPadding = kioskMode !== KioskMode.Full ? theme.spacing(0, 2, 2) : theme.spacing(2);
   return {
     dashboardContainer: css`

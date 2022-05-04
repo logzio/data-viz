@@ -1,15 +1,15 @@
 import React, { useState, FC, useEffect } from 'react';
+import { useAsyncFn } from 'react-use';
+
+import { getBackendSrv } from '@grafana/runtime';
+import { /*HorizontalGroup, Button,*/ LinkButton } from '@grafana/ui'; // LOGZ.IO GRAFANA CHANGE :: comment out to prevent ts errors
 import EmptyListCTA from 'app/core/components/EmptyListCTA/EmptyListCTA';
 import Page from 'app/core/components/Page/Page';
-import { getBackendSrv } from '@grafana/runtime';
-import { useAsyncFn } from 'react-use';
 // import { appEvents } from 'app/core/core'; // LOGZ.IO GRAFANA CHANGE :: comment out to prevent ts errors
 import { useNavModel } from 'app/core/hooks/useNavModel';
-// import { HorizontalGroup, Button, LinkButton } from '@grafana/ui'; // LOGZ.IO GRAFANA CHANGE :: comment out to prevent ts errors
-import { LinkButton } from '@grafana/ui'; // LOGZ.IO GRAFANA CHANGE :: reimport LinkButton
-// import { CoreEvents } from 'app/types'; // LOGZ.IO GRAFANA CHANGE :: comment out to prevent ts errors
 import { AlertNotification } from 'app/types/alerting';
-// import { ShowConfirmModalEvent } from '../../types/events'; // LOGZ.IO GRAFANA CHANGE :: comment out to prevent ts errors
+
+import { ShowConfirmModalEvent } from '../../types/events'; // LOGZ.IO GRAFANA CHANGE :: comment out to prevent ts errors
 
 const NotificationsListPage: FC = () => {
   const navModel = useNavModel('channels');

@@ -54,7 +54,7 @@ The following transformations were added in Grafana 7.4.
 
 The _Sort by_ transformation allows you to sort data before sending it to the visualization.
 
-For more information, refer to [Sort by]({{< relref "../panels/reference-transformation-functions.md#sort-by" >}}).
+For more information, refer to [Sort by]({{< relref "../panels/transform-data/transformation-functions.md#sort-by" >}}).
 
 #### Filter data by value transform
 
@@ -62,7 +62,7 @@ The new _Filter data by value_ transformation allows you to filter your data dir
 
 This transformation is very useful if your data source does not natively filter by values. You might also use this to narrow values to display if you are using a shared query.
 
-For more information, refer to [Filter data by value]({{< relref "../panels/reference-transformation-functions.md#filter-data-by-value" >}}).
+For more information, refer to [Filter data by value]({{< relref "../panels/transform-data/transformation-functions.md#filter-data-by-value" >}}).
 
 ### New override option
 
@@ -186,7 +186,7 @@ These features are included in the Grafana Enterprise edition.
 
 ### Licensing changes
 
-When determining a user’s role for billing purposes, a user who has the ability to edit and save dashboards is considered an Editor. This includes any user who is an Editor or Admin at the Org level, and who has granted Admin or Edit permissions via [Dashboard and folder permissions]({{< relref "../permissions/dashboard-folder-permissions.md">}}).
+When determining a user’s role for billing purposes, a user who has the ability to edit and save dashboards is considered an Editor. This includes any user who is an Editor or Admin at the Org level, and who has granted Admin or Edit permissions via [Dashboard permissions]({{< relref "../administration/manage-users-and-permissions/about-users-and-permissions.md#dashboard-permissions" >}}).
 
 After the number of Viewers or Editors has reached its license limit, only Admins will see a banner in Grafana indicating that the license limit has been reached. Previously, all users saw the banner.
 
