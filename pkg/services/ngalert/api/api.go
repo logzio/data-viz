@@ -17,7 +17,6 @@ import (
 	"github.com/grafana/grafana/pkg/services/datasources"
 	"github.com/grafana/grafana/pkg/services/featuremgmt"
 	apimodels "github.com/grafana/grafana/pkg/services/ngalert/api/tooling/definitions"
-	"github.com/grafana/grafana/pkg/services/ngalert/eval"
 	"github.com/grafana/grafana/pkg/services/ngalert/metrics"
 	"github.com/grafana/grafana/pkg/services/ngalert/models"
 	"github.com/grafana/grafana/pkg/services/ngalert/notifier"
@@ -141,7 +140,7 @@ func (api *API) RegisterAPIEndpoints(m *metrics.API) {
 	api.RegisterLogzioAlertingApiEndpoints(NewLogzioAlertingApi(
 		NewLogzioAlertingService(proxy,
 			api.Cfg,
-			eval.Evaluator{Cfg: api.Cfg, Log: logger, DataSourceCache: api.DatasourceCache},
+			eval.NewEvaluator(api.Cfg, logger, api.DatasourceCache, api.SecretsService),
 			clock.New(),
 			api.ExpressionService,
 			api.StateManager,

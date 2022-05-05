@@ -561,7 +561,7 @@ func (sch *schedule) ruleRoutine(grafanaCtx context.Context, key models.AlertRul
 			LogzioHeaders:     http.Header{},
 			DsOverrideByDsUid: map[string]models.EvaluationDatasourceOverride{},
 		}
-		results, err := sch.evaluator.ConditionEval(&condition, ctx.now, sch.expressionService, logzioEvalContext)
+		results, err := sch.evaluator.ConditionEval(&condition, start, sch.expressionService, logzioEvalContext)
 		// LOGZ.IO GRAFANA CHANGE :: end
 		dur := sch.clock.Now().Sub(start)
 		evalTotal.Inc()

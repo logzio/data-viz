@@ -15,8 +15,18 @@ type LogzioAlertingApi struct {
 	service *LogzioAlertingService
 }
 
-type RunMigrationForOrg struct {
+type RunAlertMigrationForOrg struct {
+	OrgId              int64                             `json:"orgId"`
+	EmailNotifications []AlertMigrationEmailNotification `json:"emailNotifications"`
+}
+
+type ClearOrgAlertMigration struct {
 	OrgId int64 `json:"orgId"`
+}
+
+type AlertMigrationEmailNotification struct {
+	EmailAddress string `json:"address"`
+	ChannelUid   string `json:"channelUid"`
 }
 
 // NewLogzioAlertingApi creates a new LogzioAlertingApi instance
@@ -45,7 +55,7 @@ func (api *LogzioAlertingApi) RouteProcessAlert(ctx *models.ReqContext) response
 }
 
 func (api *LogzioAlertingApi) RouteMigrateOrg(ctx *models.ReqContext) response.Response {
-	body := RunMigrationForOrg{}
+	body := RunAlertMigrationForOrg{}
 
 	if err := web.Bind(ctx.Req, &body); err != nil {
 		return response.Error(http.StatusBadRequest, "bad request data", err)
@@ -55,7 +65,7 @@ func (api *LogzioAlertingApi) RouteMigrateOrg(ctx *models.ReqContext) response.R
 }
 
 func (api *LogzioAlertingApi) RouteClearOrgMigration(ctx *models.ReqContext) response.Response {
-	body := RunMigrationForOrg{}
+	body := ClearOrgAlertMigration{}
 
 	if err := web.Bind(ctx.Req, &body); err != nil {
 		return response.Error(http.StatusBadRequest, "bad request data", err)

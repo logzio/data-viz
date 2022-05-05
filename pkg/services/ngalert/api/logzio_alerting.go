@@ -138,8 +138,12 @@ func (srv *LogzioAlertingService) RouteProcessAlert(request apimodels.AlertProce
 	return response.JSONStreaming(http.StatusOK, alerts)
 }
 
-func (srv *LogzioAlertingService) RouteMigrateOrg(request RunMigrationForOrg) response.Response {
-	alertMigration := ualert.NewOrgAlertMigration(request.OrgId)
+func (srv *LogzioAlertingService) RouteMigrateOrg(request RunAlertMigrationForOrg) response.Response {
+	channelUidByEmailAddress := make(map[string]string)
+	for _, emailNot := range request.EmailNotifications {
+		channelUidByEmailAddress[emailNot.EmailAddress] = emailNot.ChannelUid
+	}
+	alertMigration := ualert.NewOrgAlertMigration(request.OrgId, channelUidByEmailAddress)
 
 	if err := srv.Migrator.RunMigration(alertMigration); err != nil {
 		srv.Log.Error("Failed to run alert migration", "orgId", request.OrgId, "err", err)
@@ -154,7 +158,7 @@ func (srv *LogzioAlertingService) RouteMigrateOrg(request RunMigrationForOrg) re
 	return response.JSONStreaming(http.StatusOK, "Success")
 }
 
-func (srv *LogzioAlertingService) RouteClearOrgMigration(requestBody RunMigrationForOrg) response.Response {
+func (srv *LogzioAlertingService) RouteClearOrgMigration(requestBody ClearOrgAlertMigration) response.Response {
 	migration := &ualert.RmOrgAlertMigration{OrgId: requestBody.OrgId}
 
 	if err := srv.Migrator.RunMigration(migration); err != nil {
@@ -312,7 +316,7 @@ func (srv *LogzioAlertingService) saveAlertStates(states []*state.State) {
 			CurrentStateSince: s.StartsAt,
 			CurrentStateEnd:   s.EndsAt,
 		}
-		err := srv.InstanceStore.SaveAlertInstance(&cmd)
+		err := srv.InstanceStore.SaveAlertInstance(context.Background(), &cmd)
 		if err != nil {
 			srv.Log.Error("failed to save alert state", "uid", s.AlertRuleUID, "orgId", s.OrgID, "labels", s.Labels.String(), "state", s.State.String(), "msg", err.Error())
 		}
