@@ -411,7 +411,7 @@ func (m *MigrateOrgAlerts) getNotificationChannelMap() (channelsPerOrg, defaultC
 		org_id = ?
 	`
 	var allChannels []notificationChannel
-	err := m.sess.SQL(q).Find(&allChannels)
+	err := m.sess.SQL(q, m.orgId).Find(&allChannels)
 	if err != nil {
 		return nil, nil, err
 	}
