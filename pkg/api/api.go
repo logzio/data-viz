@@ -140,10 +140,6 @@ func (hs *HTTPServer) registerRoutes() {
 	// api renew session based on cookie
 	r.Get("/api/login/ping", quota("session"), routing.Wrap(hs.LoginAPIPing))
 
-	// evaluate-alert skip LOGIN check save db call
-	r.Post("/api/alerts/evaluate-alert", routing.Wrap(hs.EvaluateAlert))           // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - alerts endpoint
-	r.Post("/api/alerts/evaluate-alert-by-id", routing.Wrap(hs.EvaluateAlertById)) // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - alerts endpoint
-
 	// expose plugin file system assets
 	r.Get("/public/plugins/:pluginId/*", hs.getPluginAssets)
 
@@ -416,7 +412,6 @@ func (hs *HTTPServer) registerRoutes() {
 		apiRoute.Post("/dashboards/org/:orgId/uid/:dashboardUid/panels/:panelId/query", authorize(reqSignedIn, ac.EvalPermission(datasources.ActionQuery)), routing.Wrap(hs.QueryMetricsFromDashboard))
 
 		apiRoute.Group("/alerts", func(alertsRoute routing.RouteRegister) {
-			alertsRoute.Post("/evaluate-alert", routing.Wrap(hs.EvaluateAlert)) // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - alerts endpoint
 			alertsRoute.Post("/test", routing.Wrap(hs.AlertTest))
 			alertsRoute.Post("/:alertId/pause", reqEditorRole, routing.Wrap(hs.PauseAlert))
 			alertsRoute.Get("/:alertId", hs.ValidateOrgAlert, routing.Wrap(hs.GetAlert))

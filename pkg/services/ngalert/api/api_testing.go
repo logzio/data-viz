@@ -28,7 +28,6 @@ type TestingApiSrv struct {
 	ExpressionService *expr.Service
 	DatasourceCache   datasources.CacheService
 	log               log.Logger
-	LogzioHeaders     *models.LogzIoHeaders
 	accessControl     accesscontrol.AccessControl
 	evaluator         eval.Evaluator
 }
@@ -59,7 +58,13 @@ func (srv TestingApiSrv) RouteTestGrafanaRuleConfig(c *models.ReqContext, body a
 		now = timeNow()
 	}
 
-	evalResults, err := srv.evaluator.ConditionEval(&evalCond, now, srv.ExpressionService)
+	// LOGZ.IO GRAFANA CHANGE :: Pass context to datasources
+	logzioEvalContext := &ngmodels.LogzioAlertRuleEvalContext{
+		LogzioHeaders:     c.Req.Header,
+		DsOverrideByDsUid: map[string]ngmodels.EvaluationDatasourceOverride{},
+	}
+	evalResults, err := srv.evaluator.ConditionEval(&evalCond, now, srv.ExpressionService, logzioEvalContext)
+	// LOGZ.IO GRAFANA CHANGE :: end
 	if err != nil {
 		return ErrResp(http.StatusBadRequest, err, "Failed to evaluate conditions")
 	}

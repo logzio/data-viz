@@ -15,18 +15,12 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
-	"github.com/grafana/grafana-plugin-sdk-go/data"
 	"github.com/grafana/grafana/pkg/api/response"
-	"github.com/grafana/grafana/pkg/expr"
-	"github.com/grafana/grafana/pkg/infra/log"
 	"github.com/grafana/grafana/pkg/models"
 	"github.com/grafana/grafana/pkg/services/datasourceproxy"
 	"github.com/grafana/grafana/pkg/services/datasources"
 	apimodels "github.com/grafana/grafana/pkg/services/ngalert/api/tooling/definitions"
-	"github.com/grafana/grafana/pkg/services/ngalert/eval"
 	ngmodels "github.com/grafana/grafana/pkg/services/ngalert/models"
-	"github.com/grafana/grafana/pkg/setting"
-	"github.com/grafana/grafana/pkg/util"
 	"github.com/grafana/grafana/pkg/web"
 )
 
@@ -236,39 +230,6 @@ func validateQueriesAndExpressions(ctx context.Context, data []ngmodels.AlertQue
 		refIDs[query.RefID] = struct{}{}
 	}
 	return refIDs, nil
-}
-
-func conditionEval(c *models.ReqContext, cmd ngmodels.EvalAlertConditionCommand, datasourceCache datasources.CacheService, expressionService *expr.Service, cfg *setting.Cfg, log log.Logger) response.Response {
-	evalCond := ngmodels.Condition{
-		Condition: cmd.Condition,
-		OrgID:     c.SignedInUser.OrgId,
-		Data:      cmd.Data,
-	}
-	if err := validateCondition(c.Req.Context(), evalCond, c.SignedInUser, c.SkipCache, datasourceCache); err != nil {
-		return ErrResp(http.StatusBadRequest, err, "invalid condition")
-	}
-
-	now := cmd.Now
-	if now.IsZero() {
-		now = timeNow()
-	}
-
-	evaluator := eval.Evaluator{Cfg: cfg, Log: log, DataSourceCache: datasourceCache}
-	// LOGZ.IO GRAFANA CHANGE :: Pass context to datasources
-	logzioEvalContext := &ngmodels.LogzioAlertRuleEvalContext{
-		LogzioHeaders:     c.Req.Header,
-		DsOverrideByDsUid: map[string]ngmodels.EvaluationDatasourceOverride{},
-	}
-	evalResults, err := evaluator.ConditionEval(&evalCond, now, expressionService, logzioEvalContext)
-	// LOGZ.IO GRAFANA CHANGE :: End
-	if err != nil {
-		return ErrResp(http.StatusBadRequest, err, "Failed to evaluate conditions")
-	}
-
-	frame := evalResults.AsDataFrame()
-	return response.JSONStreaming(http.StatusOK, util.DynMap{
-		"instances": []*data.Frame{&frame},
-	})
 }
 
 // ErrorResp creates a response with a visible error
