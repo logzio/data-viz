@@ -1,6 +1,6 @@
 import { css, cx } from '@emotion/css';
 // import { isEqual } from 'lodash'; // LOGZ.IO GRAFANA CHANGE :: Disable exemplars
-import React, { memo, /* useCallback // LOGZ.IO GRAFANA CHANGE :: Disable exemplars*/ } from 'react';
+import React, { memo /* useCallback // LOGZ.IO GRAFANA CHANGE :: Disable exemplars*/ } from 'react';
 // import { usePrevious } from 'react-use'; // LOGZ.IO GRAFANA CHANGE :: Disable exemplars
 
 import { InlineFormLabel, RadioButtonGroup } from '@grafana/ui';
@@ -18,7 +18,7 @@ export interface PromExploreExtraFieldProps {
 }
 
 export const PromExploreExtraField: React.FC<PromExploreExtraFieldProps> = memo(
-  ({ query, /*datasource, // LOGZ.IO GRAFANA CHANGE :: Disable exemplars*/ , onChange, onRunQuery }) => {
+  ({ query, /*datasource, // LOGZ.IO GRAFANA CHANGE :: Disable exemplars,*/ onChange, onRunQuery }) => {
     const rangeOptions = getQueryTypeOptions(true);
     // const prevQuery = usePrevious(query);  // LOGZ.IO GRAFANA CHANGE :: Disable exemplars
 
