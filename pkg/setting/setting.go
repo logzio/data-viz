@@ -38,9 +38,6 @@ const (
 	HTTPSScheme  Scheme = "https"
 	HTTP2Scheme  Scheme = "h2"
 	SocketScheme Scheme = "socket"
-	// LOGZ.IO GRAFANA CHANGE :: DEV-31554 - Set APP url to logzio grafana for alert notification URLs
-	LogzioGrafanaPath = "#/dashboard/metrics/"
-	// LOGZ.IO GRAFANA CHANGE :: end
 )
 
 const (
@@ -1467,11 +1464,12 @@ func (cfg *Cfg) readServerSettings(iniFile *ini.File) error {
 
 	// LOGZ.IO GRAFANA CHANGE :: DEV-31554 - Set APP url to logzio grafana for alert notification URLs
 	parsedUrl, err := url.Parse(AppUrl)
+	additionalPath := valueAsString(server, "root_url_additional_path", "")
 	if err != nil {
 		return err
 	}
-	parsedUrl.Path += LogzioGrafanaPath
-	cfg.AppURL = AppUrl + LogzioGrafanaPath
+	parsedUrl.Path += additionalPath
+	cfg.AppURL = AppUrl + additionalPath
 	cfg.ParsedAppURL = parsedUrl
 	// LOGZ.IO GRAFANA CHANGE :: end
 	cfg.AppSubURL = AppSubUrl
