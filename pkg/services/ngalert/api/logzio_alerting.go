@@ -48,25 +48,25 @@ func NewLogzioAlertingService(
 	Proxy *AlertingProxy,
 	Cfg *setting.Cfg,
 	Evaluator eval.Evaluator,
-	Clock clock.Clock,
 	ExpressionService *expr.Service,
 	StateManager *state.Manager,
 	MultiOrgAlertmanager *notifier.MultiOrgAlertmanager,
 	InstanceStore store.InstanceStore,
-	log log.Logger,
 	SQLStore *sqlstore.SQLStore,
 ) *LogzioAlertingService {
+	logger := log.New("logzio.alerting")
+
 	return &LogzioAlertingService{
 		AlertingProxy:        Proxy,
 		Cfg:                  Cfg,
 		AppUrl:               Cfg.ParsedAppURL,
-		Clock:                Clock,
+		Clock:                clock.New(),
 		Evaluator:            Evaluator,
 		ExpressionService:    ExpressionService,
 		StateManager:         StateManager,
 		MultiOrgAlertmanager: MultiOrgAlertmanager,
 		InstanceStore:        InstanceStore,
-		Log:                  log,
+		Log:                  logger,
 		Migrator:             SQLStore.BuildMigrator(),
 	}
 }
@@ -118,19 +118,11 @@ func (srv *LogzioAlertingService) RouteProcessAlert(request apimodels.AlertProce
 	srv.saveAlertStates(processedStates)
 	alerts := schedule.FromAlertStateToPostableAlerts(processedStates, srv.StateManager, srv.AppUrl)
 
-	n, err := srv.MultiOrgAlertmanager.AlertmanagerFor(alertRule.OrgID)
-	if err == nil {
-		srv.Log.Info("Pushing alerts to alert manager")
-		if err := n.PutAlerts(alerts); err != nil {
-			srv.Log.Error("failed to put alerts in the local notifier", "count", len(alerts.PostableAlerts), "err", err, "ruleId", alertRule.ID)
-			return response.Error(http.StatusInternalServerError, "Failed to process alert", err)
-		}
-	} else {
+	err := srv.notify(ngmodels.AlertRuleKey{OrgID: alertRule.OrgID, UID: alertRule.UID}, alerts)
+	if err != nil {
 		if errors.Is(err, notifier.ErrNoAlertmanagerForOrg) {
-			srv.Log.Info("local notifier was not found", "orgId", alertRule.OrgID)
 			return response.Error(http.StatusBadRequest, "Alert manager for organization not found", err)
 		} else {
-			srv.Log.Error("local notifier is not available", "err", err, "orgId", alertRule.OrgID)
 			return response.Error(http.StatusInternalServerError, "Failed to process alert", err)
 		}
 	}
@@ -167,6 +159,19 @@ func (srv *LogzioAlertingService) RouteClearOrgMigration(requestBody ClearOrgAle
 	}
 
 	return response.JSONStreaming(http.StatusOK, "Success")
+}
+
+func (srv *LogzioAlertingService) ClearAlertState(key ngmodels.AlertRuleKey) {
+	if srv.Cfg.UnifiedAlerting.AlertManagerEnabled {
+		states := srv.StateManager.GetStatesForRuleUID(key.OrgID, key.UID)
+		expiredAlerts := schedule.FromAlertsStateToStoppedAlert(states, srv.AppUrl, srv.Clock)
+		srv.StateManager.RemoveByRuleUID(key.OrgID, key.UID)
+
+		err := srv.notify(key, expiredAlerts)
+		if err != nil {
+			srv.Log.Error("Failed to notify expired alert rules")
+		}
+	}
 }
 
 func evaluationResultsToApi(evalResult eval.Result) apimodels.ApiEvalResult {
@@ -321,6 +326,26 @@ func (srv *LogzioAlertingService) saveAlertStates(states []*state.State) {
 			srv.Log.Error("failed to save alert state", "uid", s.AlertRuleUID, "orgId", s.OrgID, "labels", s.Labels.String(), "state", s.State.String(), "msg", err.Error())
 		}
 	}
+}
+
+func (srv *LogzioAlertingService) notify(key ngmodels.AlertRuleKey, alerts apimodels.PostableAlerts) error {
+	n, err := srv.MultiOrgAlertmanager.AlertmanagerFor(key.OrgID)
+	if err == nil {
+		srv.Log.Info("Pushing alerts to alert manager")
+		if err := n.PutAlerts(alerts); err != nil {
+			srv.Log.Error("failed to put alerts in the local notifier", "count", len(alerts.PostableAlerts), "err", err, "ruleUid", key.UID)
+			return err
+		}
+	} else {
+		if errors.Is(err, notifier.ErrNoAlertmanagerForOrg) {
+			srv.Log.Info("local notifier was not found", "orgId", key.OrgID)
+		} else {
+			srv.Log.Error("local notifier is not available", "err", err, "orgId", key.OrgID)
+		}
+		return err
+	}
+
+	return nil
 }
 
 // LOGZ.IO GRAFANA CHANGE :: end

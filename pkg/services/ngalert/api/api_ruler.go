@@ -29,14 +29,15 @@ import (
 )
 
 type RulerSrv struct {
-	xactManager     provisioning.TransactionManager
-	store           store.RuleStore
-	DatasourceCache datasources.CacheService
-	QuotaService    *quota.QuotaService
-	scheduleService schedule.ScheduleService
-	log             log.Logger
-	cfg             *setting.UnifiedAlertingSettings
-	ac              accesscontrol.AccessControl
+	xactManager           provisioning.TransactionManager
+	store                 store.RuleStore
+	DatasourceCache       datasources.CacheService
+	QuotaService          *quota.QuotaService
+	scheduleService       schedule.ScheduleService
+	logzioAlertingService *LogzioAlertingService // LOGZ.IO GRAFANA CHANGE :: add logzio alerting service
+	log                   log.Logger
+	cfg                   *setting.UnifiedAlertingSettings
+	ac                    accesscontrol.AccessControl
 }
 
 var (
@@ -112,10 +113,12 @@ func (srv RulerSrv) RouteDeleteAlertRules(c *models.ReqContext) response.Respons
 	logger.Debug("rules have been deleted from the store. updating scheduler")
 
 	for _, uid := range canDelete {
-		srv.scheduleService.DeleteAlertRule(ngmodels.AlertRuleKey{
+		// LOGZ.IO GRAFANA CHANGE :: clear rule state from state manager on delete
+		srv.logzioAlertingService.ClearAlertState(ngmodels.AlertRuleKey{
 			OrgID: c.SignedInUser.OrgId,
 			UID:   uid,
 		})
+		// LOGZ.IO GRAFANA CHANGE :: end
 	}
 
 	return response.JSON(http.StatusAccepted, util.DynMap{"message": "rules deleted"})
@@ -416,19 +419,21 @@ func (srv RulerSrv) updateAlertRulesInGroup(c *models.ReqContext, namespace *mod
 		return ErrResp(http.StatusInternalServerError, err, "failed to update rule group")
 	}
 
+	// LOGZ.IO GRAFANA CHANGE :: clear rule state from state manager on update
 	for _, rule := range authorizedChanges.Update {
-		srv.scheduleService.UpdateAlertRule(ngmodels.AlertRuleKey{
+		srv.logzioAlertingService.ClearAlertState(ngmodels.AlertRuleKey{
 			OrgID: c.SignedInUser.OrgId,
 			UID:   rule.Existing.UID,
 		})
 	}
 
 	for _, rule := range authorizedChanges.Delete {
-		srv.scheduleService.DeleteAlertRule(ngmodels.AlertRuleKey{
+		srv.logzioAlertingService.ClearAlertState(ngmodels.AlertRuleKey{
 			OrgID: c.SignedInUser.OrgId,
 			UID:   rule.UID,
 		})
 	}
+	// LOGZ.IO GRAFANA CHANGE :: end
 
 	if authorizedChanges.isEmpty() {
 		return response.JSON(http.StatusAccepted, util.DynMap{"message": "no changes detected in the rule group"})

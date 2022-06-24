@@ -5,7 +5,6 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/benbjohnson/clock"
 	"github.com/grafana/grafana/pkg/services/ngalert/eval"
 	"github.com/grafana/grafana/pkg/services/sqlstore"
 
@@ -93,6 +92,18 @@ func (api *API) RegisterAPIEndpoints(m *metrics.API) {
 		DataProxy: api.DataProxy,
 	}
 
+	// LOGZ.IO GRAFANA CHANGE :: DEV-30169,DEV-30170,DEV-30275: add logzio alerting functionality
+	logzioAlertingService := NewLogzioAlertingService(proxy,
+		api.Cfg,
+		eval.NewEvaluator(api.Cfg, logger, api.DatasourceCache, api.SecretsService),
+		api.ExpressionService,
+		api.StateManager,
+		api.MultiOrgAlertmanager,
+		api.InstanceStore,
+		api.SQLStore,
+	)
+	// LOGZ.IO GRAFANA CHANGE :: end
+
 	// Register endpoints for proxying to Alertmanager-compatible backends.
 	api.RegisterAlertmanagerApiEndpoints(NewForkedAM(
 		api.DatasourceCache,
@@ -110,14 +121,15 @@ func (api *API) RegisterAPIEndpoints(m *metrics.API) {
 		api.DatasourceCache,
 		NewLotexRuler(proxy, logger),
 		&RulerSrv{
-			DatasourceCache: api.DatasourceCache,
-			QuotaService:    api.QuotaService,
-			scheduleService: api.Schedule,
-			store:           api.RuleStore,
-			xactManager:     api.TransactionManager,
-			log:             logger,
-			cfg:             &api.Cfg.UnifiedAlerting,
-			ac:              api.AccessControl,
+			DatasourceCache:       api.DatasourceCache,
+			QuotaService:          api.QuotaService,
+			scheduleService:       api.Schedule,
+			logzioAlertingService: logzioAlertingService,
+			store:                 api.RuleStore,
+			xactManager:           api.TransactionManager,
+			log:                   logger,
+			cfg:                   &api.Cfg.UnifiedAlerting,
+			ac:                    api.AccessControl,
 		},
 	), m)
 	api.RegisterTestingApiEndpoints(NewForkedTestingApi(
@@ -137,19 +149,7 @@ func (api *API) RegisterAPIEndpoints(m *metrics.API) {
 		},
 	), m)
 	// LOGZ.IO GRAFANA CHANGE :: DEV-30169,DEV-30170,DEV-30275: add logzio alerting endpoints
-	api.RegisterLogzioAlertingApiEndpoints(NewLogzioAlertingApi(
-		NewLogzioAlertingService(proxy,
-			api.Cfg,
-			eval.NewEvaluator(api.Cfg, logger, api.DatasourceCache, api.SecretsService),
-			clock.New(),
-			api.ExpressionService,
-			api.StateManager,
-			api.MultiOrgAlertmanager,
-			api.InstanceStore,
-			logger,
-			api.SQLStore,
-		),
-	), m)
+	api.RegisterLogzioAlertingApiEndpoints(NewLogzioAlertingApi(logzioAlertingService), m)
 	// LOGZ.IO GRAFANA CHANGE :: end
 
 	if api.Cfg.IsFeatureToggleEnabled(featuremgmt.FlagAlertProvisioning) {
