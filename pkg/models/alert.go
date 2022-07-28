@@ -153,6 +153,7 @@ type SetAlertStateCommand struct {
 	State    AlertStateType
 	Error    string
 	EvalData *simplejson.Json
+	NewStateDate time.Time // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - Add new state date
 
 	Result Alert
 }

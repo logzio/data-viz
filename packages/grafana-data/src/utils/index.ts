@@ -12,6 +12,7 @@ export * from './namedColorsPalette';
 export * from './series';
 export * from './binaryOperators';
 export * from './nodeGraph';
+export * from './logzioProvider'; // LOGZ.IO GRAFANA CHANGE :: DEV-20247 Use logzio provider
 export { PanelOptionsEditorBuilder, FieldConfigEditorBuilder } from './OptionsUIBuilders';
 export { arrayUtils };
 export { getFlotPairs, getFlotPairsConstant } from './flotPairs';

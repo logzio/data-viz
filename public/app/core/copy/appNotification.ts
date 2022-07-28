@@ -1,6 +1,7 @@
 import { AppNotification, AppNotificationSeverity, AppNotificationTimeout } from 'app/types';
 import { getMessageFromError } from 'app/core/utils/errors';
 import { v4 as uuidv4 } from 'uuid';
+import { logzioServices } from '@grafana/data'; // LOGZ.IO GRAFANA CHANGE :: DEV-23041 - log to logzio on any error
 
 const defaultSuccessNotification = {
   title: '',
@@ -38,6 +39,18 @@ export const createErrorNotification = (
   text: string | Error = '',
   component?: React.ReactElement
 ): AppNotification => {
+  // LOGZ.IO GRAFANA CHANGE :: DEV-23041 - log to logzio on any error
+  const logzLogger = logzioServices.LoggerService;
+  logzLogger.logError({
+    origin: logzLogger.Origin.GRAFANA,
+    message: getMessageFromError(text),
+    error: null,
+    uxType: logzLogger.UxType.TOAST,
+    extra: {
+      title,
+    },
+  });
+
   return {
     ...defaultErrorNotification,
     text: getMessageFromError(text),

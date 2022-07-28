@@ -91,6 +91,7 @@ require (
 	github.com/uber/jaeger-client-go v2.27.0+incompatible
 	github.com/unknwon/com v1.0.1
 	github.com/urfave/cli/v2 v2.3.0
+  github.com/unrolled/secure v1.0.8
 	github.com/weaveworks/common v0.0.0-20210419092856-009d1eebd624
 	github.com/xorcare/pointer v1.1.0
 	github.com/yudai/gojsondiff v1.0.0

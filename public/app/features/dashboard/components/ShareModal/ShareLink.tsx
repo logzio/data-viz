@@ -1,7 +1,8 @@
 import React, { PureComponent } from 'react';
 import { selectors as e2eSelectors } from '@grafana/e2e-selectors';
 import { Field, RadioButtonGroup, Switch, ClipboardButton, Icon, Input, FieldSet, Alert } from '@grafana/ui';
-import { SelectableValue, PanelModel, AppEvents } from '@grafana/data';
+// LOGZ.IO GRAFANA CHANGE :: DEV-20247 Use logzio provider
+import { SelectableValue, PanelModel, AppEvents, logzioServices, logzioConfigs } from '@grafana/data';
 import { DashboardModel } from 'app/features/dashboard/state';
 import { buildImageUrl, buildShareUrl } from './utils';
 import { appEvents } from 'app/core/core';
@@ -57,7 +58,15 @@ export class ShareLink extends PureComponent<Props, State> {
     const { panel } = this.props;
     const { useCurrentTimeRange, useShortUrl, selectedTheme } = this.state;
 
-    const shareUrl = await buildShareUrl(useCurrentTimeRange, selectedTheme, panel, useShortUrl);
+    // LOGZ.IO GRAFANA CHANGE :: DEV-19527 Add await to function call
+    const grafanaShareUrl = await buildShareUrl(useCurrentTimeRange, selectedTheme, panel, useShortUrl);
+
+    const shareUrl = await logzioServices.shareUrlService.getLogzioGrafanaUrl({
+      productUrl: grafanaShareUrl,
+      switchToAccountId: logzioConfigs.account.accountId,
+    });
+    // LOGZ.IO GRAFANA CHANGE :: end
+
     const imageUrl = buildImageUrl(useCurrentTimeRange, selectedTheme, panel);
 
     this.setState({ shareUrl, imageUrl });
@@ -86,7 +95,7 @@ export class ShareLink extends PureComponent<Props, State> {
   render() {
     const { panel } = this.props;
     const isRelativeTime = this.props.dashboard ? this.props.dashboard.time.to === 'now' : false;
-    const { useCurrentTimeRange, useShortUrl, selectedTheme, shareUrl, imageUrl } = this.state;
+    const { useCurrentTimeRange, selectedTheme, shareUrl, imageUrl } = this.state; // LOGZ.IO GRAFNA CHANGE :: DEV-23431 Remove useShortenUrl
     const selectors = e2eSelectors.pages.SharePanelModal;
 
     return (
@@ -108,9 +117,10 @@ export class ShareLink extends PureComponent<Props, State> {
           <Field label="Theme">
             <RadioButtonGroup options={themeOptions} value={selectedTheme} onChange={this.onThemeChange} />
           </Field>
-          <Field label="Shorten URL">
-            <Switch id="share-shorten-url" value={useShortUrl} onChange={this.onUrlShorten} />
-          </Field>
+          {/* LOGZ.IO GRAFNA CHANGE :: DEV-23431 Remove short url switcher*/}
+          {/*<Field label="Shorten URL">*/}
+          {/*  <Switch id="share-shorten-url" value={useShortUrl} onChange={this.onUrlShorten} />*/}
+          {/*</Field>*/}
 
           <Field label="Link URL">
             <Input

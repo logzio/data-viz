@@ -12,7 +12,8 @@ awsconfig
 /emails/dist
 /reports
 /e2e/tmp
-.yarnrc
+# LOGZ.IO GRAFANA CHANGE :: add yarnrc to git
+!.yarnrc
 .yarn/
 vendor/
 /docs/menu.yaml
@@ -53,14 +54,17 @@ public/css/*.min.css
 .vs/
 .eslintcache
 
-/data/*
+# LOGZ.IO GRAFANA CHANGE :: keep data for preinstalled plugins
+# /data/*
+/data/log
+# LOGZ.IO GRAFANA CHANGE :: end
 /bin/*
 
 # devenv
 /devenv/docker-compose.yaml
 /devenv/.env
 
-conf/custom.ini
+# conf/custom.ini # LOGZ.IO GRAFANA CHANGE :: we want to copy custom.ini/conf/provisioning/**/custom.yaml
 /conf/provisioning/**/custom.yaml
 /conf/provisioning/**/dev.yaml
 /conf/ldap_dev.toml

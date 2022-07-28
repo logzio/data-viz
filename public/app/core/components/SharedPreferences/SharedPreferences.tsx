@@ -16,8 +16,8 @@ import {
 } from '@grafana/ui';
 import { SelectableValue } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
-
-import { DashboardSearchHit, DashboardSearchItemType } from 'app/features/search/types';
+// LOGZ.IO GRAFANA CHANGE :: DEV-20609 Remove DashboardSearchItemType (remove default dashboard)
+import { DashboardSearchHit } from 'app/features/search/types';
 import { backendSrv } from 'app/core/services/backend_srv';
 import { PreferencesService } from 'app/core/services/PreferencesService';
 
@@ -54,24 +54,27 @@ export class SharedPreferences extends PureComponent<Props, State> {
   }
 
   async componentDidMount() {
-    const prefs = await this.service.load();
+    // LOGZ.IO GRAFANA CHANGE :: DEV-20609 Home dashboard
+    const prefs = await backendSrv.get(`/api/${this.props.resourceUri.toLowerCase()}/preferences`);
     const dashboards = await backendSrv.search({ starred: true });
-    const defaultDashboardHit: DashboardSearchHit = {
-      id: 0,
-      title: 'Default',
-      tags: [],
-      type: '' as DashboardSearchItemType,
-      uid: '',
-      uri: '',
-      url: '',
-      folderId: 0,
-      folderTitle: '',
-      folderUid: '',
-      folderUrl: '',
-      isStarred: false,
-      slug: '',
-      items: [],
-    };
+    // LOGZ.IO GRAFANA CHANGE :: DEV-20609 Remove default dashboard
+    // const defaultDashboardHit: DashboardSearchHit = {
+    //   id: 0,
+    //   title: 'Default',
+    //   tags: [],
+    //   type: '' as DashboardSearchItemType,
+    //   uid: '',
+    //   uri: '',
+    //   url: '',
+    //   folderId: 0,
+    //   folderTitle: '',
+    //   folderUid: '',
+    //   folderUrl: '',
+    //   isStarred: false,
+    //   slug: '',
+    //   items: [],
+    // };
+    // LOGZ.IO GRAFANA CHANGE :: end
 
     if (prefs.homeDashboardId > 0 && !dashboards.find((d) => d.id === prefs.homeDashboardId)) {
       const missing = await backendSrv.search({ dashboardIds: [prefs.homeDashboardId] });
@@ -84,13 +87,19 @@ export class SharedPreferences extends PureComponent<Props, State> {
       homeDashboardId: prefs.homeDashboardId,
       theme: prefs.theme,
       timezone: prefs.timezone,
-      dashboards: [defaultDashboardHit, ...dashboards],
+      dashboards, // LOGZ.IO GRAFANA CHANGE :: DEV-20609 Remove default dashboard
     });
   }
 
   onSubmitForm = async () => {
     const { homeDashboardId, theme, timezone } = this.state;
-    await this.service.update({ homeDashboardId, theme, timezone });
+
+    // LOGZ.IO GRAFANA CHANGE :: DEV-20609 Home dashboard
+    await backendSrv.put(`/api/${this.props.resourceUri.toLowerCase()}/preferences`, {
+      homeDashboardId,
+      theme,
+      timezone,
+    });
     window.location.reload();
   };
 
@@ -124,7 +133,8 @@ export class SharedPreferences extends PureComponent<Props, State> {
       <Form onSubmit={this.onSubmitForm}>
         {() => {
           return (
-            <FieldSet label="Preferences">
+            // LOGZ.IO GRAFANA CHANGE :: DEV-20609 rename to user preferences
+            <FieldSet label={`${this.props.resourceUri} Preferences`}>
               <Field label="UI Theme">
                 <RadioButtonGroup
                   options={themes}

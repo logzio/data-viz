@@ -7,7 +7,7 @@ import { playlistSrv } from 'app/features/playlist/PlaylistSrv';
 import { DashNavButton } from './DashNavButton';
 import { DashNavTimeControls } from './DashNavTimeControls';
 import { ButtonGroup, ModalsController, ToolbarButton, PageToolbar } from '@grafana/ui';
-import { textUtil } from '@grafana/data';
+import { textUtil } from '@grafana/data'; // LOGZ.IO GRAFANA CHANGE :: DEV-20896 Remove unneccesry imprt
 // State
 import { updateTimeZoneForSession } from 'app/features/profile/state/reducers';
 // Types
@@ -183,8 +183,12 @@ class DashNav extends PureComponent<Props> {
   renderRightActionsButton() {
     const { dashboard, onAddPanel, isFullscreen, kioskMode } = this.props;
     const { canEdit, showSettings } = dashboard.meta;
-    const { snapshot } = dashboard;
-    const snapshotUrl = snapshot && snapshot.originalUrl;
+
+    // LOGZ.IO GRAFANA CHANGE :: DEV-20896 Remove uneccesery use of original url
+    // const { snapshot } = dashboard;
+    // const snapshotUrl = snapshot && snapshot.originalUrl;
+    // LOGZ.IO GRAFANA CHANGE :: END
+
     const buttons: ReactNode[] = [];
     const tvButton = (
       <ToolbarButton tooltip="Cycle view mode" icon="monitor" onClick={this.onToggleTVMode} key="tv-button" />
@@ -218,16 +222,19 @@ class DashNav extends PureComponent<Props> {
       );
     }
 
-    if (snapshotUrl) {
-      buttons.push(
-        <ToolbarButton
-          tooltip="Open original dashboard"
-          onClick={() => this.gotoSnapshotOrigin(snapshotUrl)}
-          icon="link"
-          key="button-snapshot"
-        />
-      );
-    }
+    // LOGZ.IO GRAFANA CHANGE :: DEV-20896 Remove uneccesery use of original url
+    // if (snapshotUrl) {
+    //   buttons.push(
+    //     <DashNavButton
+    //       tooltip="Open original dashboard"
+    //       classSuffix="snapshot-origin"
+    //       href={textUtil.sanitizeUrl(snapshotUrl)}
+    //       icon="link"
+    //       key="button-snapshot"
+    //     />
+    //   );
+    // }
+    // LOGZ.IO GRAFANA CHANGE :: END
 
     if (showSettings) {
       buttons.push(

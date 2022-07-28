@@ -39,7 +39,9 @@ func AddMigrations(mg *Migrator) {
 	addCacheMigration(mg)
 	addShortURLMigrations(mg)
 	ualert.AddTablesMigrations(mg)
-	ualert.AddDashAlertMigration(mg)
+	// LOGZ.IO GRAFANA CHANGE :: DEV-30711 - Remove unified alerting db migration
+	//ualert.AddDashAlertMigration(mg)
+	// LOGZ.IO GRAFANA CHANGE :: end
 	addLibraryElementsMigrations(mg)
 }
 

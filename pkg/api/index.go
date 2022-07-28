@@ -262,7 +262,8 @@ func (hs *HTTPServer) getNavTree(c *models.ReqContext, hasEditPerm bool) ([]*dto
 		})
 	}
 
-	if c.OrgRole == models.ROLE_ADMIN || (hs.Cfg.EditorsCanAdmin && c.OrgRole == models.ROLE_EDITOR) {
+	// LOGZ.IO GRAFANA CHANGE :: Limit configuration for admins
+	if c.OrgRole == models.ROLE_ADMIN {
 		configNodes = append(configNodes, &dtos.NavLink{
 			Text:        "Teams",
 			Id:          "teams",
@@ -281,27 +282,30 @@ func (hs *HTTPServer) getNavTree(c *models.ReqContext, hasEditPerm bool) ([]*dto
 			Url:         hs.Cfg.AppSubURL + "/plugins",
 		})
 
+		// LOGZ.IO GRAFANA CHANGE :: DEV-20609 Enable change home dashboard
 		configNodes = append(configNodes, &dtos.NavLink{
-			Text:        "Preferences",
-			Id:          "org-settings",
-			Description: "Organization preferences",
-			Icon:        "sliders-v-alt",
-			Url:         hs.Cfg.AppSubURL + "/org",
-		})
-		configNodes = append(configNodes, &dtos.NavLink{
-			Text:        "API keys",
+			Text:        "API Keys",
 			Id:          "apikeys",
 			Description: "Create & manage API keys",
-			Icon:        "key-skeleton-alt",
+			Icon:        "key-skeleton-altalt",
 			Url:         hs.Cfg.AppSubURL + "/org/apikeys",
 		})
 	}
+
+	configNodes = append(configNodes, &dtos.NavLink{
+		Text:        "Preferences",
+		Id:          "org-settings",
+		Description: "Organization preferences",
+		Icon:        "sliders-v-alt",
+		Url:         setting.AppSubUrl + "/org",
+	})
+	// LOGZ.IO GRAFANA CHANGE :: end
 
 	if len(configNodes) > 0 {
 		navTree = append(navTree, &dtos.NavLink{
 			Id:         dtos.NavIDCfg,
 			Text:       "Configuration",
-			SubTitle:   "Organization: " + c.OrgName,
+			SubTitle:   "", // LOGZ.IO GRAFANA CHANGE :: DEV-20609 Enable change home dashboard
 			Icon:       "cog",
 			Url:        configNodes[0].Url,
 			SortWeight: dtos.WeightConfig,

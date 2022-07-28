@@ -70,6 +70,8 @@ export class FormDropdownCtrl {
       items: 10000,
       updater: this.typeaheadUpdater.bind(this),
       matcher: typeaheadMatcher,
+      // LOGZ.IO GRAFANA CHANGE :: Pass showNestedMetrics true to bootstrap
+      showNestedMetrics: true,
     });
 
     // modify typeahead lookup
@@ -90,6 +92,19 @@ export class FormDropdownCtrl {
         this.linkElement.click();
       }
     });
+
+    // LOGZ.IO GRAFANA CHANGE :: Select all field for copy full field name
+    // And add tooltip
+    this.linkElement.contextmenu((evt) => {
+      // Select full field name
+      window.getSelection()?.selectAllChildren(evt.target);
+    });
+
+    this.linkElement.mouseover((evt) => {
+      const button = evt.target as HTMLElement;
+      this.linkElement.attr('title', button.innerText);
+    });
+    // LOGZ.IO GRAFANA CHANGE :: end
 
     this.inputElement.keydown((evt) => {
       if (evt.keyCode === 13) {

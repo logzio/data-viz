@@ -700,12 +700,17 @@ export class PrometheusDatasource extends DataSourceApi<PromQuery, PromOptions> 
   }
 
   getExemplars(query: PromQueryRequest) {
-    const url = '/api/v1/query_exemplars';
-    return this._request<PromDataSuccessResponse<PromExemplarData>>(
-      url,
-      { query: query.expr, start: query.start.toString(), end: query.end.toString() },
-      { requestId: query.requestId, headers: query.headers }
-    );
+    // LOGZ.IO GRAFANA CHANGE :: Disable exemplars
+    // const url = '/api/v1/query_exemplars';
+    // return this._request<PromDataSuccessResponse<PromExemplarData>>(
+    //   url,
+    //   { query: query.expr, start: query.start.toString(), end: query.end.toString() },
+    //   { requestId: query.requestId, headers: query.headers }
+    // );
+    return of({
+      data: [],
+      state: LoadingState.Done,
+    });
   }
 
   async getTagKeys() {
@@ -752,8 +757,9 @@ export class PrometheusDatasource extends DataSourceApi<PromQuery, PromOptions> 
 
   async loadRules() {
     try {
-      const res = await this.metadataRequest('/api/v1/rules');
-      const groups = res.data?.data?.groups;
+      // LOGZ.IO GRAFANA CHANGE :: DEV-24838: Mock rules requests
+      // const res = await this.metadataRequest('/api/v1/rules');
+      const groups = null;
 
       if (groups) {
         this.ruleMappings = extractRuleMappingFromGroups(groups);

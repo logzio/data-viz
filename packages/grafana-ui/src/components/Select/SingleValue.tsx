@@ -19,7 +19,8 @@ const getStyles = (theme: GrafanaTheme2) => {
     max-width: 100%;
   `;
   const container = css`
-    width: 16px;
+    ${/* LOGZ.IO GRAFANA CHANGE :: DEV-19985: add datasource logos */ ''}
+    width: 45px;
     height: 16px;
     display: inline-block;
     margin-right: 10px;

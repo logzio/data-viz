@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors" // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - Add errors import
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -73,7 +74,8 @@ func coerceVersion(v *simplejson.Json) (*semver.Version, error) {
 }
 
 // NewClient creates a new elasticsearch client
-var NewClient = func(ctx context.Context, httpClientProvider httpclient.Provider, ds *models.DataSource, timeRange plugins.DataTimeRange) (Client, error) {
+// LOGZ.IO GRAFANA CHANGE :: (ALERTS) DEV-16492 Support external alert evaluation
+var NewClient = func(ctx context.Context, httpClientProvider httpclient.Provider, ds *models.DataSource, timeRange plugins.DataTimeRange, tsdbQuery *plugins.DataQuery) (Client, error) {
 	version, err := coerceVersion(ds.JsonData.Get("esVersion"))
 
 	if err != nil {
@@ -106,6 +108,7 @@ var NewClient = func(ctx context.Context, httpClientProvider httpclient.Provider
 		timeField:          timeField,
 		indices:            indices,
 		timeRange:          timeRange,
+		logzIoHeaders:      tsdbQuery.LogzIoHeaders, // LOGZ.IO GRAFANA CHANGE :: (ALERTS) DEV-16492 Support external alert evaluation
 	}, nil
 }
 
@@ -118,6 +121,7 @@ type baseClientImpl struct {
 	indices            []string
 	timeRange          plugins.DataTimeRange
 	debugEnabled       bool
+	logzIoHeaders      *models.LogzIoHeaders // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - add LogzIoHeaders
 }
 
 func (c *baseClientImpl) GetVersion() *semver.Version {
@@ -211,7 +215,11 @@ func (c *baseClientImpl) executeRequest(method, uriPath, uriQuery string, body [
 		}
 	}
 
-	req.Header.Set("Content-Type", "application/x-ndjson")
+	req.Header = c.logzIoHeaders.GetDatasourceQueryHeaders(req.Header) // LOGZ.IO GRAFANA CHANGE :: (ALERTS) DEV-16492 Support external alert evaluation
+
+	// LOGZ.IO GRAFANA CHANGE :: use application/json to interact with query-service
+	// 	req.Header.Set("Content-Type", "application/x-ndjson")
+	req.Header.Set("Content-Type", "application/json")
 
 	httpClient, err := newDatasourceHttpClient(c.httpClientProvider, c.ds)
 	if err != nil {
@@ -228,6 +236,18 @@ func (c *baseClientImpl) executeRequest(method, uriPath, uriQuery string, body [
 	if err != nil {
 		return nil, err
 	}
+	// LOGZ.IO GRAFANA CHANGE :: DEV-17927 - Add error msg
+	if resp != nil && (resp.StatusCode < 200 || resp.StatusCode >= 300) {
+		errorResponse, err := c.DecodeErrorResponse(resp)
+		if err != nil {
+			return nil, err
+		}
+		errMsg := fmt.Sprintf("got bad response status from datasource. StatusCode: %d, Status: %s, RequestId: '%s', Message: %s",
+			resp.StatusCode, resp.Status, errorResponse.RequestId, errorResponse.Message)
+		clientLog.Error(errMsg)
+		return nil, errors.New(errMsg)
+	}
+	// LOGZ.IO GRAFANA CHANGE :: end
 	return &response{
 		httpResponse: resp,
 		reqInfo:      reqInfo,
@@ -332,12 +352,21 @@ func (c *baseClientImpl) createMultiSearchRequests(searchRequests []*SearchReque
 }
 
 func (c *baseClientImpl) getMultiSearchQueryParameters() string {
-	if c.version.Major() >= 7 {
-		maxConcurrentShardRequests := c.getSettings().Get("maxConcurrentShardRequests").MustInt(5)
-		return fmt.Sprintf("max_concurrent_shard_requests=%d", maxConcurrentShardRequests)
+	// LOGZ.IO GRAFANA CHANGE :: DEV-20400 Grafana alerts evaluation - set 'accountsToSearch' query param
+	datasourceUrl, _ := url.Parse(c.ds.Url)
+	q, _ := url.ParseQuery(datasourceUrl.RawQuery)
+	if len(q.Get("querySource")) > 0 {
+		// set/override 'accountsToSearch' as Database (accountId)
+		q.Set("accountsToSearch", c.ds.Database)
 	}
 
-	return ""
+	if c.version.Major() >= 7 {
+		maxConcurrentShardRequests := c.getSettings().Get("maxConcurrentShardRequests").MustInt(5)
+		q.Set("max_concurrent_shard_requests", fmt.Sprintf("%d", maxConcurrentShardRequests))
+	}
+
+	return q.Encode()
+	// LOGZ.IO GRAFANA CHANGE :: DEV-20400 - end
 }
 
 func (c *baseClientImpl) MultiSearch() *MultiSearchRequestBuilder {

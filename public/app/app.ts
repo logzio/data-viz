@@ -21,6 +21,7 @@ import {
   standardEditorsRegistry,
   standardFieldConfigEditorRegistry,
   standardTransformersRegistry,
+  productLoaded, // LOGZ.IO GRAFANA CHANGE :: DEV-20247 Use logzio provider
 } from '@grafana/data';
 import { arrayMove } from 'app/core/utils/arrayMove';
 import { importPluginModule } from 'app/features/plugins/plugin_loader';
@@ -100,6 +101,12 @@ export class GrafanaApp {
     $.fn.tooltip.defaults.animation = false;
 
     this.angularApp.init();
+
+    // LOGZ.IO GRAFANA CHANGE :: Let app know that grafana loaded successfully
+    if (productLoaded.resolve) {
+      productLoaded.resolve();
+    }
+    // LOGZ.IO GRAFANA CHANGE :: end
 
     // Preload selected app plugins
     const promises = [];

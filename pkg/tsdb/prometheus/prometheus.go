@@ -27,6 +27,7 @@ import (
 type PrometheusExecutor struct {
 	baseRoundTripperFactory func(dsInfo *models.DataSource) (http.RoundTripper, error)
 	intervalCalculator      interval.Calculator
+	Transport               http.RoundTripper
 }
 
 type prometheusTransport struct {
@@ -78,6 +79,7 @@ func New(provider httpclient.Provider) func(*models.DataSource) (plugins.DataPlu
 			baseRoundTripperFactory: func(ds *models.DataSource) (http.RoundTripper, error) {
 				return transport, nil
 			},
+			Transport: transport,
 		}, nil
 	}
 }
@@ -126,7 +128,7 @@ func (e *PrometheusExecutor) DataQuery(ctx context.Context, dsInfo *models.DataS
 		Results: map[string]plugins.DataQueryResult{},
 	}
 
-	client, err := e.getClient(dsInfo)
+	client, err := e.getLogzioAuthClient(dsInfo, &tsdbQuery) // LOGZ.IO GRAFANA CHANGE :: (ALERTS) DEV-16492 Support external alert evaluation
 	if err != nil {
 		return result, err
 	}

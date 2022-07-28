@@ -1,6 +1,7 @@
 package tsdb
 
 import (
+	"github.com/grafana/grafana/pkg/plugins"
 	"strconv"
 	"time"
 
@@ -14,6 +15,16 @@ func NewTimeRange(from, to string) *TimeRange {
 		now:  time.Now(),
 	}
 }
+
+// LOGZ.IO GRAFANA CHANGE :: DEV-17927 - Add now to time range.
+func CustomNewTimeRange(from, to string, now time.Time) plugins.DataTimeRange {
+	return plugins.DataTimeRange{
+		From: from,
+		To:   to,
+		Now:  now,
+	}
+}
+// LOGZ.IO GRAFANA CHANGE :: end
 
 func NewFakeTimeRange(from, to string, now time.Time) *TimeRange {
 	return &TimeRange{

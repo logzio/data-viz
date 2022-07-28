@@ -17,7 +17,9 @@ const startTaskRunner: TaskRunner<StartTaskOptions> = async ({ watchThemes, noTs
     },
     hot
       ? {
-          command: 'webpack-dev-server --progress --colors --config scripts/webpack/webpack.hot.js',
+          command:
+            // LOGZ.IO GRAFANA CHANGE :: DEV-18284 Implement grafana watch script
+            'node --max-old-space-size=4096 node_modules/webpack-dev-server/bin/webpack-dev-server.js --progress --colors --config scripts/webpack/webpack.hot.js',
           name: 'Dev server',
         }
       : {

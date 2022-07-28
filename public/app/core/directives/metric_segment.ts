@@ -142,6 +142,8 @@ export function metricSegment($compile: any, $sce: any, templateSrv: TemplateSrv
         items: 10000,
         updater: $scope.updater,
         matcher: $scope.matcher,
+        // LOGZ.IO GRAFANA CHANGE :: Pass showNestedMetrics true to bootstrap
+        showNestedMetrics: true,
       });
 
       const typeahead = $input.data('typeahead');
@@ -161,6 +163,19 @@ export function metricSegment($compile: any, $sce: any, templateSrv: TemplateSrv
           $button.click();
         }
       });
+
+      // LOGZ.IO GRAFANA CHANGE :: Select all field for copy full field name
+      // And add tooltip
+      $button.contextmenu((evt) => {
+        // Select full field name
+        window.getSelection()?.selectAllChildren(evt.target);
+      });
+
+      $button.mouseover((evt) => {
+        const button = evt.target as HTMLElement;
+        $button.attr('title', button.innerText);
+      });
+      // LOGZ.IO GRAFANA CHANGE :: end
 
       $button.click(() => {
         options = null;

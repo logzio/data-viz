@@ -1,5 +1,5 @@
 import { isString, property, escape } from 'lodash';
-import { deprecationWarning, ScopedVars, TimeRange } from '@grafana/data';
+import { deprecationWarning, ScopedVars, TimeRange, logzioServices } from '@grafana/data'; // LOGZ.IO GRAFANA CHANGE :: DEV-27954 :: Global Filters :: import logzioServices
 import { getFilteredVariables, getVariables, getVariableWithName } from '../variables/state/selectors';
 import { variableRegex } from '../variables/utils';
 import { isAdHoc } from '../variables/guard';
@@ -323,6 +323,13 @@ export class TemplateSrv implements BaseTemplateSrv {
   }
 
   private getAdHocVariables(): any[] {
+    // LOGZ.IO GRAFANA CHANGE :: DEV-27954 :: Unified Filters :: concat logzioAdHocVariables to actual variables
+    const logzioAdHocVariables = logzioServices.unifiedFiltersService.grafana.getUnifiedFilterAdHocVariables();
+    if (logzioAdHocVariables?.length) {
+      return this.dependencies.getFilteredVariables(isAdHoc).concat(logzioAdHocVariables);
+    }
+    // LOGZ.IO GRAFANA CHANGE :: DEV-27954 :: Unified Filters :: concat logzioAdHocVariables to actual variables :: End
+
     return this.dependencies.getFilteredVariables(isAdHoc);
   }
 }

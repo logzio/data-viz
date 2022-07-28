@@ -4,7 +4,7 @@ import { connect } from 'react-redux';
 import { NavModel } from '@grafana/data';
 
 import Page from 'app/core/components/Page/Page';
-import OrgProfile from './OrgProfile';
+// import OrgProfile from './OrgProfile'; // LOGZ.IO GRAFANA CHANGE :: DEV-20609 Enable change home dashboard
 import SharedPreferences from 'app/core/components/SharedPreferences/SharedPreferences';
 import { loadOrganization, updateOrganization } from './state/actions';
 import { Organization, StoreState } from 'app/types';
@@ -38,9 +38,11 @@ export class OrgDetailsPage extends PureComponent<Props> {
       <Page navModel={navModel}>
         <Page.Contents isLoading={isLoading}>
           {!isLoading && (
-            <VerticalGroup spacing="lg">
-              <OrgProfile onSubmit={this.onUpdateOrganization} orgName={organization.name} />
-              <SharedPreferences resourceUri="org" />
+            <VerticalGroup>
+              {/*LOGZ.IO GRAFANA CHANGE :: DEV-20609 Enable change home dashboard*/}
+              {/*<OrgProfile onSubmit={this.onUpdateOrganization} orgName={organization.name} />*/}
+              {/*LOGZ.IO GRAFANA CHANGE :: end*/}
+              <SharedPreferences resourceUri="User" />
             </VerticalGroup>
           )}
         </Page.Contents>

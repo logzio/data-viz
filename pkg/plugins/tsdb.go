@@ -31,6 +31,7 @@ type DataQuery struct {
 	TimeRange *DataTimeRange
 	Queries   []DataSubQuery
 	Headers   map[string]string
+	LogzIoHeaders *models.LogzIoHeaders // LOGZ.IO GRAFANA CHANGE :: (ALERTS) DEV-16492 Support external alert evaluation
 	Debug     bool
 	User      *models.SignedInUser
 }

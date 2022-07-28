@@ -3,6 +3,8 @@ package conditions
 import (
 	"errors"
 	"fmt"
+	"github.com/grafana/grafana/pkg/infra/log" // LOGZ.IO GRAFANA CHANGE :: (ALERTS) DEV-16492 Support external alert evaluation
+	"github.com/grafana/grafana/pkg/tsdb"
 	"strings"
 	"time"
 
@@ -19,6 +21,13 @@ import (
 	"github.com/grafana/grafana/pkg/services/alerting"
 	"github.com/grafana/grafana/pkg/util/errutil"
 )
+
+// LOGZ.IO GRAFANA CHANGE :: (ALERTS) DEV-16492 Support external alert evaluation
+var (
+	queryLog = log.New("alerting.conditions.query")
+)
+
+// LOGZ.IO GRAFANA CHANGE :: end
 
 func init() {
 	alerting.RegisterCondition("query", func(model *simplejson.Json, index int) (alerting.Condition, error) {
@@ -46,8 +55,10 @@ type AlertQuery struct {
 }
 
 // Eval evaluates the `QueryCondition`.
-func (c *QueryCondition) Eval(context *alerting.EvalContext, requestHandler plugins.DataRequestHandler) (*alerting.ConditionResult, error) {
-	timeRange := plugins.NewDataTimeRange(c.Query.From, c.Query.To)
+// LOGZ.IO GRAFANA CHANGE :: DEV-17927 - Add current time to time range
+func (c *QueryCondition) Eval(context *alerting.EvalContext, time time.Time, requestHandler plugins.DataRequestHandler) (*alerting.ConditionResult, error) {
+	timeRange := tsdb.CustomNewTimeRange(c.Query.From, c.Query.To, time)
+	// LOGZ.IO GRAFANA CHANGE :: DEV-17927 - end
 
 	seriesList, err := c.executeQuery(context, timeRange, requestHandler)
 	if err != nil {
@@ -115,9 +126,29 @@ func (c *QueryCondition) executeQuery(context *alerting.EvalContext, timeRange p
 		OrgId: context.Rule.OrgID,
 	}
 
-	if err := bus.Dispatch(getDsInfo); err != nil {
-		return nil, fmt.Errorf("could not find datasource: %w", err)
+	// LOGZ.IO GRAFANA CHANGE :: (ALERTS) DEV-16492 Support external alert evaluation
+	customDataSources := context.Rule.CustomDataSources
+	var customDatasource *models.DataSource = nil
+
+	for i := range customDataSources {
+		if customDataSources[i].Id == c.Query.DatasourceID {
+			customDatasource = customDataSources[i]
+		}
 	}
+
+	if customDatasource != nil {
+		queryLog.Debug("[LOGZ.IO] Using custom alert datasource", "customDatasource.Name", customDatasource.Name)  // LOGZ.IO GRAFANA CHANGE :: DEV-21780 - support prometheus alerts
+
+		getDsInfo.Result = customDatasource
+	} else {
+		if err := bus.Dispatch(getDsInfo); err != nil {
+			return nil, fmt.Errorf("could not find datasource: %w", err)
+		}
+		if context.Rule.DataSourceUrl != "" {
+			getDsInfo.Result.Url = context.Rule.DataSourceUrl
+		}
+	}
+	// LOGZ.IO GRAFANA CHANGE :: DEV-21780 - end
 
 	err := context.RequestValidator.Validate(getDsInfo.Result.Url, nil)
 	if err != nil {
@@ -125,6 +156,9 @@ func (c *QueryCondition) executeQuery(context *alerting.EvalContext, timeRange p
 	}
 
 	req := c.getRequestForAlertRule(getDsInfo.Result, timeRange, context.IsDebug)
+
+	req.LogzIoHeaders = context.Rule.LogzIoHeaders // LOGZ.IO GRAFANA CHANGE :: (ALERTS) DEV-16492 Support external alert evaluation
+
 	result := make(plugins.DataTimeSeriesSlice, 0)
 
 	if context.IsDebug {

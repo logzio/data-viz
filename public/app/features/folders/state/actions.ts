@@ -77,13 +77,13 @@ export function updateFolderPermission(itemToUpdate: DashboardAcl, level: Permis
   };
 }
 
-export function removeFolderPermission(itemToDelete: DashboardAcl): ThunkResult<void> {
+export function removeFolderPermission(recordToDelete: DashboardAcl): ThunkResult<void> {
   return async (dispatch, getStore) => {
     const folder = getStore().folder;
     const itemsToUpdate = [];
 
     for (const item of folder.permissions) {
-      if (item.inherited || item === itemToDelete) {
+      if (item.inherited || item === recordToDelete) {
         continue;
       }
       itemsToUpdate.push(toUpdateItem(item));

@@ -168,7 +168,8 @@ func (e *AlertEngine) processJob(attemptID int, attemptChan chan int, cancelChan
 	span := opentracing.StartSpan("alert execution")
 	alertCtx = opentracing.ContextWithSpan(alertCtx, span)
 
-	evalContext := NewEvalContext(alertCtx, job.Rule, e.RequestValidator)
+ 	// LOGZ.IO GRAFANA CHANGE :: DEV-19409 - Add eval time as Now
+	evalContext := NewEvalContext(alertCtx, job.Rule, time.Now(), e.RequestValidator)
 	evalContext.Ctx = alertCtx
 
 	go func() {

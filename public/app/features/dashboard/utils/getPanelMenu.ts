@@ -1,12 +1,12 @@
 import { store } from 'app/store/store';
 import { AngularComponent, getDataSourceSrv, locationService } from '@grafana/runtime';
 import { PanelMenuItem } from '@grafana/data';
+// LOGZ.IO GRAFANA CHANGE :: hide share for now (remove import of sharePanel)
 import {
   addLibraryPanel,
   copyPanel,
   duplicatePanel,
   removePanel,
-  sharePanel,
   unlinkLibraryPanel,
 } from 'app/features/dashboard/utils/panel';
 import { isPanelModelLibraryPanel } from 'app/features/library-panels/guard';
@@ -38,10 +38,11 @@ export function getPanelMenu(
     });
   };
 
-  const onSharePanel = (event: React.MouseEvent<any>) => {
-    event.preventDefault();
-    sharePanel(dashboard, panel);
-  };
+  // LOGZ.IO GRAFANA CHANGE :: hide share for now
+  // const onSharePanel = (event: React.MouseEvent<any>) => {
+  //   event.preventDefault();
+  //   sharePanel(dashboard, panel);
+  // };
 
   const onAddLibraryPanel = (event: React.MouseEvent<any>) => {
     event.preventDefault();
@@ -106,12 +107,13 @@ export function getPanelMenu(
     });
   }
 
-  menu.push({
-    text: 'Share',
-    iconClassName: 'share-alt',
-    onClick: onSharePanel,
-    shortcut: 'p s',
-  });
+  // LOGZ.IO GRAFANA CHANGE :: hide share for now
+  // menu.push({
+  //   text: 'Share',
+  //   iconClassName: 'share-alt',
+  //   onClick: onSharePanel,
+  //   shortcut: 'p s',
+  // });
 
   if (contextSrv.hasAccessToExplore() && !(panel.plugin && panel.plugin.meta.skipDataQuery)) {
     menu.push({

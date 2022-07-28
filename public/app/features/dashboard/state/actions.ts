@@ -65,13 +65,13 @@ export function updateDashboardPermission(
   };
 }
 
-export function removeDashboardPermission(dashboardId: number, itemToDelete: DashboardAcl): ThunkResult<void> {
+export function removeDashboardPermission(dashboardId: number, recordToDelete: DashboardAcl): ThunkResult<void> {
   return async (dispatch, getStore) => {
     const dashboard = getStore().dashboard;
     const itemsToUpdate = [];
 
     for (const item of dashboard.permissions) {
-      if (item.inherited || item === itemToDelete) {
+      if (item.inherited || item === recordToDelete) {
         continue;
       }
       itemsToUpdate.push(toUpdateItem(item));

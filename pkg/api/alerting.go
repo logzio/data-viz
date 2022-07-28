@@ -134,7 +134,8 @@ func (hs *HTTPServer) AlertTest(c *models.ReqContext, dto dtos.AlertTestCommand)
 		return response.Error(400, "The dashboard needs to be saved at least once before you can test an alert rule", nil)
 	}
 
-	res, err := hs.AlertEngine.AlertTest(c.OrgId, dto.Dashboard, dto.PanelId, c.SignedInUser)
+	// LOGZ.IO GRAFANA CHANGE :: DEV-17927 - add LogzIoHeaders
+	res, err := hs.AlertEngine.AlertTest(c.OrgId, dto.Dashboard, dto.PanelId, c.SignedInUser, &models.LogzIoHeaders{RequestHeaders: c.Req.Header})
 	if err != nil {
 		var validationErr alerting.ValidationError
 		if errors.As(err, &validationErr) {
@@ -167,6 +168,142 @@ func (hs *HTTPServer) AlertTest(c *models.ReqContext, dto dtos.AlertTestCommand)
 
 	return response.JSON(200, dtoRes)
 }
+
+// LOGZ.IO GRAFANA CHANGE :: DEV-17927 - Custom Alert payload check end-points
+// POST /api/alerts/evaluate-alert
+func EvaluateAlert(c *models.ReqContext, dto dtos.EvaluateAlertRequestCommand) response.Response {
+	customDataSources := make([]*models.DataSource, 0)
+
+	for _, ds := range dto.CustomDataSources {
+		dsItem := models.DataSource{
+			Id:                ds.Id,
+			OrgId:             ds.OrgId,
+			Version:           ds.Version,
+			Name:              ds.Name,
+			Type:              ds.Type,
+			Access:            models.DsAccess(ds.Access),
+			Url:               ds.Url,
+			Password:          ds.Password,
+			User:              ds.User,
+			Database:          ds.Database,
+			BasicAuth:         ds.BasicAuth,
+			BasicAuthUser:     ds.BasicAuthUser,
+			BasicAuthPassword: ds.BasicAuthPassword,
+			WithCredentials:   ds.WithCredentials,
+			IsDefault:         ds.IsDefault,
+			JsonData:          ds.JsonData,
+			SecureJsonData:    ds.SecureJsonData,
+			ReadOnly:          ds.ReadOnly,
+			Uid:               ds.Uid,
+			Created:           ds.Created,
+			Updated:           ds.Updated,
+		}
+
+		customDataSources = append(customDataSources, &dsItem)
+	}
+
+	alertCheckCommand := alerting.EvaluateAlertCommand{
+		Alert: &models.Alert{
+			Id:             dto.Alert.ID,
+			Version:        dto.Alert.Version,
+			DashboardId:    dto.Alert.DashboardID,
+			PanelId:        dto.Alert.PanelID,
+			OrgId:          dto.Alert.OrgID,
+			Name:           dto.Alert.Name,
+			Message:        dto.Alert.Message,
+			State:          models.AlertStateType(dto.Alert.State),
+			Settings:       dto.Alert.Settings,
+			Frequency:      dto.Alert.Frequency,
+			Handler:        dto.Alert.Handler,
+			Severity:       dto.Alert.Severity,
+			Silenced:       dto.Alert.Silenced,
+			ExecutionError: dto.Alert.ExecutionError,
+			EvalData:       dto.Alert.EvalData,
+			NewStateDate:   dto.Alert.NewStateDate,
+			StateChanges:   dto.Alert.StateChanges,
+			Created:        dto.Alert.Created,
+			Updated:        dto.Alert.Updated,
+			For:            dto.Alert.For,
+		},
+		EvalTime:          dto.EvalTime,
+		DataSourceUrl:     dto.DataSourceUrl,
+		LogzIoHeaders:     &models.LogzIoHeaders{RequestHeaders: c.Req.Header},
+		CustomDataSources: customDataSources,
+	}
+
+	if err := bus.Dispatch(&alertCheckCommand); err != nil {
+		return response.Error(500, "Failed to check alert", err)
+	}
+
+	res := alertCheckCommand.Result
+	if res != nil {
+		dtoRes := &dtos.AlertTestResult{
+			Firing:         res.Firing,
+			ConditionEvals: res.ConditionEvals,
+			State:          res.Rule.State,
+		}
+
+		if res.Error != nil {
+			dtoRes.Error = res.Error.Error()
+		}
+
+		for _, log := range res.Logs {
+			dtoRes.Logs = append(dtoRes.Logs, &dtos.AlertTestResultLog{Message: log.Message, Data: log.Data})
+		}
+		for _, match := range res.EvalMatches {
+			dtoRes.EvalMatches = append(dtoRes.EvalMatches, &dtos.EvalMatch{Metric: match.Metric, Value: match.Value})
+		}
+
+		dtoRes.TimeMs = fmt.Sprintf("%1.3fms", res.GetDurationMs())
+		return response.JSON(200, dtoRes)
+
+	} else {
+		msg := fmt.Sprintf("Failed to check alert: %d, date: %s", dto.Alert, dto.EvalTime)
+		return response.Error(500, msg, errors.New("results not found"))
+	}
+}
+
+// LOGZ.IO GRAFANA CHANGE :: DEV-17927 - new endpoint
+// POST /api/alerts/evaluate-alert-by-id
+func EvaluateAlertById(c *models.ReqContext, dto dtos.EvaluateAlertByIdCommand) response.Response {
+	evaluateAlertByIdCommand := alerting.EvaluateAlertByIdCommand{
+		AlertId:       dto.AlertId,
+		EvalTime:      dto.EvalTime,
+		LogzIoHeaders: &models.LogzIoHeaders{RequestHeaders: c.Req.Header},
+	}
+
+	if err := bus.Dispatch(&evaluateAlertByIdCommand); err != nil {
+		return response.Error(500, "Failed to check alert", err)
+	}
+
+	res := evaluateAlertByIdCommand.Result
+	if res != nil {
+		dtoRes := &dtos.AlertTestResult{
+			Firing:         res.Firing,
+			ConditionEvals: res.ConditionEvals,
+			State:          res.Rule.State,
+		}
+
+		if res.Error != nil {
+			dtoRes.Error = res.Error.Error()
+		}
+
+		for _, log := range res.Logs {
+			dtoRes.Logs = append(dtoRes.Logs, &dtos.AlertTestResultLog{Message: log.Message, Data: log.Data})
+		}
+		for _, match := range res.EvalMatches {
+			dtoRes.EvalMatches = append(dtoRes.EvalMatches, &dtos.EvalMatch{Metric: match.Metric, Value: match.Value})
+		}
+
+		dtoRes.TimeMs = fmt.Sprintf("%1.3fms", res.GetDurationMs())
+		return response.JSON(200, dtoRes)
+
+	} else {
+		msg := fmt.Sprintf("Failed to check alert by Id: %d, date: %s", dto.AlertId, dto.EvalTime)
+		return response.Error(500, msg, errors.New("results not found"))
+	}
+}
+// LOGZ.IO GRAFANA CHANGE :: DEV-17927 - end
 
 // GET /api/alerts/:id
 func GetAlert(c *models.ReqContext) response.Response {

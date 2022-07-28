@@ -37,7 +37,7 @@ func (e *Executor) DataQuery(ctx context.Context, dsInfo *models.DataSource,
 		return plugins.DataResponse{}, fmt.Errorf("query contains no queries")
 	}
 
-	client, err := es.NewClient(ctx, e.httpClientProvider, dsInfo, *tsdbQuery.TimeRange)
+	client, err := es.NewClient(ctx, e.httpClientProvider, dsInfo, *tsdbQuery.TimeRange, &tsdbQuery) // LOGZ.IO GRAFANA CHANGE :: (ALERTS) DEV-16492 Support external alert evaluation
 	if err != nil {
 		return plugins.DataResponse{}, err
 	}

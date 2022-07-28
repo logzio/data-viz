@@ -150,6 +150,20 @@ export const metricAggregationConfig: MetricsConfiguration = {
     hasMeta: false,
     defaults: {},
   },
+  // LOGZ.IO GRAFANA CHANGE :: DEV-25184 add rate function to metric aggregation types
+  rate: {
+    label: 'Rate',
+    requiresField: true,
+    isPipelineAgg: false,
+    minVersion: 2,
+    supportsMissing: false,
+    supportsMultipleBucketPaths: false,
+    hasSettings: true,
+    supportsInlineScript: false,
+    hasMeta: false,
+    defaults: {},
+  },
+  // LOGZ.IO GRAFANA CHANGE :: END
   serial_diff: {
     label: 'Serial Difference',
     requiresField: true,

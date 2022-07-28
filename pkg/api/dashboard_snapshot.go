@@ -124,7 +124,8 @@ func CreateDashboardSnapshot(c *models.ReqContext, cmd models.CreateDashboardSna
 			}
 		}
 
-		url = setting.ToAbsUrl("dashboard/snapshot/" + cmd.Key)
+		// LOGZ.IO GRAFANA CHANGE :: DEV-20896 Remove original use of app url
+		url = "dashboard/snapshot/" + cmd.Key
 
 		metrics.MApiDashboardSnapshotCreate.Inc()
 	}

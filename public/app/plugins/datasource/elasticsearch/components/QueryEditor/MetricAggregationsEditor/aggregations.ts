@@ -20,6 +20,7 @@ export type MetricAggregationType =
   | 'raw_document'
   | 'raw_data'
   | 'logs'
+  | 'rate' // LOGZ.IO GRAFANA CHANGE :: DEV-25184 add rate function to metric aggregation types
   | PipelineMetricAggregationType;
 
 interface BaseMetricAggregation {

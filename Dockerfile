@@ -1,4 +1,4 @@
-FROM node:14.16.0-alpine3.13 as js-builder
+FROM registry.internal.logz.io:5000/node:14.16.0-alpine3.13 as js-builder
 
 WORKDIR /usr/src/app/
 
@@ -6,6 +6,7 @@ COPY package.json yarn.lock ./
 COPY packages packages
 
 RUN apk --no-cache add git
+# LOGZ.IO GRAFANA CHANGE :: add -- offline to yarn install
 RUN yarn install --pure-lockfile --no-progress
 
 COPY tsconfig.json .eslintrc .editorconfig .browserslistrc .prettierrc.js ./
@@ -17,7 +18,7 @@ COPY emails emails
 ENV NODE_ENV production
 RUN yarn build
 
-FROM golang:1.16.1-alpine3.13 as go-builder
+FROM registry.internal.logz.io:5000/logzio-golang:1.16.1-alpine3.13 as go-builder
 
 RUN apk add --no-cache gcc g++
 
@@ -35,7 +36,7 @@ COPY build.go package.json ./
 RUN go run build.go build
 
 # Final stage
-FROM alpine:3.13
+FROM registry.internal.logz.io:5000/logzio-alpine:3.13
 
 LABEL maintainer="Grafana team <hello@grafana.com>"
 
@@ -80,6 +81,15 @@ RUN export GF_GID_NAME=$(getent group $GF_GID | cut -d':' -f1) && \
 COPY --from=go-builder /go/src/github.com/grafana/grafana/bin/*/grafana-server /go/src/github.com/grafana/grafana/bin/*/grafana-cli ./bin/
 COPY --from=js-builder /usr/src/app/public ./public
 COPY --from=js-builder /usr/src/app/tools ./tools
+
+# LOGZ.IO GRAFANA CHANGE :: Copy custom.ini
+RUN cp "$GF_PATHS_HOME/conf/custom.ini" "$GF_PATHS_CONFIG"
+# LOGZ.IO GRAFANA CHANGE :: Preinstall plugins
+COPY ./data/plugins "$GF_PATHS_PLUGINS"
+# LOGZ.IO GRAFANA CHANGE :: Remove news panel
+RUN rm -rf ./public/app/plugins/panel/news
+# LOGZ.IO GRAFANA CHANGE :: Remove pluginlist panel
+RUN rm -rf ./public/app/plugins/panel/pluginlist
 
 EXPOSE 3000
 

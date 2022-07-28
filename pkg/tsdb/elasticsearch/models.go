@@ -48,6 +48,7 @@ var metricAggType = map[string]string{
 	"moving_fn":      "Moving Function",
 	"cumulative_sum": "Cumulative Sum",
 	"derivative":     "Derivative",
+	"rate":           "Rate", // LOGZIO.GRAFANA CHANGE :: DEV-18135 Add rate aggregation
 	"serial_diff":    "Serial Difference",
 	"bucket_script":  "Bucket Script",
 	"raw_document":   "Raw Document",

@@ -77,11 +77,12 @@ export const PromExploreExtraField: React.FC<PromExploreExtraFieldProps> = memo(
           />
         </div>
 
-        <PromExemplarField
-          isEnabled={Boolean(query.exemplar)}
-          onChange={(isEnabled) => onChange({ ...query, exemplar: isEnabled })}
-          datasource={datasource}
-        />
+        {/*LOGZ.IO GRAFANA CHANGE :: Disable exemplars*/}
+        {/*<PromExemplarField*/}
+        {/*  isEnabled={Boolean(query.exemplar)}*/}
+        {/*  onChange={(isEnabled) => onChange({ ...query, exemplar: isEnabled })}*/}
+        {/*  datasource={datasource}*/}
+        {/*/>*/}
       </div>
     );
   }

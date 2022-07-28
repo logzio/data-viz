@@ -18,6 +18,7 @@ const (
 	countType         = "count"
 	percentilesType   = "percentiles"
 	extendedStatsType = "extended_stats"
+	rateType          = "rate" // LOGZ.IO GRAFANA CHANGE :: DEV-19067 - rate function support
 	// Bucket types
 	dateHistType    = "date_histogram"
 	histogramType   = "histogram"

@@ -1,14 +1,15 @@
 import React from 'react';
-import { cloneDeep, find } from 'lodash';
+import { find } from 'lodash';
 import { SignIn } from './SignIn';
 import BottomNavLinks from './BottomNavLinks';
 import { contextSrv } from 'app/core/services/context_srv';
-import config from '../../config';
+// import config from '../../config';
 import { NavModelItem } from '@grafana/data';
 
 export default function BottomSection() {
-  const navTree: NavModelItem[] = cloneDeep(config.bootData.navTree);
-  const bottomNav: NavModelItem[] = navTree.filter((item) => item.hideFromMenu);
+  // const navTree: NavModelItem[] = cloneDeep(config.bootData.navTree);
+  // LOGZ.IO GRAFANA CHANGE :: filter out everything from bottom menu for now
+  const bottomNav: NavModelItem[] = [];
   const isSignedIn = contextSrv.isSignedIn;
   const user = contextSrv.user;
 

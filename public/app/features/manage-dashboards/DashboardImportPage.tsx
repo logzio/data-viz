@@ -2,22 +2,11 @@ import React, { FormEvent, PureComponent } from 'react';
 import { MapDispatchToProps, MapStateToProps } from 'react-redux';
 import { css } from '@emotion/css';
 import { AppEvents, GrafanaTheme2, NavModel } from '@grafana/data';
-import {
-  Button,
-  stylesFactory,
-  withTheme2,
-  Input,
-  TextArea,
-  Field,
-  Form,
-  Legend,
-  FileUpload,
-  Themeable2,
-} from '@grafana/ui';
+import { Button, stylesFactory, withTheme2, TextArea, Field, Form, Legend, FileUpload, Themeable2 } from '@grafana/ui'; // LOGZ.IO GRAFANA CHANGE :: DEV-23444 Hide import via grafana.com
 import Page from 'app/core/components/Page/Page';
 import { connectWithCleanUp } from 'app/core/components/connectWithCleanUp';
 import { ImportDashboardOverview } from './components/ImportDashboardOverview';
-import { validateDashboardJson, validateGcomDashboard } from './utils/validation';
+import { validateDashboardJson } from './utils/validation'; // LOGZ.IO GRAFANA CHANGE :: DEV-23444 Hide import via grafana.com
 import { fetchGcomDashboard, importDashboardJson } from './state/actions';
 import appEvents from 'app/core/app_events';
 import { getNavModel } from 'app/core/selectors/navModel';
@@ -92,6 +81,7 @@ class UnthemedDashboardImport extends PureComponent<Props> {
             Upload JSON file
           </FileUpload>
         </div>
+        {/* LOGZ.IO GRAFANA CHANGE :: DEV-23444 Hide import via grafana.com
         <div className={styles.option}>
           <Legend>Import via grafana.com</Legend>
           <Form onSubmit={this.getGcomDashboard} defaultValues={{ gcomDashboard: '' }}>
@@ -110,6 +100,7 @@ class UnthemedDashboardImport extends PureComponent<Props> {
             )}
           </Form>
         </div>
+        */}
         <div className={styles.option}>
           <Legend>Import via panel json</Legend>
           <Form onSubmit={this.getDashboardFromJson} defaultValues={{ dashboardJson: '' }}>

@@ -87,7 +87,7 @@ export const MetricEditor = ({ value }: Props) => {
         <Segment
           className={cx(styles.color, segmentStyles)}
           options={getTypeOptions(previousMetrics, datasource.esVersion)}
-          onChange={(e) => dispatch(changeMetricType(value.id, e.value!))}
+          onChange={(e) => dispatch(changeMetricType(value.id, e.value! as any))}
           value={toOption(value)}
         />
 

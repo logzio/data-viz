@@ -50,7 +50,7 @@ func (hs *HTTPServer) registerRoutes() {
 	r.Get("/profile/password", reqSignedInNoAnonymous, hs.Index)
 	r.Get("/.well-known/change-password", redirectToChangePassword)
 	r.Get("/profile/switch-org/:id", reqSignedInNoAnonymous, hs.ChangeActiveOrgAndRedirectToHome)
-	r.Get("/org/", reqOrgAdmin, hs.Index)
+	r.Get("/org/", reqSignedIn, hs.Index) // LOGZ.IO GRAFANA CHANGE :: DEV-23396: Open org page to all users
 	r.Get("/org/new", reqGrafanaAdmin, hs.Index)
 	r.Get("/datasources/", reqOrgAdmin, hs.Index)
 	r.Get("/datasources/new", reqOrgAdmin, hs.Index)
@@ -125,6 +125,10 @@ func (hs *HTTPServer) registerRoutes() {
 
 	// api renew session based on cookie
 	r.Get("/api/login/ping", quota("session"), routing.Wrap(hs.LoginAPIPing))
+
+	// evaluate-alert skip LOGIN check save db call
+	r.Post("/api/alerts/evaluate-alert", bind(dtos.EvaluateAlertRequestCommand{}), routing.Wrap(EvaluateAlert))        // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - alerts endpoint
+	r.Post("/api/alerts/evaluate-alert-by-id", bind(dtos.EvaluateAlertByIdCommand{}), routing.Wrap(EvaluateAlertById)) // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - alerts endpoint
 
 	// expose plugin file system assets
 	r.Get("/public/plugins/:pluginId/*", hs.GetPluginAssets)
@@ -373,6 +377,7 @@ func (hs *HTTPServer) registerRoutes() {
 		apiRoute.Post("/ds/query", bind(dtos.MetricRequest{}), routing.Wrap(hs.QueryMetricsV2))
 
 		apiRoute.Group("/alerts", func(alertsRoute routing.RouteRegister) {
+			alertsRoute.Post("/evaluate-alert", bind(dtos.EvaluateAlertRequestCommand{}), routing.Wrap(EvaluateAlert)) // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - alerts endpoint
 			alertsRoute.Post("/test", bind(dtos.AlertTestCommand{}), routing.Wrap(hs.AlertTest))
 			alertsRoute.Post("/:alertId/pause", reqEditorRole, bind(dtos.PauseAlertCommand{}), routing.Wrap(PauseAlert))
 			alertsRoute.Get("/:alertId", ValidateOrgAlert, routing.Wrap(GetAlert))

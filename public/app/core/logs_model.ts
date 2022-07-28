@@ -306,7 +306,11 @@ export function logSeriesToLogsModel(logSeries: DataFrame[]): LogsModel | undefi
   if (seriesWithFields.length) {
     allSeries = seriesWithFields.map((series) => {
       const fieldCache = new FieldCache(series);
-      const stringField = fieldCache.getFirstFieldOfType(FieldType.string);
+      // LOGZ.IO GRAFANA CHANGE :: DEV 23266 - Add message as default field to show
+      const stringField = fieldCache.hasFieldNamed('message')
+        ? fieldCache.getFieldByName('message')
+        : fieldCache.getFirstFieldOfType(FieldType.string);
+      // LOGZ.IO GRAFANA CHANGE :: end
 
       if (stringField?.labels) {
         allLabels.push(stringField.labels);
@@ -464,7 +468,7 @@ export function logSeriesToLogsModel(logSeries: DataFrame[]): LogsModel | undefi
 }
 
 function getIdField(fieldCache: FieldCache): FieldWithIndex | undefined {
-  const idFieldNames = ['id'];
+  const idFieldNames = ['_id', 'id']; // LOGZ.IO GRAFANA CHANGE :: DEV 23266 - Add _id as default id of log.
   for (const fieldName of idFieldNames) {
     const idField = fieldCache.getFieldByName(fieldName);
     if (idField) {

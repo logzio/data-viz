@@ -60,7 +60,7 @@ import * as pieChartPanel from 'app/plugins/panel/piechart/module';
 import * as barGaugePanel from 'app/plugins/panel/bargauge/module';
 import * as barChartPanel from 'app/plugins/panel/barchart/module';
 import * as logsPanel from 'app/plugins/panel/logs/module';
-import * as newsPanel from 'app/plugins/panel/news/module';
+// import * as newsPanel from 'app/plugins/panel/news/module'; // LOGZ.IO GRAFANA CHANGE :: Remove news panel
 import * as livePanel from 'app/plugins/panel/live/module';
 import * as debugPanel from 'app/plugins/panel/debug/module';
 import * as welcomeBanner from 'app/plugins/panel/welcome/module';
@@ -102,7 +102,7 @@ const builtInPlugins: any = {
   'app/plugins/panel/heatmap/module': heatmapPanel,
   'app/plugins/panel/table/module': tablePanel,
   'app/plugins/panel/table-old/module': oldTablePanel,
-  'app/plugins/panel/news/module': newsPanel,
+  // 'app/plugins/panel/news/module': newsPanel,   // LOGZ.IO GRAFANA CHANGE :: Remove news panel
   'app/plugins/panel/live/module': livePanel,
   'app/plugins/panel/stat/module': statPanel,
   'app/plugins/panel/debug/module': debugPanel,
