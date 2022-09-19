@@ -83,6 +83,7 @@ COPY --from=js-builder /usr/src/app/public ./public
 COPY --from=js-builder /usr/src/app/tools ./tools
 
 # LOGZ.IO GRAFANA CHANGE :: Copy custom.ini
+COPY custom.ini conf/custom.ini
 RUN cp "$GF_PATHS_HOME/conf/custom.ini" "$GF_PATHS_CONFIG"
 # LOGZ.IO GRAFANA CHANGE :: Preinstall plugins
 COPY grafana/data/plugins "$GF_PATHS_PLUGINS"
