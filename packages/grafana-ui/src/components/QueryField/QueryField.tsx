@@ -2,7 +2,7 @@ import { debounce } from 'lodash';
 import React, { Context } from 'react';
 
 import { Value } from 'slate';
-import { Editor, Plugin } from '@grafana/slate-react';
+import { Editor, Plugin } from 'slate-react';
 import Plain from 'slate-plain-serializer';
 import classnames from 'classnames';
 
@@ -55,7 +55,7 @@ export interface QueryFieldState {
  * Implement props.onTypeahead to use suggestions, see PromQueryField.tsx as an example.
  */
 export class QueryField extends React.PureComponent<QueryFieldProps, QueryFieldState> {
-  plugins: Plugin[];
+  plugins: Array<Plugin<Editor>>;
   runOnChangeDebounced: Function;
   lastExecutedValue: Value | null = null;
   mounted = false;
@@ -123,6 +123,7 @@ export class QueryField extends React.PureComponent<QueryFieldProps, QueryFieldS
    * Update local state, propagate change upstream and optionally run the query afterwards.
    */
   onChange = (value: Value, runQuery?: boolean) => {
+    debugger; // eslint-disable-line
     const documentChanged = value.document !== this.state.value.document;
     const prevValue = this.state.value;
     if (this.props.onRichValueChange) {

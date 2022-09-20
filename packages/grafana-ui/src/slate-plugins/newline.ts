@@ -1,4 +1,4 @@
-import { Plugin, Editor as CoreEditor } from '@grafana/slate-react';
+import { Plugin, Editor as CoreEditor } from 'slate-react';
 
 function getIndent(text: string) {
   let offset = text.length - text.trimLeft().length;

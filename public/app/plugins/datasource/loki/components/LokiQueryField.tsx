@@ -16,7 +16,7 @@ import {
 // dom also includes Element polyfills
 import { Node } from 'slate';
 import { LokiLabelBrowser } from './LokiLabelBrowser';
-import { Editor, Plugin } from '@grafana/slate-react';
+import { Editor, Plugin } from 'slate-react';
 
 // Types
 import { ExploreQueryFieldProps } from '@grafana/data';

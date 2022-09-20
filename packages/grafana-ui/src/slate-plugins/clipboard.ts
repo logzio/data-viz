@@ -1,4 +1,4 @@
-import { Plugin, Editor as CoreEditor } from '@grafana/slate-react';
+import { Plugin, Editor as CoreEditor } from 'slate-react';
 
 const getCopiedText = (textBlocks: string[], startOffset: number, endOffset: number) => {
   if (!textBlocks.length) {

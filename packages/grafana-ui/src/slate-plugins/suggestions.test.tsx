@@ -1,7 +1,7 @@
 import { SearchFunctionMap } from '../utils/searchFunctions';
 import { render } from 'enzyme';
 import { SuggestionsPlugin } from './suggestions';
-import { Plugin as SlatePlugin } from '@grafana/slate-react';
+import { Plugin as SlatePlugin } from 'slate-react';
 import { SearchFunctionType } from '../utils';
 import { CompletionItemGroup, SuggestionsState } from '../types';
 // eslint-disable-next-line lodash/import-scope

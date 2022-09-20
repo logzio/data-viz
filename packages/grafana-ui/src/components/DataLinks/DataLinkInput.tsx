@@ -7,7 +7,7 @@ import { Portal } from '../index';
 
 // @ts-ignore
 import Prism, { Grammar, LanguageMap } from 'prismjs';
-import { Editor } from '@grafana/slate-react';
+import { Editor } from 'slate-react';
 import { Value } from 'slate';
 import Plain from 'slate-plain-serializer';
 import { Popper as ReactPopper } from 'react-popper';

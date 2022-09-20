@@ -1,5 +1,5 @@
 import { Value } from 'slate';
-import { Editor as CoreEditor } from '@grafana/slate-react';
+import { Editor as CoreEditor } from 'slate-react';
 import { SearchFunctionType } from '../utils';
 
 /**

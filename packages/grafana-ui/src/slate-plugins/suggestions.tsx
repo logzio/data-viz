@@ -1,7 +1,7 @@
 import React from 'react';
 import { debounce, sortBy } from 'lodash';
 
-import { Plugin as SlatePlugin, Editor as CoreEditor } from '@grafana/slate-react';
+import { Plugin as SlatePlugin, Editor as CoreEditor } from 'slate-react';
 
 import TOKEN_MARK from './slate-prism/TOKEN_MARK';
 import { Typeahead } from '../components/Typeahead/Typeahead';

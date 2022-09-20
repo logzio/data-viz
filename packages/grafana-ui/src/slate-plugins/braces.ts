@@ -1,4 +1,4 @@
-import { Plugin, Editor as CoreEditor } from '@grafana/slate-react';
+import { Plugin, Editor as CoreEditor } from 'slate-react';
 import { Annotation } from 'slate';
 import { v4 as uuidv4 } from 'uuid';
 

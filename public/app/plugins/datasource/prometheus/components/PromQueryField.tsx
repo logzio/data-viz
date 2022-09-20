@@ -11,7 +11,7 @@ import {
   SuggestionsState,
   Icon,
 } from '@grafana/ui';
-import { Editor } from '@grafana/slate-react';
+import { Editor } from 'slate-react';
 
 import { LanguageMap, languages as prismLanguages } from 'prismjs';
 

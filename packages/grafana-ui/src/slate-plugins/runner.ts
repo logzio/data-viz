@@ -1,4 +1,4 @@
-import { Plugin } from '@grafana/slate-react';
+import { Plugin } from 'slate-react';
 
 export function RunnerPlugin({ handler }: any): Plugin {
   return {

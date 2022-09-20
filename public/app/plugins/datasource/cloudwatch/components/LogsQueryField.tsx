@@ -16,7 +16,7 @@ import {
 // Utils & Services
 // dom also includes Element polyfills
 import { Node } from 'slate';
-import { Editor, Plugin } from '@grafana/slate-react';
+import { Editor, Plugin } from 'slate-react';
 import syntax from '../syntax';
 
 // Types
