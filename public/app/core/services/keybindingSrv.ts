@@ -94,9 +94,10 @@ export class KeybindingSrv {
     locationService.push('/');
   }
 
-  private goToProfile() {
-    locationService.push('/profile');
-  }
+  // LOGZ.IO GRAFANA CHANGE
+  // private goToProfile() {
+  //   locationService.push('/profile');
+  // }
 
   private showHelpModal() {
     appEvents.publish(new ShowModalReactEvent({ component: HelpModal }));

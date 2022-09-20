@@ -1,5 +1,4 @@
-import { Plugin } from '@grafana/slate-react';
-import { Editor as CoreEditor } from 'slate';
+import { Plugin, Editor as CoreEditor } from '@grafana/slate-react';
 
 function getIndent(text: string) {
   let offset = text.length - text.trimLeft().length;
@@ -15,8 +14,8 @@ function getIndent(text: string) {
 
 export function NewlinePlugin(): Plugin {
   return {
-    onKeyDown(event: Event, editor: CoreEditor, next: Function) {
-      const keyEvent = event as KeyboardEvent;
+    onKeyDown(event, editor: CoreEditor, next: Function) {
+      const keyEvent = event;
       const value = editor.value;
 
       if (value.selection.isExpanded) {

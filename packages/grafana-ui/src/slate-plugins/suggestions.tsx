@@ -1,8 +1,7 @@
 import React from 'react';
 import { debounce, sortBy } from 'lodash';
 
-import { Editor as CoreEditor } from 'slate';
-import { Plugin as SlatePlugin } from '@grafana/slate-react';
+import { Plugin as SlatePlugin, Editor as CoreEditor } from '@grafana/slate-react';
 
 import TOKEN_MARK from './slate-prism/TOKEN_MARK';
 import { Typeahead } from '../components/Typeahead/Typeahead';
@@ -64,8 +63,8 @@ export function SuggestionsPlugin({
       return next();
     },
 
-    onKeyDown: (event: Event, editor, next) => {
-      const keyEvent = event as KeyboardEvent;
+    onKeyDown: (event, editor, next) => {
+      const keyEvent = event;
       const currentSuggestions = state.groupedItems;
 
       const hasSuggestions = currentSuggestions.length;
@@ -168,7 +167,9 @@ export function SuggestionsPlugin({
         // If new-lines, apply suggestion as block
         if (suggestionText.match(/\n/)) {
           const fragment = makeFragment(suggestionText);
-          return editor.deleteBackward(backward).deleteForward(forward).insertFragment(fragment).focus();
+          editor.deleteBackward(backward).deleteForward(forward).insertFragment(fragment).focus();
+
+          return editor;
         }
 
         state = {
@@ -176,12 +177,9 @@ export function SuggestionsPlugin({
           groupedItems: [],
         };
 
-        return editor
-          .deleteBackward(backward)
-          .deleteForward(forward)
-          .insertText(suggestionText)
-          .moveForward(move)
-          .focus();
+        editor.deleteBackward(backward).deleteForward(forward).insertText(suggestionText).moveForward(move).focus();
+
+        return editor;
       },
     },
 

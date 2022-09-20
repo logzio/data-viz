@@ -94,7 +94,7 @@ export const DataLinkInput: React.FC<DataLinkInputProps> = memo(
     // SelectionReference is used to position the variables suggestion relatively to current DOM selection
     const selectionRef = useMemo(() => new SelectionReference(), []);
 
-    const onKeyDown = React.useCallback((event: KeyboardEvent, next: () => any) => {
+    const onKeyDown = React.useCallback((event, next: () => any) => {
       if (!stateRef.current.showingSuggestions) {
         if (event.key === '=' || event.key === '$' || (event.keyCode === 32 && event.ctrlKey)) {
           return setShowingSuggestions(true);
@@ -203,7 +203,7 @@ export const DataLinkInput: React.FC<DataLinkInputProps> = memo(
               placeholder={placeholder}
               value={stateRef.current.linkUrl}
               onChange={onUrlChange}
-              onKeyDown={(event, _editor, next) => onKeyDown(event as KeyboardEvent, next)}
+              onKeyDown={(event, _editor, next) => onKeyDown(event, next)}
               plugins={plugins}
               className={cx(
                 styles.editor,

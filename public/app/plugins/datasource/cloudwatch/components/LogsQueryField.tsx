@@ -15,7 +15,8 @@ import {
 
 // Utils & Services
 // dom also includes Element polyfills
-import { Editor, Node, Plugin } from 'slate';
+import { Node } from 'slate';
+import { Editor, Plugin } from '@grafana/slate-react';
 import syntax from '../syntax';
 
 // Types
@@ -89,7 +90,7 @@ export class CloudWatchLogsQueryField extends React.PureComponent<CloudWatchLogs
     hint: undefined,
   };
 
-  plugins: Plugin[];
+  plugins: Array<Plugin<Editor>>;
 
   constructor(props: CloudWatchLogsQueryFieldProps, context: React.Context<any>) {
     super(props, context);
@@ -272,7 +273,7 @@ export class CloudWatchLogsQueryField extends React.PureComponent<CloudWatchLogs
     );
   };
 
-  onQueryFieldClick = (_event: Event, _editor: Editor, next: () => any) => {
+  onQueryFieldClick = (_event: any, _editor: Editor, next: () => any): any => {
     const { selectedLogGroups, loadingLogGroups } = this.state;
 
     const queryFieldDisabled = loadingLogGroups || selectedLogGroups.length === 0;

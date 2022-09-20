@@ -1,5 +1,5 @@
-import { Plugin } from '@grafana/slate-react';
-import { Editor as CoreEditor, Annotation } from 'slate';
+import { Plugin, Editor as CoreEditor } from '@grafana/slate-react';
+import { Annotation } from 'slate';
 import { v4 as uuidv4 } from 'uuid';
 
 const BRACES: any = {
@@ -12,8 +12,8 @@ const MATCH_MARK = 'brace_match';
 
 export function BracesPlugin(): Plugin {
   return {
-    onKeyDown(event: Event, editor: CoreEditor, next: Function) {
-      const keyEvent = event as KeyboardEvent;
+    onKeyDown(event, editor: CoreEditor, next: Function) {
+      const keyEvent = event;
       const { value } = editor;
 
       switch (keyEvent.key) {

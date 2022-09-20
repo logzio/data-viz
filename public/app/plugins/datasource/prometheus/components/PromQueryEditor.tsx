@@ -8,7 +8,7 @@ import { PromQuery } from '../types';
 
 import PromQueryField from './PromQueryField';
 // import PromLink from './PromLink'; // LOGZ.IO GRAFANA CHANGE :: DEV-23102 Remove the link to prometheus
-import { PromExemplarField } from './PromExemplarField';
+// import { PromExemplarField } from './PromExemplarField'; // LOGZ.IO GRAFANA CHANGE :: Disable exemplars
 import { PromQueryEditorProps } from './types';
 
 const { Switch } = LegacyForms;
@@ -105,7 +105,13 @@ export class PromQueryEditor extends PureComponent<PromQueryEditorProps, State> 
 
   render() {
     const { datasource, query, range, data } = this.props;
-    const { formatOption, instant, interval, intervalFactorOption, legendFormat, exemplar } = this.state;
+    const {
+      formatOption,
+      instant,
+      interval,
+      intervalFactorOption,
+      legendFormat /*, exemplar // LOGZ.IO GRAFANA CHANGE :: Disable exemplars */,
+    } = this.state;
 
     return (
       <PromQueryField

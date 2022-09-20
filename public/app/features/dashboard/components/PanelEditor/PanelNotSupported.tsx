@@ -14,6 +14,7 @@ export interface Props {
 
 export const PanelNotSupported: FC<Props> = ({ message, dispatch: propsDispatch }) => {
   let dispatch = useDispatch();
+  // @ts-ignore
   dispatch = propsDispatch ?? dispatch;
   const onBackToQueries = useCallback(() => {
     locationService.partial({ tab: PanelEditorTabId.Query });

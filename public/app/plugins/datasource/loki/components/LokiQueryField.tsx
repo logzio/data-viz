@@ -14,8 +14,9 @@ import {
 
 // Utils & Services
 // dom also includes Element polyfills
-import { Plugin, Node } from 'slate';
+import { Node } from 'slate';
 import { LokiLabelBrowser } from './LokiLabelBrowser';
+import { Editor, Plugin } from '@grafana/slate-react';
 
 // Types
 import { ExploreQueryFieldProps } from '@grafana/data';
@@ -74,7 +75,7 @@ interface LokiQueryFieldState {
 }
 
 export class LokiQueryField extends React.PureComponent<LokiQueryFieldProps, LokiQueryFieldState> {
-  plugins: Plugin[];
+  plugins: Array<Plugin<Editor>>;
 
   constructor(props: LokiQueryFieldProps) {
     super(props);
