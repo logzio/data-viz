@@ -1,8 +1,8 @@
 import { debounce } from 'lodash';
 import React, { Context } from 'react';
 
-import { Value, Editor as CoreEditor } from 'slate';
-import { Editor, Plugin } from '@grafana/slate-react';
+import { Value } from 'slate';
+import { Editor, Plugin } from 'slate-react';
 import Plain from 'slate-plain-serializer';
 import classnames from 'classnames';
 
@@ -31,7 +31,7 @@ export interface QueryFieldProps {
   onBlur?: () => void;
   onChange?: (value: string) => void;
   onRichValueChange?: (value: Value) => void;
-  onClick?: (event: Event, editor: CoreEditor, next: () => any) => any;
+  onClick?: (event: Event | React.MouseEvent, editor: Editor, next: () => any) => any;
   onTypeahead?: (typeahead: TypeaheadInput) => Promise<TypeaheadOutput>;
   onWillApplySuggestion?: (suggestion: string, state: SuggestionsState) => string;
   placeholder?: string;
@@ -55,7 +55,7 @@ export interface QueryFieldState {
  * Implement props.onTypeahead to use suggestions, see PromQueryField.tsx as an example.
  */
 export class QueryField extends React.PureComponent<QueryFieldProps, QueryFieldState> {
-  plugins: Plugin[];
+  plugins: Array<Plugin<Editor>>;
   runOnChangeDebounced: Function;
   lastExecutedValue: Value | null = null;
   mounted = false;
@@ -173,7 +173,7 @@ export class QueryField extends React.PureComponent<QueryFieldProps, QueryFieldS
   /**
    * We need to handle blur events here mainly because of dashboard panels which expect to have query executed on blur.
    */
-  handleBlur = (event: Event, editor: CoreEditor, next: Function) => {
+  handleBlur = (event: any, editor: Editor, next: () => any) => {
     const { onBlur } = this.props;
 
     if (onBlur) {

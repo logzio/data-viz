@@ -11,6 +11,7 @@ import {
   SuggestionsState,
   Icon,
 } from '@grafana/ui';
+import { Editor } from 'slate-react';
 
 import { LanguageMap, languages as prismLanguages } from 'prismjs';
 
@@ -88,7 +89,7 @@ interface PromQueryFieldState {
 }
 
 class PromQueryField extends React.PureComponent<PromQueryFieldProps, PromQueryFieldState> {
-  plugins: Plugin[];
+  plugins: Array<Plugin<Editor>>;
   languageProviderInitializationPromise: CancelablePromise<any>;
 
   constructor(props: PromQueryFieldProps, context: React.Context<any>) {

@@ -5,7 +5,7 @@ import { css, cx } from '@emotion/css';
 // Types
 import { InlineFormLabel, RadioButtonGroup } from '@grafana/ui';
 import { PromQuery } from '../types';
-import { PromExemplarField } from './PromExemplarField';
+// import { PromExemplarField } from './PromExemplarField'; // LOGZ.IO GRAFANA CHANGE :: Disable exemplars
 import { PrometheusDatasource } from '../datasource';
 
 export interface PromExploreExtraFieldProps {

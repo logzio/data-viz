@@ -1,4 +1,4 @@
-import { Editor } from '@grafana/slate-react';
+import { Editor } from 'slate-react';
 import React, { FC, useMemo } from 'react';
 import PromqlSyntax from 'app/plugins/datasource/prometheus/promql';
 import LogqlSyntax from 'app/plugins/datasource/loki/syntax';

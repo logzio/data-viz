@@ -3,7 +3,7 @@ import Plain from 'slate-plain-serializer';
 
 import QueryField from './query_field';
 import { DOMUtil } from '@grafana/ui';
-import { Editor as CoreEditor } from 'slate';
+import { Editor as CoreEditor } from 'slate-react';
 
 import { KEYWORDS, functionTokens, operatorTokens, grafanaMacros } from './kusto/kusto';
 // import '../sass/editor.base.scss';

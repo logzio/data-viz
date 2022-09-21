@@ -9,7 +9,7 @@ import { useNavModel } from 'app/core/hooks/useNavModel';
 import { LinkButton } from '@grafana/ui'; // LOGZ.IO GRAFANA CHANGE :: reimport LinkButton
 // import { CoreEvents } from 'app/types'; // LOGZ.IO GRAFANA CHANGE :: comment out to prevent ts errors
 import { AlertNotification } from 'app/types/alerting';
-import { ShowConfirmModalEvent } from '../../types/events';
+// import { ShowConfirmModalEvent } from '../../types/events'; // LOGZ.IO GRAFANA CHANGE :: Disable exemplars
 
 const NotificationsListPage: FC = () => {
   const navModel = useNavModel('channels');
