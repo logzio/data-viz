@@ -123,7 +123,6 @@ export class QueryField extends React.PureComponent<QueryFieldProps, QueryFieldS
    * Update local state, propagate change upstream and optionally run the query afterwards.
    */
   onChange = (value: Value, runQuery?: boolean) => {
-    debugger; // eslint-disable-line
     const documentChanged = value.document !== this.state.value.document;
     const prevValue = this.state.value;
     if (this.props.onRichValueChange) {

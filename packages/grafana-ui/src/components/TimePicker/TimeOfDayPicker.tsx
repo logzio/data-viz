@@ -28,7 +28,6 @@ export const TimeOfDayPicker: FC<Props> = ({
   const styles = useStyles(getStyles);
 
   return (
-    // @ts-ignore
     <RcTimePicker
       className={cx(inputSizes()[size], styles.input)}
       popupClassName={styles.picker}
