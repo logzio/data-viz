@@ -377,6 +377,18 @@ export class PrometheusDatasource
         return this.exploreQuery(queries, activeTargets, end);
       }
 
+      // LOGZ.IO GRAFANA Changes :: DEV-38358  START
+      queries.forEach((query) => {
+        query.headers = {
+          ...query.headers,
+          'x-gf-dashboard-id': request.dashboardId,
+          'x-gf-dashboard-uid': request.dashboardUid,
+          'x-gf-panel-id': request.panelId,
+          'x-gf-request-id': request.requestId,
+        };
+      });
+      // LOGZ.IO END
+
       return this.panelsQuery(queries, activeTargets, end, request.requestId, request.scopedVars);
     }
   }

@@ -296,7 +296,14 @@ export class PanelModel implements DataConfigSource, IPanelModel {
     this.gridPos.h = newPos.h;
   }
 
-  runAllPanelQueries(dashboardId: number, dashboardTimezone: string, timeData: TimeOverrideResult, width: number) {
+  runAllPanelQueries(
+    dashboardId: number,
+    dashboardTimezone: string,
+    timeData: TimeOverrideResult,
+    width: number,
+    dashboardUid?: string
+  ) {
+    // LOGZ.IO GRAFANA Changes :: DEV-38358
     this.getQueryRunner().run({
       datasource: this.datasource,
       queries: this.targets,
@@ -310,6 +317,7 @@ export class PanelModel implements DataConfigSource, IPanelModel {
       scopedVars: this.scopedVars,
       cacheTimeout: this.cacheTimeout,
       transformations: this.transformations,
+      dashboardUid: dashboardUid, // LOGZ.IO GRAFANA Changes :: DEV-38358
     });
   }
 

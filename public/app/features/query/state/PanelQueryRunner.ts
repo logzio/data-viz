@@ -45,6 +45,7 @@ export interface QueryRunnerOptions<
   queries: TQuery[];
   panelId?: number;
   dashboardId?: number;
+  dashboardUid?: string; // LOGZ.IO GRAFANA Changes :: DEV-38358
   timezone: TimeZone;
   timeRange: TimeRange;
   timeInfo?: string; // String description of time range for display
@@ -228,6 +229,7 @@ export class PanelQueryRunner {
       scopedVars: scopedVars || {},
       cacheTimeout,
       startTime: Date.now(),
+      dashboardUid: options.dashboardUid, // LOGZ.IO GRAFANA Changes :: DEV-38358
     };
 
     // Add deprecated property

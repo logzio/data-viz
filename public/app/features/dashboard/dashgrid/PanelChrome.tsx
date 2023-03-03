@@ -357,7 +357,13 @@ export class PanelChrome extends PureComponent<Props, State> {
       if (this.state.refreshWhenInView) {
         this.setState({ refreshWhenInView: false });
       }
-      panel.runAllPanelQueries(this.props.dashboard.id, this.props.dashboard.getTimezone(), timeData, width);
+      panel.runAllPanelQueries(
+        this.props.dashboard.id,
+        this.props.dashboard.getTimezone(),
+        timeData,
+        width,
+        this.props.dashboard.uid
+      ); // LOGZ.IO GRAFANA Changes :: DEV-38358
     } else {
       // The panel should render on refresh as well if it doesn't have a query, like clock panel
       this.setState({
@@ -493,6 +499,8 @@ export class PanelChrome extends PureComponent<Props, State> {
     // Update the event filter (dashboard settings may have changed)
     // Yes this is called ever render for a function that is triggered on every mouse move
     this.eventFilter.onlyLocal = dashboard.graphTooltip === 0;
+
+    // debugger;
 
     return (
       <>
