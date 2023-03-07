@@ -113,6 +113,7 @@ export default class PrometheusMetricFindQuery {
       };
       url = `/api/v1/series`;
 
+      // const overrides = {headers: { 'x-grafana-dashboard-uid': ...}}
       return this.datasource.metadataRequest(url, params).then((result: any) => {
         const _labels = _map(result.data.data, (metric) => {
           return metric[label] || '';

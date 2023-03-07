@@ -83,6 +83,7 @@ export class PanelQueryRunner {
    * Returns an observable that subscribes to the shared multi-cast subject (that reply last result).
    */
   getData(options: GetDataOptions): Observable<PanelData> {
+    debugger;
     const { withFieldConfig, withTransforms } = options;
     let structureRev = 1;
     let lastData: DataFrame[] = [];
@@ -101,6 +102,7 @@ export class PanelQueryRunner {
     return this.subject.pipe(
       this.getTransformationsStream(withTransforms),
       map((data: PanelData) => {
+        debugger;
         let processedData = data;
         let streamingPacketWithSameSchema = false;
 
@@ -259,6 +261,7 @@ export class PanelQueryRunner {
       request.interval = norm.interval;
       request.intervalMs = norm.intervalMs;
 
+      debugger;
       this.lastRequest = request;
 
       this.pipeToSubject(runRequest(ds, request), panelId);

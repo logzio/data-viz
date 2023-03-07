@@ -203,6 +203,7 @@ class MetricsPanelCtrl extends PanelCtrl {
       scopedVars: panel.scopedVars,
       cacheTimeout: panel.cacheTimeout,
       transformations: panel.transformations,
+      dashboardUid: this.dashboard.uid, // LOGZ.IO CHANGES
     });
   }
 

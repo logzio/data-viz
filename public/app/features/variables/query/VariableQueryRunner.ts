@@ -176,6 +176,8 @@ export class VariableQueryRunner {
         ? this.dependencies.getTimeSrv().timeRange()
         : getDefaultTimeRange();
 
+    debugger;
+
     const request: DataQueryRequest = {
       app: CoreApp.Dashboard,
       requestId: uuidv4(),
@@ -186,6 +188,7 @@ export class VariableQueryRunner {
       targets: [target],
       scopedVars,
       startTime: Date.now(),
+      dashboardUid: variable.rootStateKey === null ? undefined : variable.rootStateKey
     };
 
     return request;

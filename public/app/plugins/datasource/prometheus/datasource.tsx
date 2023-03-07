@@ -196,11 +196,12 @@ export class PrometheusDatasource
   }
 
   // Use this for tab completion features, wont publish response to other components
-  async metadataRequest<T = any>(url: string, params = {}) {
+  async metadataRequest<T = any>(url: string, params = {}, overrides = {}) {
     // If URL includes endpoint that supports POST and GET method, try to use configured method. This might fail as POST is supported only in v2.10+.
     if (GET_AND_POST_METADATA_ENDPOINTS.some((endpoint) => url.includes(endpoint))) {
       try {
-        return await lastValueFrom(this._request<T>(url, params, { method: this.httpMethod, hideFromInspector: true }));
+        debugger;
+        return await lastValueFrom(this._request<T>(url, params, { method: this.httpMethod, hideFromInspector: true, ...overrides }));
       } catch (err) {
         // If status code of error is Method Not Allowed (405) and HTTP method is POST, retry with GET
         if (this.httpMethod === 'POST' && err.status === 405) {
@@ -377,8 +378,18 @@ export class PrometheusDatasource
         return this.exploreQuery(queries, activeTargets, end);
       }
 
+      if(request.dashboardUid === undefined) {
+      console.log('datasource.tsx request.dashboardUid: ', request.dashboardUid);
+        // debugger;
+      }
       // LOGZ.IO GRAFANA Changes :: DEV-38358  START
       queries.forEach((query) => {
+        // console.log('🚀 ~ file: datasource.tsx:391 ~ queries.forEach ~ query.headers:', query.headers)
+        console.log('================================');
+        console.log('datasource.tsx:391 ~ request.dashboardUid ~ request.dashboardUid:', request.dashboardUid)
+        console.log('datasource.tsx:392 ~ queries.forEach ~ request.dashboardId:', request.dashboardId)
+        console.log('================================');
+
         query.headers = {
           ...query.headers,
           'x-gf-dashboard-id': request.dashboardId,
