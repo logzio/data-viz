@@ -199,6 +199,7 @@ func (hs *HTTPServer) GetAlertNotifiers(ngalertEnabled bool) func(*models.ReqCon
 	return func(_ *models.ReqContext) response.Response {
 		if ngalertEnabled {
 			// LOGZ.IO Change start
+			fmt.Println("!!!!!! Hello debug !!!!!!")
 			availableNotifier := notifier.GetAvailableNotifiers()
 			allowedNotifiers := []alerting.NotifierPlugin{}
 			isAllowedNotifier := func(t string) bool {
