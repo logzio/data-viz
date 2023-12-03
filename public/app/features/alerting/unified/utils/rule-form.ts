@@ -54,7 +54,7 @@ export const getDefaultFormValues = (): RuleFormValues => {
     queries: [],
     condition: '',
     noDataState: GrafanaAlertStateDecision.NoData,
-    execErrState: GrafanaAlertStateDecision.Alerting,
+    execErrState: GrafanaAlertStateDecision.OK, // LOGZ.IO GRAFANA CHANGE :: make error query error state OK by default
     evaluateEvery: '1m',
     evaluateFor: '5m',
 
