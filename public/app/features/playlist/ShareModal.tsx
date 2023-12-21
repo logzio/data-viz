@@ -20,7 +20,7 @@ export const ShareModal = ({ playlistId, onDismiss }: ShareModalProps) => {
   const modes: Array<SelectableValue<PlaylistMode>> = [
     { label: 'Normal', value: false },
     { label: 'TV', value: 'tv' },
-    { label: 'Kiosk', value: 'true' },
+    { label: 'Kiosk', value: true },
   ];
 
   const onShareUrlCopy = () => {
@@ -29,13 +29,17 @@ export const ShareModal = ({ playlistId, onDismiss }: ShareModalProps) => {
 
   const params: UrlQueryMap = {};
   if (mode) {
-    params.kiosk = mode;
+    params.kiosk = mode.toString();
   }
   if (autoFit) {
     params.autofitpanels = true;
   }
 
-  const shareUrl = urlUtil.renderUrl(`${buildBaseUrl()}/grafana-app/play/${playlistId}`, params);
+  // LOGZ.IO GRAFANA CHANGE :: DEV-42761 fix playlist sharing url
+  const shareUrl = urlUtil.renderUrl(
+    `${buildBaseUrl().replace('playlist', 'grafana-app/playlist')}/play/${playlistId}`,
+    params
+  );
 
   return (
     <Modal isOpen={true} title="Share playlist" onDismiss={onDismiss}>
