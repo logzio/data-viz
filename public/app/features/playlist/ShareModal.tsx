@@ -20,7 +20,7 @@ export const ShareModal = ({ playlistId, onDismiss }: ShareModalProps) => {
   const modes: Array<SelectableValue<PlaylistMode>> = [
     { label: 'Normal', value: false },
     { label: 'TV', value: 'tv' },
-    { label: 'Kiosk', value: true },
+    { label: 'Kiosk', value: 'true' },
   ];
 
   const onShareUrlCopy = () => {
@@ -35,7 +35,7 @@ export const ShareModal = ({ playlistId, onDismiss }: ShareModalProps) => {
     params.autofitpanels = true;
   }
 
-  const shareUrl = urlUtil.renderUrl(`${buildBaseUrl()}/play/${playlistId}`, params);
+  const shareUrl = urlUtil.renderUrl(`${buildBaseUrl()}/grafana-app/play/${playlistId}`, params);
 
   return (
     <Modal isOpen={true} title="Share playlist" onDismiss={onDismiss}>
