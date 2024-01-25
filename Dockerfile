@@ -102,5 +102,9 @@ EXPOSE 3000
 
 COPY ./grafana/packaging/docker/run.sh /run.sh
 
+# LOGZ.IO GRAFANA CHANGE :: Add unique file to avoid ECR tag limit
+ARG VERSION
+RUN echo "$VERSION" > /var/version.txt
+
 USER grafana
 ENTRYPOINT [ "/run.sh" ]
