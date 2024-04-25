@@ -8,14 +8,30 @@ Hash: SHA512
   "signedByOrg": "themike",
   "signedByOrgName": "themike",
   "rootUrls": [
-    "https://*.logz.io/",
-    "http://*.logz.io:8080/",
+    "https://app.logz.io/",
+    "https://app-us.logz.io/",
+    "https://app-eu.logz.io/",
+    "https://app-ca.logz.io/",
+    "https://app-au.logz.io/",
+    "https://app-uk.logz.io/",
+    "https://app-nl.logz.io/",
+    "https://app-wa.logz.io/",
+    "https://app-jp.logz.io/",
+    "https://app.logz.io/grafana-app",
+    "https://app-us.logz.io/grafana-app",
+    "https://app-eu.logz.io/grafana-app",
+    "https://app-ca.logz.io/grafana-app",
+    "https://app-au.logz.io/grafana-app",
+    "https://app-uk.logz.io/grafana-app",
+    "https://app-nl.logz.io/grafana-app",
+    "https://app-wa.logz.io/grafana-app",
+    "https://app-jp.logz.io/grafana-app",
     "http://grafana-services:9990/",
     "http://grafana-service:9990/grafana-app/"
   ],
   "plugin": "youtube-video-panel",
   "version": "%VERSION%",
-  "time": 1655824801328,
+  "time": 1714056828666,
   "keyId": "7e4d0c6a708866e7",
   "files": {
     "LICENSE": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1",
@@ -29,13 +45,13 @@ Hash: SHA512
   }
 }
 -----BEGIN PGP SIGNATURE-----
-Version: OpenPGP.js v4.10.10
+Version: OpenPGP.js v4.10.11
 Comment: https://openpgpjs.org
 
-wrkEARMKAAYFAmKx4aEAIQkQfk0ManCIZucWIQTzOyW2kQdOhGNlcPN+TQxq
-cIhm59SSAgkBx/bI7tkbaJUq8PBdYSuibfXpVJUmoM8bhRNVB47mywkxvSgg
-t7Zkv4enDEthCjtiuAdJXnSCIi0/aKOH6jSfX2wCCQE/skS7cjnbTOoylb61
-/OZVGPOLUkNHPnht4mc75eFQqV7VwvA1QGxLoZGVindw+UEKxKfEnp3t95sq
-ZvU+bWRrTg==
-=/0nV
+wrkEARMKAAYFAmYqbnwAIQkQfk0ManCIZucWIQTzOyW2kQdOhGNlcPN+TQxq
+cIhm551tAgkB/2pIydJKFSCnVuC1a/9us0LJ6pGhRZbE3pocDSbyMJnnSx5/
+SCPq6HdpBL6y5EBp26S1LNxZFy6agwc0KE2sV0ACCQDbCJklB3irrk06eei3
+/kx+YCTmfaxjeiY/yV2cIFfHINJFqEKohib0UbspcV1Dy6mtgJDAIjOHzc9n
+8fJrZn9KUA==
+=I4ji
 -----END PGP SIGNATURE-----
