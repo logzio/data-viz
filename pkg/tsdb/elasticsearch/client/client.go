@@ -313,10 +313,12 @@ func (c *baseClientImpl) createMultiSearchRequests(searchRequests []*SearchReque
 			mr.header["search_type"] = "count"
 		}
 
-		if c.version >= 56 && c.version < 70 {
-			maxConcurrentShardRequests := c.getSettings().Get("maxConcurrentShardRequests").MustInt(256)
-			mr.header["max_concurrent_shard_requests"] = maxConcurrentShardRequests
-		}
+		// LOGZ.IO GRAFANA CHANGE :: DEV-44969 do not set max_concurrent_shard_requests in query metadata or query params
+		//if c.version >= 56 && c.version < 70 {
+		//	maxConcurrentShardRequests := c.getSettings().Get("maxConcurrentShardRequests").MustInt(256)
+		//	mr.header["max_concurrent_shard_requests"] = maxConcurrentShardRequests
+		//}
+		// LOGZ.IO end
 
 		multiRequests = append(multiRequests, &mr)
 	}
@@ -333,10 +335,12 @@ func (c *baseClientImpl) getMultiSearchQueryParameters() string {
 		q.Set("accountsToSearch", c.ds.Database)
 	}
 
-	if c.version >= 70 {
-		maxConcurrentShardRequests := c.getSettings().Get("maxConcurrentShardRequests").MustInt(5)
-		q.Set("max_concurrent_shard_requests", fmt.Sprintf("%d", maxConcurrentShardRequests))
-	}
+	// LOGZ.IO GRAFANA CHANGE :: DEV-44969 do not set max_concurrent_shard_requests in query metadata or query params
+	//if c.version >= 70 {
+	//	maxConcurrentShardRequests := c.getSettings().Get("maxConcurrentShardRequests").MustInt(5)
+	//	q.Set("max_concurrent_shard_requests", fmt.Sprintf("%d", maxConcurrentShardRequests))
+	//}
+	// LOGZ.IO end
 
 	return q.Encode()
 	// LOGZ.IO GRAFANA CHANGE :: DEV-20400 - end
