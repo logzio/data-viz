@@ -131,10 +131,10 @@ func (gcn *GoogleChatNotifier) Notify(evalContext *alerting.EvalContext) error {
 	}
 
 	widgets := []widget{}
-	if len(evalContext.Rule.Message) > 0 {
-		// add a text paragraph widget for the message if there is a message
-		// Google Chat API doesn't accept an empty text property
-		widgets = append(widgets, textParagraphWidget{
+    	if len(evalContext.Rule.Message) > 0 {
+    		// add a text paragraph widget for the message if there is a message
+    		// Google Chat API doesn't accept an empty text property
+    		widgets = append(widgets, textParagraphWidget{
 			Text: text{
 				Text: evalContext.Rule.Message,
 			},

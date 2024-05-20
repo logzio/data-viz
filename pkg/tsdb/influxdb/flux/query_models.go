@@ -7,7 +7,7 @@ import (
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	"github.com/grafana/grafana/pkg/models"
-	"github.com/grafana/grafana/pkg/plugins"
+	"github.com/grafana/grafana/pkg/tsdb"
 )
 
 // queryOptions represents datasource configuration options
@@ -46,9 +46,8 @@ type queryModel struct {
 // 	return model, nil
 // }
 
-// getQueryModelTSDB builds a queryModel from plugins.DataQuery information and datasource configuration (dsInfo).
-func getQueryModelTSDB(query plugins.DataSubQuery, timeRange plugins.DataTimeRange,
-	dsInfo *models.DataSource) (*queryModel, error) {
+// getQueryModelTSDB builds a queryModel from tsdb.Query information and datasource configuration (dsInfo).
+func getQueryModelTSDB(query *tsdb.Query, timeRange *tsdb.TimeRange, dsInfo *models.DataSource) (*queryModel, error) {
 	model := &queryModel{}
 	queryBytes, err := query.Model.Encode()
 	if err != nil {
@@ -87,7 +86,7 @@ func getQueryModelTSDB(query plugins.DataSubQuery, timeRange plugins.DataTimeRan
 	if model.MaxDataPoints == 0 {
 		model.MaxDataPoints = 10000 // 10k/series should be a reasonable place to abort!
 	}
-	model.Interval = time.Millisecond * time.Duration(query.IntervalMS)
+	model.Interval = time.Millisecond * time.Duration(query.IntervalMs)
 	if model.Interval.Milliseconds() == 0 {
 		model.Interval = time.Millisecond // 1ms
 	}

@@ -1,7 +1,7 @@
 import React, { FC, MouseEvent } from 'react';
 import { GrafanaTheme } from '@grafana/data';
 import { Icon, stylesFactory, useTheme } from '@grafana/ui';
-import { css } from '@emotion/css';
+import { css } from 'emotion';
 import store from 'app/core/store';
 import { cardContent, cardStyle, iconStyle } from './sharedStyles';
 import { TutorialCardType } from '../types';
@@ -19,7 +19,7 @@ export const TutorialCard: FC<Props> = ({ card }) => {
       <div className={cardContent}>
         <div className={styles.type}>{card.type}</div>
         <div className={styles.heading}>{card.done ? 'complete' : card.heading}</div>
-        <h4 className={styles.cardTitle}>{card.title}</h4>
+        <h4>{card.title}</h4>
         <div className={styles.info}>{card.info}</div>
         <Icon className={iconStyle(theme, card.done)} name={card.icon} size="xxl" />
       </div>
@@ -37,6 +37,7 @@ const handleTutorialClick = (event: MouseEvent<HTMLAnchorElement>, card: Tutoria
 };
 
 const getStyles = stylesFactory((theme: GrafanaTheme, complete: boolean) => {
+  const textColor = `${complete ? theme.palette.blue95 : '#FFB357'}`;
   return {
     card: css`
       ${cardStyle(theme, complete)}
@@ -52,16 +53,13 @@ const getStyles = stylesFactory((theme: GrafanaTheme, complete: boolean) => {
       }
     `,
     type: css`
-      color: ${theme.colors.textBlue};
+      color: ${textColor};
       text-transform: uppercase;
     `,
     heading: css`
       text-transform: uppercase;
-      color: ${theme.colors.textBlue};
+      color: ${textColor};
       margin-bottom: ${theme.spacing.sm};
-    `,
-    cardTitle: css`
-      margin-bottom: ${theme.spacing.md};
     `,
     info: css`
       margin-bottom: ${theme.spacing.md};

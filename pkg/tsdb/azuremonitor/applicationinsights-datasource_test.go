@@ -11,7 +11,7 @@ import (
 	"github.com/grafana/grafana/pkg/components/simplejson"
 	"github.com/grafana/grafana/pkg/models"
 	"github.com/grafana/grafana/pkg/plugins"
-	"github.com/grafana/grafana/pkg/setting"
+	"github.com/grafana/grafana/pkg/tsdb"
 	"github.com/stretchr/testify/require"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -23,12 +23,12 @@ func TestApplicationInsightsDatasource(t *testing.T) {
 
 		Convey("Parse queries from frontend and build AzureMonitor API queries", func() {
 			fromStart := time.Date(2018, 3, 15, 13, 0, 0, 0, time.UTC).In(time.Local)
-			tsdbQuery := plugins.DataQuery{
-				TimeRange: &plugins.DataTimeRange{
+			tsdbQuery := &tsdb.TsdbQuery{
+				TimeRange: &tsdb.TimeRange{
 					From: fmt.Sprintf("%v", fromStart.Unix()*1000),
 					To:   fmt.Sprintf("%v", fromStart.Add(34*time.Minute).Unix()*1000),
 				},
-				Queries: []plugins.DataSubQuery{
+				Queries: []*tsdb.Query{
 					{
 						DataSource: &models.DataSource{
 							JsonData: simplejson.NewFromAny(map[string]interface{}{}),
@@ -43,13 +43,13 @@ func TestApplicationInsightsDatasource(t *testing.T) {
 								"queryType":   "Application Insights",
 							},
 						}),
-						RefID:      "A",
-						IntervalMS: 1234,
+						RefId:      "A",
+						IntervalMs: 1234,
 					},
 				},
 			}
 			Convey("and is a normal query", func() {
-				queries, err := datasource.buildQueries(tsdbQuery.Queries, *tsdbQuery.TimeRange)
+				queries, err := datasource.buildQueries(tsdbQuery.Queries, tsdbQuery.TimeRange)
 				So(err, ShouldBeNil)
 
 				So(len(queries), ShouldEqual, 1)
@@ -74,28 +74,9 @@ func TestApplicationInsightsDatasource(t *testing.T) {
 						"queryType":   "Application Insights",
 					},
 				})
-				tsdbQuery.Queries[0].IntervalMS = 400000
+				tsdbQuery.Queries[0].IntervalMs = 400000
 
-				queries, err := datasource.buildQueries(tsdbQuery.Queries, *tsdbQuery.TimeRange)
-				So(err, ShouldBeNil)
-
-				So(queries[0].Params["interval"][0], ShouldEqual, "PT15M")
-			})
-
-			Convey("and has an empty time grain", func() {
-				tsdbQuery.Queries[0].Model = simplejson.NewFromAny(map[string]interface{}{
-					"appInsights": map[string]interface{}{
-						"rawQuery":    false,
-						"timeGrain":   "",
-						"aggregation": "Average",
-						"metricName":  "Percentage CPU",
-						"alias":       "testalias",
-						"queryType":   "Application Insights",
-					},
-				})
-				tsdbQuery.Queries[0].IntervalMS = 400000
-
-				queries, err := datasource.buildQueries(tsdbQuery.Queries, *tsdbQuery.TimeRange)
+				queries, err := datasource.buildQueries(tsdbQuery.Queries, tsdbQuery.TimeRange)
 				So(err, ShouldBeNil)
 
 				So(queries[0].Params["interval"][0], ShouldEqual, "PT15M")
@@ -113,9 +94,9 @@ func TestApplicationInsightsDatasource(t *testing.T) {
 						"allowedTimeGrainsMs": []int64{60000, 300000},
 					},
 				})
-				tsdbQuery.Queries[0].IntervalMS = 400000
+				tsdbQuery.Queries[0].IntervalMs = 400000
 
-				queries, err := datasource.buildQueries(tsdbQuery.Queries, *tsdbQuery.TimeRange)
+				queries, err := datasource.buildQueries(tsdbQuery.Queries, tsdbQuery.TimeRange)
 				So(err, ShouldBeNil)
 
 				So(queries[0].Params["interval"][0], ShouldEqual, "PT5M")
@@ -135,7 +116,7 @@ func TestApplicationInsightsDatasource(t *testing.T) {
 					},
 				})
 
-				queries, err := datasource.buildQueries(tsdbQuery.Queries, *tsdbQuery.TimeRange)
+				queries, err := datasource.buildQueries(tsdbQuery.Queries, tsdbQuery.TimeRange)
 				So(err, ShouldBeNil)
 
 				So(queries[0].Target, ShouldEqual, "aggregation=Average&filter=blob+eq+%27%2A%27&interval=PT1M&segment=blob&timespan=2018-03-15T13%3A00%3A00Z%2F2018-03-15T13%3A34%3A00Z")
@@ -155,7 +136,7 @@ func TestApplicationInsightsDatasource(t *testing.T) {
 					},
 				})
 
-				queries, err := datasource.buildQueries(tsdbQuery.Queries, *tsdbQuery.TimeRange)
+				queries, err := datasource.buildQueries(tsdbQuery.Queries, tsdbQuery.TimeRange)
 				So(err, ShouldBeNil)
 
 				So(queries[0].Target, ShouldEqual, "aggregation=Average&interval=PT1M&timespan=2018-03-15T13%3A00%3A00Z%2F2018-03-15T13%3A34%3A00Z")
@@ -165,13 +146,7 @@ func TestApplicationInsightsDatasource(t *testing.T) {
 }
 
 func TestAppInsightsPluginRoutes(t *testing.T) {
-	cfg := &setting.Cfg{
-		Azure: setting.AzureSettings{
-			Cloud:                  setting.AzurePublic,
-			ManagedIdentityEnabled: true,
-		},
-	}
-
+	datasource := &ApplicationInsightsDatasource{}
 	plugin := &plugins.DataSourcePlugin{
 		Routes: []*plugins.AppPluginRoute{
 			{
@@ -197,37 +172,21 @@ func TestAppInsightsPluginRoutes(t *testing.T) {
 
 	tests := []struct {
 		name              string
-		datasource        *ApplicationInsightsDatasource
+		cloudName         string
 		expectedRouteName string
 		expectedRouteURL  string
 		Err               require.ErrorAssertionFunc
 	}{
 		{
-			name: "plugin proxy route for the Azure public cloud",
-			datasource: &ApplicationInsightsDatasource{
-				cfg: cfg,
-				dsInfo: &models.DataSource{
-					JsonData: simplejson.NewFromAny(map[string]interface{}{
-						"azureAuthType": AzureAuthClientSecret,
-						"cloudName":     "azuremonitor",
-					}),
-				},
-			},
+			name:              "plugin proxy route for the Azure public cloud",
+			cloudName:         "azuremonitor",
 			expectedRouteName: "appinsights",
 			expectedRouteURL:  "https://api.applicationinsights.io",
 			Err:               require.NoError,
 		},
 		{
-			name: "plugin proxy route for the Azure China cloud",
-			datasource: &ApplicationInsightsDatasource{
-				cfg: cfg,
-				dsInfo: &models.DataSource{
-					JsonData: simplejson.NewFromAny(map[string]interface{}{
-						"azureAuthType": AzureAuthClientSecret,
-						"cloudName":     "chinaazuremonitor",
-					}),
-				},
-			},
+			name:              "plugin proxy route for the Azure China cloud",
+			cloudName:         "chinaazuremonitor",
 			expectedRouteName: "chinaappinsights",
 			expectedRouteURL:  "https://api.applicationinsights.azure.cn",
 			Err:               require.NoError,
@@ -236,7 +195,7 @@ func TestAppInsightsPluginRoutes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			route, routeName, err := tt.datasource.getPluginRoute(plugin)
+			route, routeName, err := datasource.getPluginRoute(plugin, tt.cloudName)
 			tt.Err(t, err)
 
 			if diff := cmp.Diff(tt.expectedRouteURL, route.URL, cmpopts.EquateNaNs()); diff != "" {

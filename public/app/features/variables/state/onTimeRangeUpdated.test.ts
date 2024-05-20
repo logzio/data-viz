@@ -10,7 +10,8 @@ import { createConstantVariableAdapter } from '../constant/adapter';
 import { VariableRefresh } from '../types';
 import { constantBuilder, intervalBuilder } from '../shared/testing/builders';
 import { reduxTester } from '../../../../test/core/redux/reduxTester';
-import { getRootReducer, RootReducerType } from './helpers';
+import { TemplatingState } from './reducers';
+import { getRootReducer } from './helpers';
 import { toVariableIdentifier, toVariablePayload } from './types';
 import {
   setCurrentVariableValue,
@@ -22,7 +23,6 @@ import { createIntervalOptions } from '../interval/reducer';
 import { silenceConsoleOutput } from '../../../../test/core/utils/silenceConsoleOutput';
 import { notifyApp } from '../../../core/reducers/appNotification';
 import { expect } from '../../../../test/lib/common';
-import { TemplatingState } from './reducers';
 
 variableAdapters.setInit(() => [createIntervalVariableAdapter(), createConstantVariableAdapter()]);
 
@@ -54,26 +54,25 @@ const getTestContext = () => {
   const templateSrvMock = ({ updateTimeRange: updateTimeRangeMock } as unknown) as TemplateSrv;
   const dependencies: OnTimeRangeUpdatedDependencies = { templateSrv: templateSrvMock };
   const templateVariableValueUpdatedMock = jest.fn();
-  const setChangeAffectsAllPanelsMock = jest.fn();
   const dashboard = ({
     getModel: () =>
       (({
         templateVariableValueUpdated: templateVariableValueUpdatedMock,
         startRefresh: startRefreshMock,
-        setChangeAffectsAllPanels: setChangeAffectsAllPanelsMock,
       } as unknown) as DashboardModel),
   } as unknown) as DashboardState;
   const startRefreshMock = jest.fn();
   const adapter = variableAdapters.get('interval');
-  const preloadedState = ({
+  const preloadedState = {
     dashboard,
+    location: { query: '' },
     templating: ({
       variables: {
         'interval-0': { ...interval },
         'constant-1': { ...constant },
       },
     } as unknown) as TemplatingState,
-  } as unknown) as RootReducerType;
+  };
 
   return {
     interval,
@@ -84,7 +83,6 @@ const getTestContext = () => {
     updateTimeRangeMock,
     templateVariableValueUpdatedMock,
     startRefreshMock,
-    setChangeAffectsAllPanelsMock,
   };
 };
 
@@ -98,10 +96,9 @@ describe('when onTimeRangeUpdated is dispatched', () => {
         updateTimeRangeMock,
         templateVariableValueUpdatedMock,
         startRefreshMock,
-        setChangeAffectsAllPanelsMock,
       } = getTestContext();
 
-      const tester = await reduxTester<RootReducerType>({ preloadedState })
+      const tester = await reduxTester<{ templating: TemplatingState }>({ preloadedState })
         .givenRootReducer(getRootReducer())
         .whenAsyncActionIsDispatched(onTimeRangeUpdated(range, dependencies));
 
@@ -121,7 +118,6 @@ describe('when onTimeRangeUpdated is dispatched', () => {
       expect(updateTimeRangeMock).toHaveBeenCalledWith(range);
       expect(templateVariableValueUpdatedMock).toHaveBeenCalledTimes(1);
       expect(startRefreshMock).toHaveBeenCalledTimes(1);
-      expect(setChangeAffectsAllPanelsMock).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -135,14 +131,12 @@ describe('when onTimeRangeUpdated is dispatched', () => {
         updateTimeRangeMock,
         templateVariableValueUpdatedMock,
         startRefreshMock,
-        setChangeAffectsAllPanelsMock,
       } = getTestContext();
 
-      const base = await reduxTester<RootReducerType>({ preloadedState })
+      const tester = await reduxTester<{ templating: TemplatingState }>({ preloadedState })
         .givenRootReducer(getRootReducer())
-        .whenAsyncActionIsDispatched(setOptionAsCurrent(toVariableIdentifier(interval), interval.options[0], false));
-
-      const tester = await base.whenAsyncActionIsDispatched(onTimeRangeUpdated(range, dependencies), true);
+        .whenActionIsDispatched(setOptionAsCurrent(toVariableIdentifier(interval), interval.options[0], false))
+        .whenAsyncActionIsDispatched(onTimeRangeUpdated(range, dependencies), true);
 
       tester.thenDispatchedActionsShouldEqual(
         variableStateFetching(toVariablePayload({ type: 'interval', id: 'interval-0' })),
@@ -160,7 +154,6 @@ describe('when onTimeRangeUpdated is dispatched', () => {
       expect(updateTimeRangeMock).toHaveBeenCalledWith(range);
       expect(templateVariableValueUpdatedMock).toHaveBeenCalledTimes(0);
       expect(startRefreshMock).toHaveBeenCalledTimes(1);
-      expect(setChangeAffectsAllPanelsMock).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -175,16 +168,15 @@ describe('when onTimeRangeUpdated is dispatched', () => {
         updateTimeRangeMock,
         templateVariableValueUpdatedMock,
         startRefreshMock,
-        setChangeAffectsAllPanelsMock,
       } = getTestContext();
 
       adapter.updateOptions = jest.fn().mockRejectedValue(new Error('Something broke'));
 
-      const tester = await reduxTester<RootReducerType>({ preloadedState, debug: true })
+      const tester = await reduxTester<{ templating: TemplatingState }>({ preloadedState, debug: true })
         .givenRootReducer(getRootReducer())
         .whenAsyncActionIsDispatched(onTimeRangeUpdated(range, dependencies), true);
 
-      tester.thenDispatchedActionsPredicateShouldEqual((dispatchedActions) => {
+      tester.thenDispatchedActionsPredicateShouldEqual(dispatchedActions => {
         expect(dispatchedActions[0]).toEqual(
           variableStateFetching(toVariablePayload({ type: 'interval', id: 'interval-0' }))
         );
@@ -204,7 +196,6 @@ describe('when onTimeRangeUpdated is dispatched', () => {
       expect(updateTimeRangeMock).toHaveBeenCalledWith(range);
       expect(templateVariableValueUpdatedMock).toHaveBeenCalledTimes(0);
       expect(startRefreshMock).toHaveBeenCalledTimes(0);
-      expect(setChangeAffectsAllPanelsMock).toHaveBeenCalledTimes(0);
     });
   });
 });

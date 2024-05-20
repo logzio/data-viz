@@ -1,6 +1,6 @@
 import * as d3 from 'd3';
 import $ from 'jquery';
-import { filter, find, isNumber, map, reduce } from 'lodash';
+import _ from 'lodash';
 import { getValueBucketBound } from './heatmap_data_converter';
 import { getValueFormat, formattedValueToString } from '@grafana/data';
 
@@ -44,7 +44,10 @@ export class HeatmapTooltip {
   }
 
   add() {
-    this.tooltip = d3.select('body').append('div').attr('class', 'heatmap-tooltip graph-tooltip grafana-tooltip');
+    this.tooltip = d3
+      .select('body')
+      .append('div')
+      .attr('class', 'heatmap-tooltip graph-tooltip grafana-tooltip');
   }
 
   destroy() {
@@ -78,7 +81,7 @@ export class HeatmapTooltip {
     let boundBottom, boundTop, valuesNumber;
     const xData = data.buckets[xBucketIndex];
     // Search in special 'zero' bucket also
-    const yData: any = find(xData.buckets, (bucket, bucketIndex) => {
+    const yData: any = _.find(xData.buckets, (bucket, bucketIndex) => {
       return bucket.bounds.bottom === yBucketIndex || bucketIndex === yBucketIndex.toString();
     });
 
@@ -87,7 +90,7 @@ export class HeatmapTooltip {
 
     // Decimals override. Code from panel/graph/graph.ts
     let countValueFormatter, bucketBoundFormatter;
-    if (isNumber(this.panel.tooltipDecimals)) {
+    if (_.isNumber(this.panel.tooltipDecimals)) {
       countValueFormatter = this.countValueFormatter(this.panel.tooltipDecimals, null);
       bucketBoundFormatter = this.panelCtrl.tickValueFormatter(this.panelCtrl.decimals, null);
     } else {
@@ -158,7 +161,7 @@ export class HeatmapTooltip {
   getXBucketIndex(x: number, data: { buckets: any; xBucketSize: number }) {
     // First try to find X bucket by checking x pos is in the
     // [bucket.x, bucket.x + xBucketSize] interval
-    const xBucket: any = find(data.buckets, (bucket) => {
+    const xBucket: any = _.find(data.buckets, bucket => {
       return x > bucket.x && x - bucket.x <= data.xBucketSize;
     });
     return xBucket ? xBucket.x : getValueBucketBound(x, data.xBucketSize, 1);
@@ -192,11 +195,11 @@ export class HeatmapTooltip {
       max = this.scope.ctrl.data.yAxis.max;
       ticks = this.scope.ctrl.data.yAxis.ticks;
     }
-    let histogramData = map(xBucket.buckets, (bucket) => {
+    let histogramData = _.map(xBucket.buckets, bucket => {
       const count = bucket.count !== undefined ? bucket.count : bucket.values.length;
       return [bucket.bounds.bottom, count];
     });
-    histogramData = filter(histogramData, (d) => {
+    histogramData = _.filter(histogramData, d => {
       return d[0] >= min && d[0] <= max;
     });
 
@@ -213,12 +216,15 @@ export class HeatmapTooltip {
     barWidth = Math.max(barWidth, 1);
 
     // Normalize histogram Y axis
-    const histogramDomain = reduce(
-      map(histogramData, (d) => d[1]),
+    const histogramDomain = _.reduce(
+      _.map(histogramData, d => d[1]),
       (sum, val) => sum + val,
       0
     );
-    const histYScale = d3.scaleLinear().domain([0, histogramDomain]).range([0, HISTOGRAM_HEIGHT]);
+    const histYScale = d3
+      .scaleLinear()
+      .domain([0, histogramDomain])
+      .range([0, HISTOGRAM_HEIGHT]);
 
     const histogram = this.tooltip
       .select('.heatmap-histogram')

@@ -8,8 +8,6 @@ describe('searchForTags', () => {
     const tags = ['A', 'B'];
     const link: DashboardLink = {
       targetBlank: false,
-      keepTime: false,
-      includeVars: false,
       asDropdown: false,
       icon: 'some icon',
       tags,
@@ -19,7 +17,7 @@ describe('searchForTags', () => {
       url: '/d/6ieouugGk/DashLinks',
     };
     const backendSrv: any = {
-      search: jest.fn((args) => []),
+      search: jest.fn(args => []),
     };
 
     return { link, backendSrv };
@@ -42,8 +40,6 @@ describe('resolveLinks', () => {
   const setupTestContext = (dashboardId: number, searchHitId: number) => {
     const link: DashboardLink = {
       targetBlank: false,
-      keepTime: false,
-      includeVars: false,
       asDropdown: false,
       icon: 'some icon',
       tags: [],
@@ -65,10 +61,10 @@ describe('resolveLinks', () => {
       },
     ];
     const linkSrv: any = {
-      getLinkUrl: jest.fn((args) => args.url),
+      getLinkUrl: jest.fn(args => args.url),
     };
-    const sanitize = jest.fn((args) => args);
-    const sanitizeUrl = jest.fn((args) => args);
+    const sanitize = jest.fn(args => args);
+    const sanitizeUrl = jest.fn(args => args);
 
     return { dashboardId, link, searchHits, linkSrv, sanitize, sanitizeUrl };
   };

@@ -3,16 +3,18 @@ title = "Organization HTTP API "
 description = "Grafana Organization HTTP API"
 keywords = ["grafana", "http", "documentation", "api", "organization"]
 aliases = ["/docs/grafana/latest/http_api/organization/"]
+type = "docs"
+[menu.docs]
+name = "Organization"
+parent = "http_api"
 +++
+
 
 # Organization API
 
 The Organization HTTP API is divided in two resources, `/api/org` (current organization)
 and `/api/orgs` (admin organizations). One big difference between these are that
 the admin of all organizations API only works with basic authentication, see [Admin Organizations API](#admin-organizations-api) for more information.
-
-> If you are running Grafana Enterprise and have [Fine-grained access control]({{< relref "../enterprise/access-control/_index.md" >}}) enabled, for some endpoints you would need to have relevant permissions.
-Refer to specific resources to understand what permissions are required.
 
 ## Current Organization API
 
@@ -47,14 +49,6 @@ Content-Type: application/json
 
 Returns all org users within the current organization.
 Accessible to users with org admin role.
-
-#### Required permissions
-
-See note in the [introduction]({{< ref "#organization-api" >}}) for an explanation.
-
-Action | Scope
---- | --- | 
-org.users:read | users:*
 
 **Example Request**:
 
@@ -122,14 +116,6 @@ Content-Type: application/json
 
 `PATCH /api/org/users/:userId`
 
-#### Required permissions
-
-See note in the [introduction]({{< ref "#organization-api" >}}) for an explanation.
-
-Action | Scope
---- | --- | 
-org.users.role:update | users:*
-
 **Example Request**:
 
 ```http
@@ -155,14 +141,6 @@ Content-Type: application/json
 ### Delete user in current organization
 
 `DELETE /api/org/users/:userId`
-
-#### Required permissions
-
-See note in the [introduction]({{< ref "#organization-api" >}}) for an explanation.
-
-Action | Scope
---- | --- | 
-org.users:remove | users:*
 
 **Example Request**:
 
@@ -213,14 +191,6 @@ Content-Type: application/json
 `POST /api/org/users`
 
 Adds a global user to the current organization.
-
-#### Required permissions
-
-See note in the [introduction]({{< ref "#organization-api" >}}) for an explanation.
-
-Action | Scope
---- | --- | 
-org.users:add | users:*
 
 **Example Request**:
 
@@ -339,7 +309,7 @@ Content-Type: application/json
 ```
 Note: The api will work in the following two ways
 1) Need to set GF_USERS_ALLOW_ORG_CREATE=true
-2) Set the config value users.allow_org_create to true in ini file
+2) Set the config users.allow_org_create to true in ini file
 
 **Example Response**:
 
@@ -441,14 +411,6 @@ Content-Type: application/json
 
 Only works with Basic Authentication (username and password), see [introduction](#admin-organizations-api).
 
-#### Required permissions
-
-See note in the [introduction]({{< ref "#organization-api" >}}) for an explanation.
-
-Action | Scope
---- | --- | 
-org.users:read | users:*
-
 **Example Request**:
 
 ```http
@@ -482,14 +444,6 @@ Content-Type: application/json
 
 Only works with Basic Authentication (username and password), see [introduction](#admin-organizations-api).
 
-#### Required permissions
-
-See note in the [introduction]({{< ref "#organization-api" >}}) for an explanation.
-
-Action | Scope
---- | --- | 
-org.users:add | users:*
-
 **Example Request**:
 
 ```http
@@ -518,14 +472,6 @@ Content-Type: application/json
 
 Only works with Basic Authentication (username and password), see [introduction](#admin-organizations-api).
 
-#### Required permissions
-
-See note in the [introduction]({{< ref "#organization-api" >}}) for an explanation.
-
-Action | Scope
---- | --- | 
-org.users.role:update | users:*
-
 **Example Request**:
 
 ```http
@@ -552,14 +498,6 @@ Content-Type: application/json
 `DELETE /api/orgs/:orgId/users/:userId`
 
 Only works with Basic Authentication (username and password), see [introduction](#admin-organizations-api).
-
-#### Required permissions
-
-See note in the [introduction]({{< ref "#organization-api" >}}) for an explanation.
-
-Action | Scope
---- | --- | 
-org.users:remove | users:*
 
 **Example Request**:
 

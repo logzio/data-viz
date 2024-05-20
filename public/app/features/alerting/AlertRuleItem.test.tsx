@@ -1,6 +1,10 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { shallow } from 'enzyme';
 import AlertRuleItem, { Props } from './AlertRuleItem';
+
+jest.mock('react-redux', () => ({
+  connect: () => (params: any) => params,
+}));
 
 const setup = (propOverrides?: object) => {
   const props: Props = {
@@ -22,20 +26,13 @@ const setup = (propOverrides?: object) => {
 
   Object.assign(props, propOverrides);
 
-  return render(<AlertRuleItem {...props} />);
+  return shallow(<AlertRuleItem {...props} />);
 };
 
-describe('AlertRuleItem', () => {
+describe('Render', () => {
   it('should render component', () => {
-    const mockToggle = jest.fn();
-    setup({ onTogglePause: mockToggle });
+    const wrapper = setup();
 
-    expect(screen.getByText('Some rule')).toBeInTheDocument();
-    expect(screen.getByText('state text')).toBeInTheDocument();
-    expect(screen.getByText('Pause')).toBeInTheDocument();
-    expect(screen.getByText('Edit alert')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByText('Pause'));
-    expect(mockToggle).toHaveBeenCalled();
+    expect(wrapper).toMatchSnapshot();
   });
 });

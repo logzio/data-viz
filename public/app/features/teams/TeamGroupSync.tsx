@@ -1,35 +1,26 @@
 import React, { PureComponent } from 'react';
-import { connect, ConnectedProps } from 'react-redux';
+import { connect } from 'react-redux';
 
 import { SlideDown } from 'app/core/components/Animations/SlideDown';
-import { LegacyForms, Tooltip, Icon, Button } from '@grafana/ui';
+import { LegacyForms, Tooltip, Icon } from '@grafana/ui';
 const { Input } = LegacyForms;
 
-import { StoreState, TeamGroup } from '../../types';
+import { TeamGroup } from '../../types';
 import { addTeamGroup, loadTeamGroups, removeTeamGroup } from './state/actions';
 import { getTeamGroups } from './state/selectors';
 import EmptyListCTA from 'app/core/components/EmptyListCTA/EmptyListCTA';
-import { CloseButton } from 'app/core/components/CloseButton/CloseButton';
 
-function mapStateToProps(state: StoreState) {
-  return {
-    groups: getTeamGroups(state.team),
-  };
+export interface Props {
+  groups: TeamGroup[];
+  loadTeamGroups: typeof loadTeamGroups;
+  addTeamGroup: typeof addTeamGroup;
+  removeTeamGroup: typeof removeTeamGroup;
 }
-
-const mapDispatchToProps = {
-  loadTeamGroups,
-  addTeamGroup,
-  removeTeamGroup,
-};
 
 interface State {
   isAdding: boolean;
   newGroupId: string;
 }
-
-const connector = connect(mapStateToProps, mapDispatchToProps);
-export type Props = ConnectedProps<typeof connector>;
 
 const headerTooltip = `Sync LDAP or OAuth groups with your Grafana teams.`;
 
@@ -74,9 +65,9 @@ export class TeamGroupSync extends PureComponent<Props, State> {
       <tr key={group.groupId}>
         <td>{group.groupId}</td>
         <td style={{ width: '1%' }}>
-          <Button size="sm" variant="destructive" onClick={() => this.onRemoveGroup(group)}>
-            <Icon name="times" />
-          </Button>
+          <a className="btn btn-danger btn-small" onClick={() => this.onRemoveGroup(group)}>
+            <Icon name="times" style={{ marginBottom: 0 }} />
+          </a>
         </td>
       </tr>
     );
@@ -95,15 +86,17 @@ export class TeamGroupSync extends PureComponent<Props, State> {
           </Tooltip>
           <div className="page-action-bar__spacer" />
           {groups.length > 0 && (
-            <Button className="pull-right" onClick={this.onToggleAdding}>
+            <button className="btn btn-primary pull-right" onClick={this.onToggleAdding}>
               <Icon name="plus" /> Add group
-            </Button>
+            </button>
           )}
         </div>
 
         <SlideDown in={isAdding}>
           <div className="cta-form">
-            <CloseButton onClick={this.onToggleAdding} />
+            <button className="cta-form__close btn btn-transparent" onClick={this.onToggleAdding}>
+              <Icon name="times" />
+            </button>
             <h5>Add External Group</h5>
             <form className="gf-form-inline" onSubmit={this.onAddGroup}>
               <div className="gf-form">
@@ -117,9 +110,9 @@ export class TeamGroupSync extends PureComponent<Props, State> {
               </div>
 
               <div className="gf-form">
-                <Button type="submit" disabled={!this.isNewGroupValid()}>
+                <button className="btn btn-primary gf-form-btn" type="submit" disabled={!this.isNewGroupValid()}>
                   Add group
-                </Button>
+                </button>
               </div>
             </form>
           </div>
@@ -147,7 +140,7 @@ export class TeamGroupSync extends PureComponent<Props, State> {
                   <th style={{ width: '1%' }} />
                 </tr>
               </thead>
-              <tbody>{groups.map((group) => this.renderGroup(group))}</tbody>
+              <tbody>{groups.map(group => this.renderGroup(group))}</tbody>
             </table>
           </div>
         )}
@@ -155,5 +148,17 @@ export class TeamGroupSync extends PureComponent<Props, State> {
     );
   }
 }
+
+function mapStateToProps(state: any) {
+  return {
+    groups: getTeamGroups(state.team),
+  };
+}
+
+const mapDispatchToProps = {
+  loadTeamGroups,
+  addTeamGroup,
+  removeTeamGroup,
+};
 
 export default connect(mapStateToProps, mapDispatchToProps)(TeamGroupSync);

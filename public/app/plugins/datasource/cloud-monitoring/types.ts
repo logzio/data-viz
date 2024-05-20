@@ -1,13 +1,13 @@
-import { DataQuery, DataSourceJsonData, SelectableValue } from '@grafana/data';
+import { DataQuery, DataSourceJsonData } from '@grafana/data';
 
 export enum AuthType {
   JWT = 'jwt',
   GCE = 'gce',
 }
 
-export const authTypes: Array<SelectableValue<string>> = [
-  { label: 'Google JWT File', value: AuthType.JWT },
-  { label: 'GCE Default Service Account', value: AuthType.GCE },
+export const authTypes = [
+  { value: 'Google JWT File', key: AuthType.JWT },
+  { value: 'GCE Default Service Account', key: AuthType.GCE },
 ];
 
 export enum MetricFindQueryTypes {
@@ -26,17 +26,6 @@ export enum MetricFindQueryTypes {
   SLO = 'slo',
 }
 
-export interface CloudMonitoringVariableQuery extends DataQuery {
-  selectedQueryType: string;
-  selectedService: string;
-  selectedMetricType: string;
-  selectedSLOService: string;
-  labelKey: string;
-  projects: SelectableValue[];
-  sloServices: SelectableValue[];
-  projectName: string;
-}
-
 export interface VariableQueryData {
   selectedQueryType: string;
   metricDescriptors: MetricDescriptor[];
@@ -46,9 +35,9 @@ export interface VariableQueryData {
   labels: string[];
   labelKey: string;
   metricTypes: Array<{ value: string; name: string }>;
-  services: SelectableValue[];
-  projects: SelectableValue[];
-  sloServices: SelectableValue[];
+  services: Array<{ value: string; name: string }>;
+  projects: Array<{ value: string; name: string }>;
+  sloServices: Array<{ value: string; name: string }>;
   projectName: string;
   loading: boolean;
 }
@@ -58,81 +47,34 @@ export enum QueryType {
   SLO = 'slo',
 }
 
-export enum EditorMode {
-  Visual = 'visual',
-  MQL = 'mql',
-}
+export const queryTypes = [
+  { label: 'Metrics', value: QueryType.METRICS },
+  { label: 'Service Level Objectives (SLO)', value: QueryType.SLO },
+];
 
-export enum PreprocessorType {
-  None = 'none',
-  Rate = 'rate',
-  Delta = 'delta',
-}
-
-export enum MetricKind {
-  METRIC_KIND_UNSPECIFIED = 'METRIC_KIND_UNSPECIFIED',
-  GAUGE = 'GAUGE',
-  DELTA = 'DELTA',
-  CUMULATIVE = 'CUMULATIVE',
-}
-
-export enum ValueTypes {
-  VALUE_TYPE_UNSPECIFIED = 'VALUE_TYPE_UNSPECIFIED',
-  BOOL = 'BOOL',
-  INT64 = 'INT64',
-  DOUBLE = 'DOUBLE',
-  STRING = 'STRING',
-  DISTRIBUTION = 'DISTRIBUTION',
-  MONEY = 'MONEY',
-}
-
-export enum AlignmentTypes {
-  ALIGN_DELTA = 'ALIGN_DELTA',
-  ALIGN_RATE = 'ALIGN_RATE',
-  ALIGN_INTERPOLATE = 'ALIGN_INTERPOLATE',
-  ALIGN_NEXT_OLDER = 'ALIGN_NEXT_OLDER',
-  ALIGN_MIN = 'ALIGN_MIN',
-  ALIGN_MAX = 'ALIGN_MAX',
-  ALIGN_MEAN = 'ALIGN_MEAN',
-  ALIGN_COUNT = 'ALIGN_COUNT',
-  ALIGN_SUM = 'ALIGN_SUM',
-  ALIGN_STDDEV = 'ALIGN_STDDEV',
-  ALIGN_COUNT_TRUE = 'ALIGN_COUNT_TRUE',
-  ALIGN_COUNT_FALSE = 'ALIGN_COUNT_FALSE',
-  ALIGN_FRACTION_TRUE = 'ALIGN_FRACTION_TRUE',
-  ALIGN_PERCENTILE_99 = 'ALIGN_PERCENTILE_99',
-  ALIGN_PERCENTILE_95 = 'ALIGN_PERCENTILE_95',
-  ALIGN_PERCENTILE_50 = 'ALIGN_PERCENTILE_50',
-  ALIGN_PERCENTILE_05 = 'ALIGN_PERCENTILE_05',
-  ALIGN_PERCENT_CHANGE = 'ALIGN_PERCENT_CHANGE',
-}
-
-export interface BaseQuery {
+export interface MetricQuery {
   projectName: string;
-  perSeriesAligner?: string;
-  alignmentPeriod?: string;
-  aliasBy?: string;
-}
-
-export interface MetricQuery extends BaseQuery {
-  editorMode: EditorMode;
+  unit?: string;
   metricType: string;
   crossSeriesReducer: string;
+  alignmentPeriod?: string;
+  perSeriesAligner?: string;
   groupBys?: string[];
   filters?: string[];
-  metricKind?: MetricKind;
+  aliasBy?: string;
+  metricKind?: string;
   valueType?: string;
   view?: string;
-  query: string;
-  preprocessor?: PreprocessorType;
 }
 
-export interface SLOQuery extends BaseQuery {
+export interface SLOQuery {
+  projectName: string;
+  alignmentPeriod?: string;
+  perSeriesAligner?: string;
+  aliasBy?: string;
   selectorName: string;
   serviceId: string;
-  serviceName: string;
   sloId: string;
-  sloName: string;
   goal?: number;
 }
 
@@ -141,20 +83,12 @@ export interface CloudMonitoringQuery extends DataQuery {
   queryType: QueryType;
   metricQuery: MetricQuery;
   sloQuery?: SLOQuery;
-  intervalMs: number;
-  type: string;
 }
 
 export interface CloudMonitoringOptions extends DataSourceJsonData {
   defaultProject?: string;
   gceDefaultProject?: string;
   authenticationType?: string;
-  clientEmail?: string;
-  tokenUri?: string;
-}
-
-export interface CloudMonitoringSecureJsonData {
-  privateKey?: string;
 }
 
 export interface AnnotationTarget {
@@ -162,7 +96,7 @@ export interface AnnotationTarget {
   metricType: string;
   refId: string;
   filters: string[];
-  metricKind: MetricKind;
+  metricKind: string;
   valueType: string;
   title: string;
   text: string;
@@ -179,7 +113,7 @@ export interface QueryMeta {
 
 export interface MetricDescriptor {
   valueType: string;
-  metricKind: MetricKind;
+  metricKind: string;
   type: string;
   unit: string;
   service: string;
@@ -198,9 +132,4 @@ export interface Filter {
   operator: string;
   value: string;
   condition?: string;
-}
-
-export interface CustomMetaData {
-  perSeriesAligner?: string;
-  alignmentPeriod?: string;
 }

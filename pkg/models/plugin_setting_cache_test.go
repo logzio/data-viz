@@ -9,17 +9,9 @@ import (
 	"github.com/grafana/grafana/pkg/components/securejsondata"
 )
 
-// clearPluginSettingDecryptionCache clears the datasource decryption cache.
-func clearPluginSettingDecryptionCache() {
-	pluginSettingDecryptionCache.Lock()
-	defer pluginSettingDecryptionCache.Unlock()
-
-	pluginSettingDecryptionCache.cache = make(map[int64]cachedDecryptedJSON)
-}
-
 func TestPluginSettingDecryptionCache(t *testing.T) {
 	t.Run("When plugin settings hasn't been updated, encrypted JSON should be fetched from cache", func(t *testing.T) {
-		clearPluginSettingDecryptionCache()
+		ClearPluginSettingDecryptionCache()
 
 		ps := PluginSetting{
 			Id:       1,
@@ -30,7 +22,7 @@ func TestPluginSettingDecryptionCache(t *testing.T) {
 		}
 
 		// Populate cache
-		password, ok := ps.DecryptedValues()["password"]
+		password, ok := ps.DecryptedValue("password")
 		require.Equal(t, "password", password)
 		require.True(t, ok)
 
@@ -43,7 +35,7 @@ func TestPluginSettingDecryptionCache(t *testing.T) {
 	})
 
 	t.Run("When plugin settings is updated, encrypted JSON should not be fetched from cache", func(t *testing.T) {
-		clearPluginSettingDecryptionCache()
+		ClearPluginSettingDecryptionCache()
 
 		ps := PluginSetting{
 			Id:       1,
@@ -54,7 +46,7 @@ func TestPluginSettingDecryptionCache(t *testing.T) {
 		}
 
 		// Populate cache
-		password, ok := ps.DecryptedValues()["password"]
+		password, ok := ps.DecryptedValue("password")
 		require.Equal(t, "password", password)
 		require.True(t, ok)
 
@@ -63,7 +55,7 @@ func TestPluginSettingDecryptionCache(t *testing.T) {
 		})
 		ps.Updated = time.Now()
 
-		password, ok = ps.DecryptedValues()["password"]
+		password, ok = ps.DecryptedValue("password")
 		require.Empty(t, password)
 		require.True(t, ok)
 	})

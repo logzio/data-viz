@@ -1,7 +1,6 @@
 package migrator
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -12,39 +11,39 @@ import (
 	"xorm.io/xorm"
 )
 
-type PostgresDialect struct {
+type Postgres struct {
 	BaseDialect
 }
 
 func NewPostgresDialect(engine *xorm.Engine) Dialect {
-	d := PostgresDialect{}
+	d := Postgres{}
 	d.BaseDialect.dialect = &d
 	d.BaseDialect.engine = engine
-	d.BaseDialect.driverName = Postgres
+	d.BaseDialect.driverName = POSTGRES
 	return &d
 }
 
-func (db *PostgresDialect) SupportEngine() bool {
+func (db *Postgres) SupportEngine() bool {
 	return false
 }
 
-func (db *PostgresDialect) Quote(name string) string {
+func (db *Postgres) Quote(name string) string {
 	return "\"" + name + "\""
 }
 
-func (db *PostgresDialect) LikeStr() string {
+func (b *Postgres) LikeStr() string {
 	return "ILIKE"
 }
 
-func (db *PostgresDialect) AutoIncrStr() string {
+func (db *Postgres) AutoIncrStr() string {
 	return ""
 }
 
-func (db *PostgresDialect) BooleanStr(value bool) string {
+func (db *Postgres) BooleanStr(value bool) string {
 	return strconv.FormatBool(value)
 }
 
-func (db *PostgresDialect) Default(col *Column) string {
+func (b *Postgres) Default(col *Column) string {
 	if col.Type == DB_Bool {
 		if col.Default == "0" {
 			return "FALSE"
@@ -54,7 +53,7 @@ func (db *PostgresDialect) Default(col *Column) string {
 	return col.Default
 }
 
-func (db *PostgresDialect) SQLType(c *Column) string {
+func (db *Postgres) SqlType(c *Column) string {
 	var res string
 	switch t := c.Type; t {
 	case DB_TinyInt:
@@ -104,29 +103,29 @@ func (db *PostgresDialect) SQLType(c *Column) string {
 	return res
 }
 
-func (db *PostgresDialect) IndexCheckSQL(tableName, indexName string) (string, []interface{}) {
+func (db *Postgres) IndexCheckSql(tableName, indexName string) (string, []interface{}) {
 	args := []interface{}{tableName, indexName}
 	sql := "SELECT 1 FROM " + db.Quote("pg_indexes") + " WHERE" + db.Quote("tablename") + "=? AND " + db.Quote("indexname") + "=?"
 	return sql, args
 }
 
-func (db *PostgresDialect) DropIndexSQL(tableName string, index *Index) string {
+func (db *Postgres) DropIndexSql(tableName string, index *Index) string {
 	quote := db.Quote
 	idxName := index.XName(tableName)
 	return fmt.Sprintf("DROP INDEX %v CASCADE", quote(idxName))
 }
 
-func (db *PostgresDialect) UpdateTableSQL(tableName string, columns []*Column) string {
+func (db *Postgres) UpdateTableSql(tableName string, columns []*Column) string {
 	var statements = []string{}
 
 	for _, col := range columns {
-		statements = append(statements, "ALTER "+db.Quote(col.Name)+" TYPE "+db.SQLType(col))
+		statements = append(statements, "ALTER "+db.Quote(col.Name)+" TYPE "+db.SqlType(col))
 	}
 
 	return "ALTER TABLE " + db.Quote(tableName) + " " + strings.Join(statements, ", ") + ";"
 }
 
-func (db *PostgresDialect) CleanDB() error {
+func (db *Postgres) CleanDB() error {
 	sess := db.engine.NewSession()
 	defer sess.Close()
 
@@ -143,7 +142,7 @@ func (db *PostgresDialect) CleanDB() error {
 
 // TruncateDBTables truncates all the tables.
 // A special case is the dashboard_acl table where we keep the default permissions.
-func (db *PostgresDialect) TruncateDBTables() error {
+func (db *Postgres) TruncateDBTables() error {
 	sess := db.engine.NewSession()
 	defer sess.Close()
 
@@ -151,7 +150,6 @@ func (db *PostgresDialect) TruncateDBTables() error {
 		switch table.Name {
 		case "":
 			continue
-		case "migration_log":
 		case "dashboard_acl":
 			// keep default dashboard permissions
 			if _, err := sess.Exec(fmt.Sprintf("DELETE FROM %v WHERE dashboard_id != -1 AND org_id != -1;", db.Quote(table.Name))); err != nil {
@@ -173,9 +171,8 @@ func (db *PostgresDialect) TruncateDBTables() error {
 	return nil
 }
 
-func (db *PostgresDialect) isThisError(err error, errcode string) bool {
-	var driverErr *pq.Error
-	if errors.As(err, &driverErr) {
+func (db *Postgres) isThisError(err error, errcode string) bool {
+	if driverErr, ok := err.(*pq.Error); ok {
 		if string(driverErr.Code) == errcode {
 			return true
 		}
@@ -184,27 +181,26 @@ func (db *PostgresDialect) isThisError(err error, errcode string) bool {
 	return false
 }
 
-func (db *PostgresDialect) ErrorMessage(err error) string {
-	var driverErr *pq.Error
-	if errors.As(err, &driverErr) {
+func (db *Postgres) ErrorMessage(err error) string {
+	if driverErr, ok := err.(*pq.Error); ok {
 		return driverErr.Message
 	}
 	return ""
 }
 
-func (db *PostgresDialect) isUndefinedTable(err error) bool {
+func (db *Postgres) isUndefinedTable(err error) bool {
 	return db.isThisError(err, "42P01")
 }
 
-func (db *PostgresDialect) IsUniqueConstraintViolation(err error) bool {
+func (db *Postgres) IsUniqueConstraintViolation(err error) bool {
 	return db.isThisError(err, "23505")
 }
 
-func (db *PostgresDialect) IsDeadlock(err error) bool {
+func (db *Postgres) IsDeadlock(err error) bool {
 	return db.isThisError(err, "40P01")
 }
 
-func (db *PostgresDialect) PostInsertId(table string, sess *xorm.Session) error {
+func (db *Postgres) PostInsertId(table string, sess *xorm.Session) error {
 	if table != "org" {
 		return nil
 	}
@@ -214,41 +210,4 @@ func (db *PostgresDialect) PostInsertId(table string, sess *xorm.Session) error 
 		return errutil.Wrapf(err, "failed to sync primary key for org table")
 	}
 	return nil
-}
-
-// UpsertSQL returns the upsert sql statement for PostgreSQL dialect
-func (db *PostgresDialect) UpsertSQL(tableName string, keyCols, updateCols []string) string {
-	columnsStr := strings.Builder{}
-	onConflictStr := strings.Builder{}
-	colPlaceHoldersStr := strings.Builder{}
-	setStr := strings.Builder{}
-
-	const separator = ", "
-	separatorVar := separator
-	for i, c := range updateCols {
-		if i == len(updateCols)-1 {
-			separatorVar = ""
-		}
-
-		columnsStr.WriteString(fmt.Sprintf("%s%s", db.Quote(c), separatorVar))
-		colPlaceHoldersStr.WriteString(fmt.Sprintf("?%s", separatorVar))
-		setStr.WriteString(fmt.Sprintf("%s=excluded.%s%s", db.Quote(c), db.Quote(c), separatorVar))
-	}
-
-	separatorVar = separator
-	for i, c := range keyCols {
-		if i == len(keyCols)-1 {
-			separatorVar = ""
-		}
-		onConflictStr.WriteString(fmt.Sprintf("%s%s", db.Quote(c), separatorVar))
-	}
-
-	s := fmt.Sprintf(`INSERT INTO %s (%s) VALUES (%s) ON CONFLICT(%s) DO UPDATE SET %s`,
-		tableName,
-		columnsStr.String(),
-		colPlaceHoldersStr.String(),
-		onConflictStr.String(),
-		setStr.String(),
-	)
-	return s
 }

@@ -1,42 +1,50 @@
+import _ from 'lodash';
 import Mousetrap from 'mousetrap';
 import 'mousetrap-global-bind';
-import { LegacyGraphHoverClearEvent, locationUtil } from '@grafana/data';
+import { ILocationService, IRootScopeService, ITimeoutService } from 'angular';
+import { locationUtil } from '@grafana/data';
+
+import coreModule from 'app/core/core_module';
 import appEvents from 'app/core/app_events';
 import { getExploreUrl } from 'app/core/utils/explore';
+import { store } from 'app/store/store';
+import { AppEventEmitter, CoreEvents } from 'app/types';
+import { GrafanaRootScope } from 'app/routes/GrafanaCtrl';
 import { DashboardModel } from 'app/features/dashboard/state';
 import { ShareModal } from 'app/features/dashboard/components/ShareModal';
 import { SaveDashboardModalProxy } from 'app/features/dashboard/components/SaveDashboard/SaveDashboardModalProxy';
-import { locationService } from '@grafana/runtime';
-import { exitKioskMode, toggleKioskMode } from '../navigation/kiosk';
-import {
-  HideModalEvent,
-  RemovePanelEvent,
-  ShiftTimeEvent,
-  ShiftTimeEventPayload,
-  ShowModalEvent,
-  ShowModalReactEvent,
-  ZoomOutEvent,
-} from '../../types/events';
-import { contextSrv } from '../core';
-import { getDatasourceSrv } from '../../features/plugins/datasource_srv';
-import { getTimeSrv } from '../../features/dashboard/services/TimeSrv';
-import { toggleTheme } from './toggleTheme';
-import { withFocusedPanel } from './withFocusedPanelId';
-import { HelpModal } from '../components/help/HelpModal';
+import { defaultQueryParams } from 'app/features/search/reducers/searchQueryReducer';
+import { ContextSrv } from './context_srv';
 
 export class KeybindingSrv {
+  helpModal: boolean;
   modalOpen = false;
+  timepickerOpen = false;
 
-  constructor() {
-    appEvents.subscribe(ShowModalEvent, () => (this.modalOpen = true));
+  /** @ngInject */
+  constructor(
+    private $rootScope: GrafanaRootScope,
+    private $location: ILocationService,
+    private $timeout: ITimeoutService,
+    private datasourceSrv: any,
+    private timeSrv: any,
+    private contextSrv: ContextSrv
+  ) {
+    // clear out all shortcuts on route change
+    $rootScope.$on('$routeChangeSuccess', () => {
+      Mousetrap.reset();
+      // rebind global shortcuts
+      this.setupGlobal();
+    });
+
+    this.setupGlobal();
+    appEvents.on(CoreEvents.showModal, () => (this.modalOpen = true));
+    appEvents.on(CoreEvents.timepickerOpen, () => (this.timepickerOpen = true));
+    appEvents.on(CoreEvents.timepickerClosed, () => (this.timepickerOpen = false));
   }
 
-  reset() {
-    Mousetrap.reset();
-  }
-
-  initGlobals() {
-    if (locationService.getLocation().pathname !== '/login') {
+  setupGlobal() {
+    if (!(this.$location.path() === '/login')) {
       this.bind(['?', 'h'], this.showHelpModal);
       this.bind('g h', this.goToHome);
       this.bind('g a', this.openAlerting);
@@ -47,12 +55,9 @@ export class KeybindingSrv {
       this.bind('esc', this.exit);
       this.bindGlobal('esc', this.globalEsc);
     }
-
-    this.bind('t t', () => toggleTheme(false));
-    this.bind('t r', () => toggleTheme(true));
   }
 
-  private globalEsc() {
+  globalEsc() {
     const anyDoc = document as any;
     const activeElement = anyDoc.activeElement;
 
@@ -78,74 +83,81 @@ export class KeybindingSrv {
     this.exit();
   }
 
-  private openSearch() {
-    locationService.partial({ search: 'open' });
+  openSearch() {
+    const search = _.extend(this.$location.search(), { search: 'open' });
+    this.$location.search(search);
   }
 
-  private closeSearch() {
-    locationService.partial({ search: null });
+  closeSearch() {
+    const search = _.extend(this.$location.search(), { search: null, ...defaultQueryParams });
+    this.$location.search(search);
   }
 
-  private openAlerting() {
-    locationService.push('/alerting');
+  openAlerting() {
+    this.$location.url('/alerting');
   }
 
-  private goToHome() {
-    locationService.push('/');
+  goToHome() {
+    this.$location.url('/');
   }
 
-  // LOGZ.IO GRAFANA CHANGE
-  // private goToProfile() {
-  //   locationService.push('/profile');
-  // }
-
-  private showHelpModal() {
-    appEvents.publish(new ShowModalReactEvent({ component: HelpModal }));
+  goToProfile() {
+    this.$location.url('/profile');
   }
 
-  private exit() {
-    appEvents.publish(new HideModalEvent());
+  showHelpModal() {
+    appEvents.emit(CoreEvents.showModal, { templateHtml: '<help-modal></help-modal>' });
+  }
+
+  exit() {
+    appEvents.emit(CoreEvents.hideModal);
 
     if (this.modalOpen) {
       this.modalOpen = false;
       return;
     }
 
-    const search = locationService.getSearchObject();
+    if (this.timepickerOpen) {
+      this.$rootScope.appEvent(CoreEvents.closeTimepicker);
+      this.timepickerOpen = false;
+      return;
+    }
 
+    // close settings view
+    const search = this.$location.search();
     if (search.editview) {
-      locationService.partial({ editview: null });
+      delete search.editview;
+      this.$location.search(search);
       return;
     }
 
     if (search.inspect) {
-      locationService.partial({ inspect: null, inspectTab: null });
+      delete search.inspect;
+      delete search.inspectTab;
+      this.$location.search(search);
       return;
     }
 
     if (search.editPanel) {
-      locationService.partial({ editPanel: null, tab: null });
+      delete search.editPanel;
+      delete search.tab;
+      this.$location.search(search);
       return;
     }
 
     if (search.viewPanel) {
-      locationService.partial({ viewPanel: null, tab: null });
+      delete search.viewPanel;
+      this.$location.search(search);
       return;
     }
 
     if (search.kiosk) {
-      exitKioskMode();
+      this.$rootScope.appEvent(CoreEvents.toggleKioskMode, { exit: true });
     }
 
     if (search.search) {
       this.closeSearch();
     }
-  }
-
-  private showDashEditView() {
-    locationService.partial({
-      editview: 'settings',
-    });
   }
 
   bind(keyArg: string | string[], fn: () => void) {
@@ -155,7 +167,7 @@ export class KeybindingSrv {
         evt.preventDefault();
         evt.stopPropagation();
         evt.returnValue = false;
-        fn.call(this);
+        return this.$rootScope.$apply(fn.bind(this));
       },
       'keydown'
     );
@@ -168,7 +180,7 @@ export class KeybindingSrv {
         evt.preventDefault();
         evt.stopPropagation();
         evt.returnValue = false;
-        fn.call(this);
+        return this.$rootScope.$apply(fn.bind(this));
       },
       'keydown'
     );
@@ -178,121 +190,138 @@ export class KeybindingSrv {
     Mousetrap.unbind(keyArg, keyType);
   }
 
-  bindWithPanelId(keyArg: string, fn: (panelId: number) => void) {
-    this.bind(keyArg, withFocusedPanel(fn));
+  showDashEditView() {
+    const search = _.extend(this.$location.search(), { editview: 'settings' });
+    this.$location.search(search);
   }
 
-  setupDashboardBindings(dashboard: DashboardModel) {
+  setupDashboardBindings(scope: IRootScopeService & AppEventEmitter, dashboard: DashboardModel) {
     this.bind('mod+o', () => {
       dashboard.graphTooltip = (dashboard.graphTooltip + 1) % 3;
-      dashboard.events.publish(new LegacyGraphHoverClearEvent());
+      appEvents.emit(CoreEvents.graphHoverClear);
       dashboard.startRefresh();
     });
 
     this.bind('mod+s', () => {
-      appEvents.publish(
-        new ShowModalReactEvent({
-          component: SaveDashboardModalProxy,
-          props: {
-            dashboard,
-          },
-        })
-      );
+      appEvents.emit(CoreEvents.showModalReact, {
+        component: SaveDashboardModalProxy,
+        props: {
+          dashboard,
+        },
+      });
     });
 
     this.bind('t z', () => {
-      appEvents.publish(new ZoomOutEvent(2));
+      scope.appEvent(CoreEvents.zoomOut, 2);
     });
 
     this.bind('ctrl+z', () => {
-      appEvents.publish(new ZoomOutEvent(2));
+      scope.appEvent(CoreEvents.zoomOut, 2);
     });
 
     this.bind('t left', () => {
-      appEvents.publish(new ShiftTimeEvent(ShiftTimeEventPayload.Left));
+      scope.appEvent(CoreEvents.shiftTime, -1);
     });
 
     this.bind('t right', () => {
-      appEvents.publish(new ShiftTimeEvent(ShiftTimeEventPayload.Right));
+      scope.appEvent(CoreEvents.shiftTime, 1);
     });
 
     // edit panel
-    this.bindWithPanelId('e', (panelId) => {
-      if (dashboard.canEditPanelById(panelId)) {
-        const isEditing = locationService.getSearchObject().editPanel !== undefined;
-        locationService.partial({ editPanel: isEditing ? null : panelId });
+    this.bind('e', () => {
+      if (!dashboard.meta.focusPanelId) {
+        return;
+      }
+
+      if (dashboard.canEditPanelById(dashboard.meta.focusPanelId)) {
+        const search = _.extend(this.$location.search(), { editPanel: dashboard.meta.focusPanelId });
+        this.$location.search(search);
       }
     });
 
     // view panel
-    this.bindWithPanelId('v', (panelId) => {
-      const isViewing = locationService.getSearchObject().viewPanel !== undefined;
-      locationService.partial({ viewPanel: isViewing ? null : panelId });
+    this.bind('v', () => {
+      if (dashboard.meta.focusPanelId) {
+        const search = _.extend(this.$location.search(), { viewPanel: dashboard.meta.focusPanelId });
+        this.$location.search(search);
+      }
     });
 
-    this.bindWithPanelId('i', (panelId) => {
-      locationService.partial({ inspect: panelId });
+    this.bind('i', () => {
+      if (dashboard.meta.focusPanelId) {
+        const search = _.extend(this.$location.search(), { inspect: dashboard.meta.focusPanelId });
+        this.$location.search(search);
+      }
     });
 
     // jump to explore if permissions allow
-    if (contextSrv.hasAccessToExplore()) {
-      this.bindWithPanelId('x', async (panelId) => {
-        const panel = dashboard.getPanelById(panelId)!;
-        const datasource = await getDatasourceSrv().get(panel.datasource);
-        const url = await getExploreUrl({
-          panel,
-          panelTargets: panel.targets,
-          panelDatasource: datasource,
-          datasourceSrv: getDatasourceSrv(),
-          timeSrv: getTimeSrv(),
-        });
+    if (this.contextSrv.hasAccessToExplore()) {
+      this.bind('x', async () => {
+        if (dashboard.meta.focusPanelId) {
+          const panel = dashboard.getPanelById(dashboard.meta.focusPanelId)!;
+          const datasource = await this.datasourceSrv.get(panel.datasource);
+          const url = await getExploreUrl({
+            panel,
+            panelTargets: panel.targets,
+            panelDatasource: datasource,
+            datasourceSrv: this.datasourceSrv,
+            timeSrv: this.timeSrv,
+          });
 
-        if (url) {
-          const urlWithoutBase = locationUtil.stripBaseFromUrl(url);
-          if (urlWithoutBase) {
-            locationService.push(urlWithoutBase);
+          if (url) {
+            const urlWithoutBase = locationUtil.stripBaseFromUrl(url);
+            if (urlWithoutBase) {
+              this.$timeout(() => this.$location.url(urlWithoutBase));
+            }
           }
         }
       });
     }
 
     // delete panel
-    this.bindWithPanelId('p r', (panelId) => {
-      if (dashboard.canEditPanelById(panelId) && !(dashboard.panelInView || dashboard.panelInEdit)) {
-        appEvents.publish(new RemovePanelEvent(panelId));
+    this.bind('p r', () => {
+      const panelId = dashboard.meta.focusPanelId;
+
+      if (panelId && dashboard.canEditPanelById(panelId)) {
+        appEvents.emit(CoreEvents.removePanel, panelId);
+        dashboard.meta.focusPanelId = 0;
       }
     });
 
     // duplicate panel
-    this.bindWithPanelId('p d', (panelId) => {
-      if (dashboard.canEditPanelById(panelId)) {
+    this.bind('p d', () => {
+      const panelId = dashboard.meta.focusPanelId;
+
+      if (panelId && dashboard.canEditPanelById(panelId)) {
         const panelIndex = dashboard.getPanelInfoById(panelId)!.index;
         dashboard.duplicatePanel(dashboard.panels[panelIndex]);
       }
     });
 
     // share panel
-    this.bindWithPanelId('p s', (panelId) => {
-      const panelInfo = dashboard.getPanelInfoById(panelId);
+    this.bind('p s', () => {
+      if (dashboard.meta.focusPanelId) {
+        const panelInfo = dashboard.getPanelInfoById(dashboard.meta.focusPanelId);
 
-      appEvents.publish(
-        new ShowModalReactEvent({
+        appEvents.emit(CoreEvents.showModalReact, {
           component: ShareModal,
           props: {
             dashboard: dashboard,
             panel: panelInfo?.panel,
           },
-        })
-      );
+        });
+      }
     });
 
     // toggle panel legend
-    this.bindWithPanelId('p l', (panelId) => {
-      const panelInfo = dashboard.getPanelInfoById(panelId)!;
+    this.bind('p l', () => {
+      if (dashboard.meta.focusPanelId) {
+        const panelInfo = dashboard.getPanelInfoById(dashboard.meta.focusPanelId)!;
 
-      if (panelInfo.panel.legend) {
-        panelInfo.panel.legend.show = !panelInfo.panel.legend.show;
-        panelInfo.panel.render();
+        if (panelInfo.panel.legend) {
+          panelInfo.panel.legend.show = !panelInfo.panel.legend.show;
+          panelInfo.panel.render();
+        }
       }
     });
 
@@ -312,7 +341,7 @@ export class KeybindingSrv {
     });
 
     this.bind('d n', () => {
-      locationService.push('/dashboard/new');
+      this.$location.url('/dashboard/new');
     });
 
     this.bind('d r', () => {
@@ -324,17 +353,35 @@ export class KeybindingSrv {
     });
 
     this.bind('d k', () => {
-      toggleKioskMode();
+      appEvents.emit(CoreEvents.toggleKioskMode);
+    });
+
+    this.bind('d v', () => {
+      appEvents.emit(CoreEvents.toggleViewMode);
     });
 
     //Autofit panels
     this.bind('d a', () => {
       // this has to be a full page reload
-      const queryParams = locationService.getSearchObject();
+      const queryParams = store.getState().location.query;
       const newUrlParam = queryParams.autofitpanels ? '' : '&autofitpanels';
       window.location.href = window.location.href + newUrlParam;
     });
   }
 }
 
-export const keybindingSrv = new KeybindingSrv();
+coreModule.service('keybindingSrv', KeybindingSrv);
+
+/**
+ * Code below exports the service to react components
+ */
+
+let singletonInstance: KeybindingSrv;
+
+export function setKeybindingSrv(instance: KeybindingSrv) {
+  singletonInstance = instance;
+}
+
+export function getKeybindingSrv(): KeybindingSrv {
+  return singletonInstance;
+}

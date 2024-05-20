@@ -41,16 +41,22 @@ export default class LogAnalyticsQuerystringBuilder {
 
   getFrom(options: any) {
     const from = options.range.from;
-    return `datetime(${dateTime(from).startOf('minute').toISOString()})`;
+    return `datetime(${dateTime(from)
+      .startOf('minute')
+      .toISOString()})`;
   }
 
   getUntil(options: any) {
     if (options.rangeRaw.to === 'now') {
       const now = Date.now();
-      return `datetime(${dateTime(now).startOf('minute').toISOString()})`;
+      return `datetime(${dateTime(now)
+        .startOf('minute')
+        .toISOString()})`;
     } else {
       const until = options.range.to;
-      return `datetime(${dateTime(until).startOf('minute').toISOString()})`;
+      return `datetime(${dateTime(until)
+        .startOf('minute')
+        .toISOString()})`;
     }
   }
 
@@ -79,7 +85,7 @@ export default class LogAnalyticsQuerystringBuilder {
     return inputs
       .substring(1, inputs.length - 1)
       .split(`','`)
-      .map((v) => `@'${v}'`)
+      .map(v => `@'${v}'`)
       .join(', ');
   }
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/grafana/grafana/pkg/bus"
 	"github.com/grafana/grafana/pkg/components/simplejson"
@@ -31,19 +32,26 @@ func NewDashAlertExtractor(dash *models.Dashboard, orgID int64, user *models.Sig
 
 func (e *DashAlertExtractor) lookupDatasourceID(dsName string) (*models.DataSource, error) {
 	if dsName == "" {
-		query := &models.GetDefaultDataSourceQuery{OrgId: e.OrgID}
+		query := &models.GetDataSourcesQuery{OrgId: e.OrgID}
 		if err := bus.Dispatch(query); err != nil {
 			return nil, err
 		}
+
+		for _, ds := range query.Result {
+			if ds.IsDefault {
+				return ds, nil
+			}
+		}
+	} else {
+		query := &models.GetDataSourceByNameQuery{Name: dsName, OrgId: e.OrgID}
+		if err := bus.Dispatch(query); err != nil {
+			return nil, err
+		}
+
 		return query.Result, nil
 	}
 
-	query := &models.GetDataSourceQuery{Name: dsName, OrgId: e.OrgID}
-	if err := bus.Dispatch(query); err != nil {
-		return nil, err
-	}
-
-	return query.Result, nil
+	return nil, errors.New("Could not find datasource id for " + dsName)
 }
 
 func findPanelQueryByRefID(panel *simplejson.Json, refID string) *simplejson.Json {
@@ -60,7 +68,7 @@ func findPanelQueryByRefID(panel *simplejson.Json, refID string) *simplejson.Jso
 func copyJSON(in json.Marshaler) (*simplejson.Json, error) {
 	rawJSON, err := in.MarshalJSON()
 	if err != nil {
-		return nil, fmt.Errorf("JSON marshaling failed: %w", err)
+		return nil, err
 	}
 
 	return simplejson.NewJson(rawJSON)
@@ -96,26 +104,6 @@ func (e *DashAlertExtractor) getAlertFromPanels(jsonWithPanels *simplejson.Json,
 			return nil, ValidationError{Reason: "A numeric panel id property is missing"}
 		}
 
-		addIdentifiersToValidationError := func(err error) error {
-			if err == nil {
-				return nil
-			}
-
-			var validationErr ValidationError
-			if ok := errors.As(err, &validationErr); ok {
-				ve := ValidationError{
-					Reason:  validationErr.Reason,
-					Err:     validationErr.Err,
-					PanelID: panelID,
-				}
-				if e.Dash != nil {
-					ve.DashboardID = e.Dash.Id
-				}
-				return ve
-			}
-			return err
-		}
-
 		// backward compatibility check, can be removed later
 		enabled, hasEnabled := jsonAlert.CheckGet("enabled")
 		if hasEnabled && !enabled.MustBool() {
@@ -124,14 +112,16 @@ func (e *DashAlertExtractor) getAlertFromPanels(jsonWithPanels *simplejson.Json,
 
 		frequency, err := getTimeDurationStringToSeconds(jsonAlert.Get("frequency").MustString())
 		if err != nil {
-			return nil, addIdentifiersToValidationError(ValidationError{Reason: err.Error()})
+			return nil, ValidationError{Reason: err.Error()}
 		}
 
 		rawFor := jsonAlert.Get("for").MustString()
-
-		forValue, err := getForValue(rawFor)
-		if err != nil {
-			return nil, addIdentifiersToValidationError(err)
+		var forValue time.Duration
+		if rawFor != "" {
+			forValue, err = time.ParseDuration(rawFor)
+			if err != nil {
+				return nil, ValidationError{Reason: "Could not parse for"}
+			}
 		}
 
 		alert := &models.Alert{
@@ -177,7 +167,7 @@ func (e *DashAlertExtractor) getAlertFromPanels(jsonWithPanels *simplejson.Json,
 			}
 
 			if err := bus.Dispatch(&dsFilterQuery); err != nil {
-				if !errors.Is(err, bus.ErrHandlerNotFound) {
+				if err != bus.ErrHandlerNotFound {
 					return nil, err
 				}
 			} else {
@@ -259,8 +249,6 @@ func (e *DashAlertExtractor) extractAlerts(validateFunc func(alert *models.Alert
 // ValidateAlerts validates alerts in the dashboard json but does not require a valid dashboard id
 // in the first validation pass.
 func (e *DashAlertExtractor) ValidateAlerts() error {
-	_, err := e.extractAlerts(func(alert *models.Alert) bool {
-		return alert.OrgId != 0 && alert.PanelId != 0
-	}, false)
+	_, err := e.extractAlerts(func(alert *models.Alert) bool { return alert.OrgId != 0 && alert.PanelId != 0 }, false)
 	return err
 }

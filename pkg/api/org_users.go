@@ -1,36 +1,33 @@
 package api
 
 import (
-	"errors"
-
 	"github.com/grafana/grafana/pkg/api/dtos"
-	"github.com/grafana/grafana/pkg/api/response"
 	"github.com/grafana/grafana/pkg/bus"
 	"github.com/grafana/grafana/pkg/models"
 	"github.com/grafana/grafana/pkg/util"
 )
 
 // POST /api/org/users
-func AddOrgUserToCurrentOrg(c *models.ReqContext, cmd models.AddOrgUserCommand) response.Response {
+func AddOrgUserToCurrentOrg(c *models.ReqContext, cmd models.AddOrgUserCommand) Response {
 	cmd.OrgId = c.OrgId
 	return addOrgUserHelper(cmd)
 }
 
 // POST /api/orgs/:orgId/users
-func AddOrgUser(c *models.ReqContext, cmd models.AddOrgUserCommand) response.Response {
+func AddOrgUser(c *models.ReqContext, cmd models.AddOrgUserCommand) Response {
 	cmd.OrgId = c.ParamsInt64(":orgId")
 	return addOrgUserHelper(cmd)
 }
 
-func addOrgUserHelper(cmd models.AddOrgUserCommand) response.Response {
+func addOrgUserHelper(cmd models.AddOrgUserCommand) Response {
 	if !cmd.Role.IsValid() {
-		return response.Error(400, "Invalid role specified", nil)
+		return Error(400, "Invalid role specified", nil)
 	}
 
 	userQuery := models.GetUserByLoginQuery{LoginOrEmail: cmd.LoginOrEmail}
 	err := bus.Dispatch(&userQuery)
 	if err != nil {
-		return response.Error(404, "User not found", nil)
+		return Error(404, "User not found", nil)
 	}
 
 	userToAdd := userQuery.Result
@@ -38,55 +35,45 @@ func addOrgUserHelper(cmd models.AddOrgUserCommand) response.Response {
 	cmd.UserId = userToAdd.Id
 
 	if err := bus.Dispatch(&cmd); err != nil {
-		if errors.Is(err, models.ErrOrgUserAlreadyAdded) {
-			return response.JSON(409, util.DynMap{
+		if err == models.ErrOrgUserAlreadyAdded {
+			return JSON(409, util.DynMap{
 				"message": "User is already member of this organization",
 				"userId":  cmd.UserId,
 			})
 		}
-		return response.Error(500, "Could not add user to organization", err)
+		return Error(500, "Could not add user to organization", err)
 	}
 
-	return response.JSON(200, util.DynMap{
+	return JSON(200, util.DynMap{
 		"message": "User added to organization",
 		"userId":  cmd.UserId,
 	})
 }
 
 // GET /api/org/users
-func (hs *HTTPServer) GetOrgUsersForCurrentOrg(c *models.ReqContext) response.Response {
-	result, err := hs.getOrgUsersHelper(&models.GetOrgUsersQuery{
-		OrgId: c.OrgId,
-		Query: c.Query("query"),
-		Limit: c.QueryInt("limit"),
-	}, c.SignedInUser)
-
+func GetOrgUsersForCurrentOrg(c *models.ReqContext) Response {
+	result, err := getOrgUsersHelper(c.OrgId, c.Query("query"), c.QueryInt("limit"))
 	if err != nil {
-		return response.Error(500, "Failed to get users for current organization", err)
+		return Error(500, "Failed to get users for current organization", err)
 	}
 
-	return response.JSON(200, result)
+	return JSON(200, result)
 }
 
 // GET /api/org/users/lookup
-func (hs *HTTPServer) GetOrgUsersForCurrentOrgLookup(c *models.ReqContext) response.Response {
+func GetOrgUsersForCurrentOrgLookup(c *models.ReqContext) Response {
 	isAdmin, err := isOrgAdminFolderAdminOrTeamAdmin(c)
 	if err != nil {
-		return response.Error(500, "Failed to get users for current organization", err)
+		return Error(500, "Failed to get users for current organization", err)
 	}
 
 	if !isAdmin {
-		return response.Error(403, "Permission denied", nil)
+		return Error(403, "Permission denied", nil)
 	}
 
-	orgUsers, err := hs.getOrgUsersHelper(&models.GetOrgUsersQuery{
-		OrgId: c.OrgId,
-		Query: c.Query("query"),
-		Limit: c.QueryInt("limit"),
-	}, c.SignedInUser)
-
+	orgUsers, err := getOrgUsersHelper(c.OrgId, c.Query("query"), c.QueryInt("limit"))
 	if err != nil {
-		return response.Error(500, "Failed to get users for current organization", err)
+		return Error(500, "Failed to get users for current organization", err)
 	}
 
 	result := make([]*dtos.UserLookupDTO, 0)
@@ -99,7 +86,7 @@ func (hs *HTTPServer) GetOrgUsersForCurrentOrgLookup(c *models.ReqContext) respo
 		})
 	}
 
-	return response.JSON(200, result)
+	return JSON(200, result)
 }
 
 func isOrgAdminFolderAdminOrTeamAdmin(c *models.ReqContext) (bool, error) {
@@ -125,109 +112,64 @@ func isOrgAdminFolderAdminOrTeamAdmin(c *models.ReqContext) (bool, error) {
 }
 
 // GET /api/orgs/:orgId/users
-func (hs *HTTPServer) GetOrgUsers(c *models.ReqContext) response.Response {
-	result, err := hs.getOrgUsersHelper(&models.GetOrgUsersQuery{
-		OrgId: c.ParamsInt64(":orgId"),
-		Query: "",
-		Limit: 0,
-	}, c.SignedInUser)
-
+func GetOrgUsers(c *models.ReqContext) Response {
+	result, err := getOrgUsersHelper(c.ParamsInt64(":orgId"), "", 0)
 	if err != nil {
-		return response.Error(500, "Failed to get users for organization", err)
+		return Error(500, "Failed to get users for organization", err)
 	}
 
-	return response.JSON(200, result)
+	return JSON(200, result)
 }
 
-func (hs *HTTPServer) getOrgUsersHelper(query *models.GetOrgUsersQuery, signedInUser *models.SignedInUser) ([]*models.OrgUserDTO, error) {
-	if err := bus.Dispatch(query); err != nil {
+func getOrgUsersHelper(orgID int64, query string, limit int) ([]*models.OrgUserDTO, error) {
+	q := models.GetOrgUsersQuery{
+		OrgId: orgID,
+		Query: query,
+		Limit: limit,
+	}
+
+	if err := bus.Dispatch(&q); err != nil {
 		return nil, err
 	}
 
-	filteredUsers := make([]*models.OrgUserDTO, 0, len(query.Result))
-	for _, user := range query.Result {
-		if dtos.IsHiddenUser(user.Login, signedInUser, hs.Cfg) {
-			continue
-		}
+	for _, user := range q.Result {
 		user.AvatarUrl = dtos.GetGravatarUrl(user.Email)
-
-		filteredUsers = append(filteredUsers, user)
 	}
 
-	return filteredUsers, nil
-}
-
-// SearchOrgUsersWithPaging is an HTTP handler to search for org users with paging.
-// GET /api/org/users/search
-func (hs *HTTPServer) SearchOrgUsersWithPaging(c *models.ReqContext) response.Response {
-	perPage := c.QueryInt("perpage")
-	if perPage <= 0 {
-		perPage = 1000
-	}
-	page := c.QueryInt("page")
-
-	if page < 1 {
-		page = 1
-	}
-
-	query := &models.SearchOrgUsersQuery{
-		OrgID: c.OrgId,
-		Query: c.Query("query"),
-		Limit: perPage,
-		Page:  page,
-	}
-
-	if err := hs.SQLStore.SearchOrgUsers(query); err != nil {
-		return response.Error(500, "Failed to get users for current organization", err)
-	}
-
-	filteredUsers := make([]*models.OrgUserDTO, 0, len(query.Result.OrgUsers))
-	for _, user := range query.Result.OrgUsers {
-		if dtos.IsHiddenUser(user.Login, c.SignedInUser, hs.Cfg) {
-			continue
-		}
-		user.AvatarUrl = dtos.GetGravatarUrl(user.Email)
-
-		filteredUsers = append(filteredUsers, user)
-	}
-
-	query.Result.OrgUsers = filteredUsers
-	query.Result.Page = page
-	query.Result.PerPage = perPage
-
-	return response.JSON(200, query.Result)
+	return q.Result, nil
 }
 
 // PATCH /api/org/users/:userId
-func UpdateOrgUserForCurrentOrg(c *models.ReqContext, cmd models.UpdateOrgUserCommand) response.Response {
+func UpdateOrgUserForCurrentOrg(c *models.ReqContext, cmd models.UpdateOrgUserCommand) Response {
 	cmd.OrgId = c.OrgId
 	cmd.UserId = c.ParamsInt64(":userId")
 	return updateOrgUserHelper(cmd)
 }
 
 // PATCH /api/orgs/:orgId/users/:userId
-func UpdateOrgUser(c *models.ReqContext, cmd models.UpdateOrgUserCommand) response.Response {
+func UpdateOrgUser(c *models.ReqContext, cmd models.UpdateOrgUserCommand) Response {
 	cmd.OrgId = c.ParamsInt64(":orgId")
 	cmd.UserId = c.ParamsInt64(":userId")
 	return updateOrgUserHelper(cmd)
 }
 
-func updateOrgUserHelper(cmd models.UpdateOrgUserCommand) response.Response {
+func updateOrgUserHelper(cmd models.UpdateOrgUserCommand) Response {
 	if !cmd.Role.IsValid() {
-		return response.Error(400, "Invalid role specified", nil)
-	}
-	if err := bus.Dispatch(&cmd); err != nil {
-		if errors.Is(err, models.ErrLastOrgAdmin) {
-			return response.Error(400, "Cannot change role so that there is no organization admin left", nil)
-		}
-		return response.Error(500, "Failed update org user", err)
+		return Error(400, "Invalid role specified", nil)
 	}
 
-	return response.Success("Organization user updated")
+	if err := bus.Dispatch(&cmd); err != nil {
+		if err == models.ErrLastOrgAdmin {
+			return Error(400, "Cannot change role so that there is no organization admin left", nil)
+		}
+		return Error(500, "Failed update org user", err)
+	}
+
+	return Success("Organization user updated")
 }
 
 // DELETE /api/org/users/:userId
-func RemoveOrgUserForCurrentOrg(c *models.ReqContext) response.Response {
+func RemoveOrgUserForCurrentOrg(c *models.ReqContext) Response {
 	return removeOrgUserHelper(&models.RemoveOrgUserCommand{
 		UserId:                   c.ParamsInt64(":userId"),
 		OrgId:                    c.OrgId,
@@ -236,24 +178,24 @@ func RemoveOrgUserForCurrentOrg(c *models.ReqContext) response.Response {
 }
 
 // DELETE /api/orgs/:orgId/users/:userId
-func RemoveOrgUser(c *models.ReqContext) response.Response {
+func RemoveOrgUser(c *models.ReqContext) Response {
 	return removeOrgUserHelper(&models.RemoveOrgUserCommand{
 		UserId: c.ParamsInt64(":userId"),
 		OrgId:  c.ParamsInt64(":orgId"),
 	})
 }
 
-func removeOrgUserHelper(cmd *models.RemoveOrgUserCommand) response.Response {
+func removeOrgUserHelper(cmd *models.RemoveOrgUserCommand) Response {
 	if err := bus.Dispatch(cmd); err != nil {
-		if errors.Is(err, models.ErrLastOrgAdmin) {
-			return response.Error(400, "Cannot remove last organization admin", nil)
+		if err == models.ErrLastOrgAdmin {
+			return Error(400, "Cannot remove last organization admin", nil)
 		}
-		return response.Error(500, "Failed to remove user from organization", err)
+		return Error(500, "Failed to remove user from organization", err)
 	}
 
 	if cmd.UserWasDeleted {
-		return response.Success("User deleted")
+		return Success("User deleted")
 	}
 
-	return response.Success("User removed from organization")
+	return Success("User removed from organization")
 }

@@ -15,8 +15,8 @@ import (
 	"github.com/grafana/grafana/pkg/util"
 )
 
-func (ss *SQLStore) addUserQueryAndCommandHandlers() {
-	ss.Bus.AddHandlerCtx(ss.GetSignedInUserWithCacheCtx)
+func (ss *SqlStore) addUserQueryAndCommandHandlers() {
+	ss.Bus.AddHandler(ss.GetSignedInUserWithCache)
 
 	bus.AddHandler("sql", GetUserById)
 	bus.AddHandler("sql", UpdateUser)
@@ -31,10 +31,12 @@ func (ss *SQLStore) addUserQueryAndCommandHandlers() {
 	bus.AddHandler("sql", DisableUser)
 	bus.AddHandler("sql", BatchDisableUsers)
 	bus.AddHandler("sql", DeleteUser)
+	bus.AddHandler("sql", UpdateUserPermissions)
 	bus.AddHandler("sql", SetUserHelpFlag)
+	bus.AddHandlerCtx("sql", CreateUser)
 }
 
-func getOrgIdForNewUser(sess *DBSession, cmd models.CreateUserCommand) (int64, error) {
+func getOrgIdForNewUser(sess *DBSession, cmd *models.CreateUserCommand) (int64, error) {
 	if cmd.SkipOrgSetup {
 		return -1, nil
 	}
@@ -55,137 +57,8 @@ func getOrgIdForNewUser(sess *DBSession, cmd models.CreateUserCommand) (int64, e
 	return getOrCreateOrg(sess, orgName)
 }
 
-type userCreationArgs struct {
-	Login          string
-	Email          string
-	Name           string
-	Company        string
-	Password       string
-	IsAdmin        bool
-	IsDisabled     bool
-	EmailVerified  bool
-	OrgID          int64
-	OrgName        string
-	DefaultOrgRole string
-}
-
-func (ss *SQLStore) getOrgIDForNewUser(sess *DBSession, args userCreationArgs) (int64, error) {
-	if ss.Cfg.AutoAssignOrg && args.OrgID != 0 {
-		if err := verifyExistingOrg(sess, args.OrgID); err != nil {
-			return -1, err
-		}
-		return args.OrgID, nil
-	}
-
-	orgName := args.OrgName
-	if orgName == "" {
-		orgName = util.StringsFallback2(args.Email, args.Login)
-	}
-
-	return ss.getOrCreateOrg(sess, orgName)
-}
-
-// createUser creates a user in the database.
-func (ss *SQLStore) createUser(ctx context.Context, sess *DBSession, args userCreationArgs, skipOrgSetup bool) (models.User, error) {
-	var user models.User
-	var orgID int64 = -1
-	if !skipOrgSetup {
-		var err error
-		orgID, err = ss.getOrgIDForNewUser(sess, args)
-		if err != nil {
-			return user, err
-		}
-	}
-
-	if args.Email == "" {
-		args.Email = args.Login
-	}
-
-	exists, err := sess.Where("email=? OR login=?", args.Email, args.Login).Get(&models.User{})
-	if err != nil {
-		return user, err
-	}
-	if exists {
-		return user, models.ErrUserAlreadyExists
-	}
-
-	// create user
-	user = models.User{
-		Email:         args.Email,
-		Name:          args.Name,
-		Login:         args.Login,
-		Company:       args.Company,
-		IsAdmin:       args.IsAdmin,
-		IsDisabled:    args.IsDisabled,
-		OrgId:         orgID,
-		EmailVerified: args.EmailVerified,
-		Created:       time.Now(),
-		Updated:       time.Now(),
-		LastSeenAt:    time.Now().AddDate(-10, 0, 0),
-	}
-
-	salt, err := util.GetRandomString(10)
-	if err != nil {
-		return user, err
-	}
-	user.Salt = salt
-	rands, err := util.GetRandomString(10)
-	if err != nil {
-		return user, err
-	}
-	user.Rands = rands
-
-	if len(args.Password) > 0 {
-		encodedPassword, err := util.EncodePassword(args.Password, user.Salt)
-		if err != nil {
-			return user, err
-		}
-		user.Password = encodedPassword
-	}
-
-	sess.UseBool("is_admin")
-
-	if _, err := sess.Insert(&user); err != nil {
-		return user, err
-	}
-
-	sess.publishAfterCommit(&events.UserCreated{
-		Timestamp: user.Created,
-		Id:        user.Id,
-		Name:      user.Name,
-		Login:     user.Login,
-		Email:     user.Email,
-	})
-
-	// create org user link
-	if !skipOrgSetup {
-		orgUser := models.OrgUser{
-			OrgId:   orgID,
-			UserId:  user.Id,
-			Role:    models.ROLE_ADMIN,
-			Created: time.Now(),
-			Updated: time.Now(),
-		}
-
-		if ss.Cfg.AutoAssignOrg && !user.IsAdmin {
-			if len(args.DefaultOrgRole) > 0 {
-				orgUser.Role = models.RoleType(args.DefaultOrgRole)
-			} else {
-				orgUser.Role = models.RoleType(ss.Cfg.AutoAssignOrgRole)
-			}
-		}
-
-		if _, err = sess.Insert(&orgUser); err != nil {
-			return user, err
-		}
-	}
-
-	return user, nil
-}
-
-func (ss *SQLStore) CreateUser(ctx context.Context, cmd models.CreateUserCommand) (*models.User, error) {
-	var user *models.User
-	err := ss.WithTransactionalDbSession(ctx, func(sess *DBSession) error {
+func CreateUser(ctx context.Context, cmd *models.CreateUserCommand) error {
+	return inTransactionCtx(ctx, func(sess *DBSession) error {
 		orgId, err := getOrgIdForNewUser(sess, cmd)
 		if err != nil {
 			return err
@@ -195,16 +68,13 @@ func (ss *SQLStore) CreateUser(ctx context.Context, cmd models.CreateUserCommand
 			cmd.Email = cmd.Login
 		}
 
-		exists, err := sess.Where("email=? OR login=?", cmd.Email, cmd.Login).Get(&models.User{})
-		if err != nil {
-			return err
-		}
+		exists, _ := sess.Where("email=? OR login=?", cmd.Email, cmd.Login).Get(&models.User{})
 		if exists {
 			return models.ErrUserAlreadyExists
 		}
 
 		// create user
-		user = &models.User{
+		user := models.User{
 			Email:         cmd.Email,
 			Name:          cmd.Name,
 			Login:         cmd.Login,
@@ -239,7 +109,7 @@ func (ss *SQLStore) CreateUser(ctx context.Context, cmd models.CreateUserCommand
 
 		sess.UseBool("is_admin")
 
-		if _, err := sess.Insert(user); err != nil {
+		if _, err := sess.Insert(&user); err != nil {
 			return err
 		}
 
@@ -250,6 +120,8 @@ func (ss *SQLStore) CreateUser(ctx context.Context, cmd models.CreateUserCommand
 			Login:     user.Login,
 			Email:     user.Email,
 		})
+
+		cmd.Result = user
 
 		// create org user link
 		if !cmd.SkipOrgSetup {
@@ -276,8 +148,6 @@ func (ss *SQLStore) CreateUser(ctx context.Context, cmd models.CreateUserCommand
 
 		return nil
 	})
-
-	return user, err
 }
 
 func GetUserById(query *models.GetUserByIdQuery) error {
@@ -490,14 +360,14 @@ func newSignedInUserCacheKey(orgID, userID int64) string {
 	return fmt.Sprintf("signed-in-user-%d-%d", userID, orgID)
 }
 
-func (ss *SQLStore) GetSignedInUserWithCacheCtx(ctx context.Context, query *models.GetSignedInUserQuery) error {
+func (ss *SqlStore) GetSignedInUserWithCache(query *models.GetSignedInUserQuery) error {
 	cacheKey := newSignedInUserCacheKey(query.OrgId, query.UserId)
 	if cached, found := ss.CacheService.Get(cacheKey); found {
 		query.Result = cached.(*models.SignedInUser)
 		return nil
 	}
 
-	err := GetSignedInUser(ctx, query)
+	err := GetSignedInUser(query)
 	if err != nil {
 		return err
 	}
@@ -507,13 +377,13 @@ func (ss *SQLStore) GetSignedInUserWithCacheCtx(ctx context.Context, query *mode
 	return nil
 }
 
-func GetSignedInUser(ctx context.Context, query *models.GetSignedInUserQuery) error {
+func GetSignedInUser(query *models.GetSignedInUserQuery) error {
 	orgId := "u.org_id"
 	if query.OrgId > 0 {
 		orgId = strconv.FormatInt(query.OrgId, 10)
 	}
 
-	var rawSQL = `SELECT
+	var rawSql = `SELECT
 		u.id             as user_id,
 		u.is_admin       as is_grafana_admin,
 		u.email          as email,
@@ -532,11 +402,11 @@ func GetSignedInUser(ctx context.Context, query *models.GetSignedInUserQuery) er
 	sess := x.Table("user")
 	switch {
 	case query.UserId > 0:
-		sess.SQL(rawSQL+"WHERE u.id=?", query.UserId)
+		sess.SQL(rawSql+"WHERE u.id=?", query.UserId)
 	case query.Login != "":
-		sess.SQL(rawSQL+"WHERE u.login=?", query.Login)
+		sess.SQL(rawSql+"WHERE u.login=?", query.Login)
 	case query.Email != "":
-		sess.SQL(rawSQL+"WHERE u.email=?", query.Email)
+		sess.SQL(rawSql+"WHERE u.email=?", query.Email)
 	}
 
 	var user models.SignedInUser
@@ -610,11 +480,8 @@ func SearchUsers(query *models.SearchUsersQuery) error {
 		sess.Where(strings.Join(whereConditions, " AND "), whereParams...)
 	}
 
-	if query.Limit > 0 {
-		offset := query.Limit * (query.Page - 1)
-		sess.Limit(query.Limit, offset)
-	}
-
+	offset := query.Limit * (query.Page - 1)
+	sess.Limit(query.Limit, offset)
 	sess.Cols("u.id", "u.email", "u.name", "u.login", "u.is_admin", "u.is_disabled", "u.last_seen_at", "user_auth.auth_module")
 	sess.Asc("u.login", "u.email")
 	if err := sess.Find(&query.Result.Users); err != nil {
@@ -725,14 +592,14 @@ func deleteUserInTransaction(sess *DBSession, cmd *models.DeleteUserCommand) err
 	return nil
 }
 
-func (ss *SQLStore) UpdateUserPermissions(userID int64, isAdmin bool) error {
-	return ss.WithTransactionalDbSession(context.Background(), func(sess *DBSession) error {
-		var user models.User
-		if _, err := sess.ID(userID).Get(&user); err != nil {
+func UpdateUserPermissions(cmd *models.UpdateUserPermissionsCommand) error {
+	return inTransaction(func(sess *DBSession) error {
+		user := models.User{}
+		if _, err := sess.ID(cmd.UserId).Get(&user); err != nil {
 			return err
 		}
 
-		user.IsAdmin = isAdmin
+		user.IsAdmin = cmd.IsGrafanaAdmin
 		sess.UseBool("is_admin")
 
 		_, err := sess.ID(user.Id).Update(&user)

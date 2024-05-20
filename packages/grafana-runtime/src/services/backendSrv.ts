@@ -62,15 +62,6 @@ export type BackendSrvRequest = {
   params?: Record<string, any>;
 
   /**
-   * Define how the response object should be parsed.  See:
-   *
-   * https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/Sending_and_Receiving_Binary_Data
-   *
-   * By default values are json parsed from text
-   */
-  responseType?: 'json' | 'text' | 'arraybuffer' | 'blob';
-
-  /**
    * The credentials read-only property of the Request interface indicates whether the user agent should send cookies from the other domain in the case of cross-origin requests.
    */
   credentials?: RequestCredentials;
@@ -158,7 +149,7 @@ export interface BackendSrv {
    * to display datasource query information. Can be skipped by adding `option.silent`
    * when initializing the request.
    */
-  datasourceRequest<T = any>(options: BackendSrvRequest): Promise<FetchResponse<T>>;
+  datasourceRequest(options: BackendSrvRequest): Promise<any>;
 
   /**
    * Observable http request interface

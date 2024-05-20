@@ -8,8 +8,7 @@ import { useAsyncFn } from 'react-use';
 import { getBackendSrv } from '@grafana/runtime';
 import { UrlQueryValue } from '@grafana/data';
 import { Form, Field, Input, Button, Legend } from '@grafana/ui';
-import { css } from '@emotion/css';
-import { GrafanaRouteComponentProps } from 'app/core/navigation/types';
+import { css } from 'emotion';
 
 interface OrgNameDTO {
   orgName: string;
@@ -31,12 +30,11 @@ const removeOrgUser = async (orgUser: OrgUser, orgId: UrlQueryValue) => {
   return await getBackendSrv().delete('/api/orgs/' + orgId + '/users/' + orgUser.userId);
 };
 
-interface Props extends GrafanaRouteComponentProps<{ id: string }> {}
-
-export const AdminEditOrgPage: FC<Props> = ({ match }) => {
+export const AdminEditOrgPage: FC = () => {
   const navIndex = useSelector((state: StoreState) => state.navIndex);
   const navModel = getNavModel(navIndex, 'global-orgs');
-  const orgId = parseInt(match.params.id, 10);
+
+  const orgId = useSelector((state: StoreState) => state.location.routeParams.id);
 
   const [users, setUsers] = useState<OrgUser[]>([]);
 
@@ -45,8 +43,8 @@ export const AdminEditOrgPage: FC<Props> = ({ match }) => {
 
   useEffect(() => {
     fetchOrg();
-    fetchOrgUsers().then((res) => setUsers(res));
-  }, [fetchOrg, fetchOrgUsers]);
+    fetchOrgUsers().then(res => setUsers(res));
+  }, []);
 
   const updateOrgName = async (name: string) => {
     return await getBackendSrv().put('/api/orgs/' + orgId, { ...orgState.value, name });
@@ -56,7 +54,7 @@ export const AdminEditOrgPage: FC<Props> = ({ match }) => {
     <Page navModel={navModel}>
       <Page.Contents>
         <>
-          <Legend>Edit organization</Legend>
+          <Legend>Edit Organization</Legend>
 
           {orgState.value && (
             <Form
@@ -66,7 +64,7 @@ export const AdminEditOrgPage: FC<Props> = ({ match }) => {
               {({ register, errors }) => (
                 <>
                   <Field label="Name" invalid={!!errors.orgName} error="Name is required">
-                    <Input {...register('orgName', { required: true })} />
+                    <Input name="orgName" ref={register({ required: true })} />
                   </Field>
                   <Button>Update</Button>
                 </>
@@ -79,14 +77,14 @@ export const AdminEditOrgPage: FC<Props> = ({ match }) => {
               margin-top: 20px;
             `}
           >
-            <Legend>Organization users</Legend>
+            <Legend>Organization Users</Legend>
             {!!users.length && (
               <UsersTable
                 users={users}
                 onRoleChange={(role, orgUser) => {
                   updateOrgUserRole({ ...orgUser, role }, orgId);
                   setUsers(
-                    users.map((user) => {
+                    users.map(user => {
                       if (orgUser.userId === user.userId) {
                         return { ...orgUser, role };
                       }
@@ -95,9 +93,9 @@ export const AdminEditOrgPage: FC<Props> = ({ match }) => {
                   );
                   fetchOrgUsers();
                 }}
-                onRemoveUser={(orgUser) => {
+                onRemoveUser={orgUser => {
                   removeOrgUser(orgUser, orgId);
-                  setUsers(users.filter((user) => orgUser.userId !== user.userId));
+                  setUsers(users.filter(user => orgUser.userId !== user.userId));
                   fetchOrgUsers();
                 }}
               />

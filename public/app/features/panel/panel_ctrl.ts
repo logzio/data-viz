@@ -1,45 +1,37 @@
-import { isString } from 'lodash';
+import _ from 'lodash';
 import config from 'app/core/config';
 import { profiler } from 'app/core/core';
+import { Emitter } from 'app/core/utils/emitter';
 import { auto } from 'angular';
-import {
-  AppEvent,
-  PanelEvents,
-  PanelPluginMeta,
-  AngularPanelMenuItem,
-  EventBusExtended,
-  EventBusSrv,
-} from '@grafana/data';
+import { AppEvent, PanelEvents, PanelPluginMeta, AngularPanelMenuItem } from '@grafana/data';
 import { DashboardModel } from '../dashboard/state';
 
 export class PanelCtrl {
   panel: any;
   error: any;
   dashboard: DashboardModel;
-  pluginName = '';
-  pluginId = '';
+  pluginName: string;
+  pluginId: string;
   editorTabs: any;
   $scope: any;
   $injector: auto.IInjectorService;
   $location: any;
   $timeout: any;
-  editModeInitiated = false;
+  editModeInitiated: boolean;
   height: number;
   width: number;
   containerHeight: any;
-  events: EventBusExtended;
-  loading = false;
+  events: Emitter;
+  loading: boolean;
   timing: any;
 
   constructor($scope: any, $injector: auto.IInjectorService) {
-    this.panel = this.panel ?? $scope.$parent.panel;
-    this.dashboard = this.dashboard ?? $scope.$parent.dashboard;
     this.$injector = $injector;
     this.$location = $injector.get('$location');
     this.$scope = $scope;
     this.$timeout = $injector.get('$timeout');
     this.editorTabs = [];
-    this.events = new EventBusSrv();
+    this.events = this.panel.events;
     this.timing = {}; // not used but here to not break plugins
 
     const plugin = config.panels[this.panel.type];
@@ -53,7 +45,6 @@ export class PanelCtrl {
 
   panelDidMount() {
     this.events.emit(PanelEvents.componentDidMount);
-    this.events.emit(PanelEvents.initialized);
     this.dashboard.panelInitialized(this.panel);
   }
 
@@ -79,7 +70,7 @@ export class PanelCtrl {
   addEditorTab(title: string, directiveFn: any, index?: number, icon?: any) {
     const editorTab = { title, directiveFn, icon };
 
-    if (isString(directiveFn)) {
+    if (_.isString(directiveFn)) {
       editorTab.directiveFn = () => {
         return { templateUrl: directiveFn };
       };

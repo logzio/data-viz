@@ -26,7 +26,9 @@ export function getTemplateProxyForField(field: Field, frame?: DataFrame, frames
           }
           return {
             ...field.labels,
-            __values: Object.values(field.labels).sort().join(', '),
+            __values: Object.values(field.labels)
+              .sort()
+              .join(', '),
             toString: () => {
               return formatLabels(field.labels!, '', true);
             },

@@ -1,4 +1,4 @@
-import React, { memo, FC, useEffect } from 'react';
+import React, { memo, FC } from 'react';
 
 // Types
 import { ExploreQueryFieldProps } from '@grafana/data';
@@ -13,12 +13,6 @@ export type Props = ExploreQueryFieldProps<PrometheusDatasource, PromQuery, Prom
 
 export const PromExploreQueryEditor: FC<Props> = (props: Props) => {
   const { range, query, data, datasource, history, onChange, onRunQuery } = props;
-
-  useEffect(() => {
-    if (query.exemplar === undefined) {
-      onChange({ ...query, exemplar: true });
-    }
-  }, [onChange, query]);
 
   function onChangeQueryStep(value: string) {
     const { query, onChange } = props;
@@ -63,15 +57,11 @@ export const PromExploreQueryEditor: FC<Props> = (props: Props) => {
       data={data}
       ExtraFieldElement={
         <PromExploreExtraField
-          // Select "both" as default option when Explore is opened. In legacy requests, range and instant can be undefined. In this case, we want to run queries with "both".
-          queryType={query.range === query.instant ? 'both' : query.instant ? 'instant' : 'range'}
+          queryType={query.range && query.instant ? 'both' : query.instant ? 'instant' : 'range'}
           stepValue={query.interval || ''}
           onQueryTypeChange={onQueryTypeChange}
           onStepChange={onStepChange}
           onKeyDownFunc={onReturnKeyDown}
-          query={query}
-          onChange={onChange}
-          datasource={datasource}
         />
       }
     />

@@ -1,33 +1,24 @@
 import React, { FC } from 'react';
 import { escapeStringForRegex, unEscapeStringFromRegex } from '@grafana/data';
-import { Input, Icon, Button } from '@grafana/ui';
+import { Input, Icon } from '@grafana/ui';
 
 export interface Props {
   value: string | undefined;
   placeholder?: string;
-  width?: number;
+  labelClassName?: string;
+  inputClassName?: string;
   onChange: (value: string) => void;
-  autoFocus?: boolean;
 }
 
-export const FilterInput: FC<Props> = ({ value, placeholder, width, onChange, autoFocus }) => {
-  const suffix =
-    value !== '' ? (
-      <Button icon="times" fill="text" size="sm" onClick={() => onChange('')}>
-        Clear
-      </Button>
-    ) : null;
-
-  return (
-    <Input
-      autoFocus={autoFocus ?? false}
-      prefix={<Icon name="search" />}
-      suffix={suffix}
-      width={width}
-      type="text"
-      value={value ? unEscapeStringFromRegex(value) : ''}
-      onChange={(event) => onChange(escapeStringForRegex(event.currentTarget.value))}
-      placeholder={placeholder}
-    />
-  );
-};
+export const FilterInput: FC<Props> = props => (
+  <Input
+    // Replaces the usage of ref
+    autoFocus
+    prefix={<Icon name="search" />}
+    width={40}
+    type="text"
+    value={props.value ? unEscapeStringFromRegex(props.value) : ''}
+    onChange={event => props.onChange(escapeStringForRegex(event.currentTarget.value))}
+    placeholder={props.placeholder ?? ''}
+  />
+);

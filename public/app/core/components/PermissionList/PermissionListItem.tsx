@@ -1,8 +1,9 @@
 import React, { PureComponent } from 'react';
-import { Select, Icon, Button } from '@grafana/ui';
+import { LegacyForms, Icon } from '@grafana/ui';
 import { SelectableValue } from '@grafana/data';
 import { dashboardPermissionLevels, DashboardAcl, PermissionLevel } from 'app/types/acl';
 import { FolderInfo } from 'app/types';
+const { Select } = LegacyForms;
 
 const setClassNameHelper = (inherited: boolean) => {
   return inherited ? 'gf-form-disabled' : '';
@@ -51,7 +52,7 @@ export default class PermissionsListItem extends PureComponent<Props> {
   render() {
     const { item, folderInfo } = this.props;
     const inheritedFromRoot = item.dashboardId === -1 && !item.inherited;
-    const currentPermissionLevel = dashboardPermissionLevels.find((dp) => dp.value === item.permission);
+    const currentPermissionLevel = dashboardPermissionLevels.find(dp => dp.value === item.permission);
 
     return (
       <tr className={setClassNameHelper(Boolean(item?.inherited))}>
@@ -74,20 +75,26 @@ export default class PermissionsListItem extends PureComponent<Props> {
         </td>
         <td className="query-keyword">Can</td>
         <td>
-          <Select
-            isSearchable={false}
-            options={dashboardPermissionLevels}
-            onChange={this.onPermissionChanged}
-            disabled={item.inherited}
-            value={currentPermissionLevel}
-            width={25}
-          />
+          <div className="gf-form">
+            <Select
+              isSearchable={false}
+              options={dashboardPermissionLevels}
+              onChange={this.onPermissionChanged}
+              isDisabled={item.inherited}
+              className="gf-form-select-box__control--menu-right"
+              value={currentPermissionLevel}
+            />
+          </div>
         </td>
         <td>
           {!item.inherited ? (
-            <Button size="sm" variant="destructive" icon="times" onClick={this.onRemoveItem} />
+            <a className="btn btn-danger btn-small" onClick={this.onRemoveItem}>
+              <Icon name="times" style={{ marginBottom: 0 }} />
+            </a>
           ) : (
-            <Button size="sm" disabled icon="times" />
+            <button className="btn btn-inverse btn-small">
+              <Icon name="lock" style={{ marginBottom: '3px' }} />
+            </button>
           )}
         </td>
       </tr>

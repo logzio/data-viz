@@ -6,8 +6,7 @@ import { getLocationSrv, getTemplateSrv } from '@grafana/runtime';
 
 import { PanelModel } from 'app/features/dashboard/state/PanelModel';
 import { getTimeSrv, TimeSrv } from 'app/features/dashboard/services/TimeSrv';
-import { InspectTab } from 'app/features/inspector/types';
-import { selectors } from '@grafana/e2e-selectors';
+import { InspectTab } from '../../components/Inspector/types';
 
 enum InfoMode {
   Error = 'Error',
@@ -47,7 +46,7 @@ export class PanelHeaderCorner extends Component<Props> {
     const markdown = panel.description || '';
     const interpolatedMarkdown = getTemplateSrv().replace(markdown, panel.scopedVars);
     const markedInterpolatedMarkdown = renderMarkdown(interpolatedMarkdown);
-    const links = this.props.links && this.props.links.getLinks(panel.replaceVariables);
+    const links = this.props.links && this.props.links.getLinks(panel);
 
     return (
       <div className="panel-info-content markdown-html">
@@ -79,12 +78,9 @@ export class PanelHeaderCorner extends Component<Props> {
 
   renderCornerType(infoMode: InfoMode, content: PopoverContent, onClick?: () => void) {
     const theme = infoMode === InfoMode.Error ? 'error' : 'info';
-    const className = `panel-info-corner panel-info-corner--${infoMode.toLowerCase()}`;
-    const ariaLabel = selectors.components.Panels.Panel.headerCornerInfo(infoMode.toLowerCase());
-
     return (
       <Tooltip content={content} placement="top-start" theme={theme}>
-        <div className={className} onClick={onClick} aria-label={ariaLabel}>
+        <div className={`panel-info-corner panel-info-corner--${infoMode.toLowerCase()}`} onClick={onClick}>
           <i className="fa" />
           <span className="panel-info-corner-inner" />
         </div>

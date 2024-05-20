@@ -5,8 +5,8 @@ export class QueryCtrl {
   datasource: any;
   panelCtrl: any;
   panel: any;
-  hasRawMode = false;
-  error = '';
+  hasRawMode: boolean;
+  error: string;
 
   constructor(public $scope: any, _$injector: auto.IInjectorService) {
     this.panelCtrl = this.panelCtrl || { panel: {} };

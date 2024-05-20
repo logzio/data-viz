@@ -91,29 +91,6 @@ func init() {
 		},
 	}
 
-	priorityOptions := []alerting.SelectOption{
-		{
-			Value: "2",
-			Label: "Emergency",
-		},
-		{
-			Value: "1",
-			Label: "High",
-		},
-		{
-			Value: "0",
-			Label: "Normal",
-		},
-		{
-			Value: "-1",
-			Label: "Low",
-		},
-		{
-			Value: "-2",
-			Label: "Lowest",
-		},
-	}
-
 	alerting.RegisterNotifier(&alerting.NotifierPlugin{
 		Type:        "pushover",
 		Name:        "Pushover",
@@ -147,32 +124,53 @@ func init() {
 				PropertyName: "device",
 			},
 			{
-				Label:         "Alerting priority",
-				Element:       alerting.ElementTypeSelect,
-				SelectOptions: priorityOptions,
-				PropertyName:  "priority",
+				Label:   "Priority",
+				Element: alerting.ElementTypeSelect,
+				SelectOptions: []alerting.SelectOption{
+					{
+						Value: "2",
+						Label: "Emergency",
+					},
+					{
+						Value: "1",
+						Label: "High",
+					},
+					{
+						Value: "0",
+						Label: "Normal",
+					},
+					{
+						Value: "-1",
+						Label: "Low",
+					},
+					{
+						Value: "-2",
+						Label: "Lowest",
+					},
+				},
+				PropertyName: "priority",
 			},
 			{
-				Label:         "OK priority",
-				Element:       alerting.ElementTypeSelect,
-				SelectOptions: priorityOptions,
-				PropertyName:  "okPriority",
-			},
-			{
-				Description:  "How often (in seconds) the Pushover servers will send the same alerting or OK notification to the user.",
-				Label:        "Retry (Only used for Emergency Priority)",
+				Label:        "Retry",
 				Element:      alerting.ElementTypeInput,
 				InputType:    alerting.InputTypeText,
 				Placeholder:  "minimum 30 seconds",
 				PropertyName: "retry",
+				ShowWhen: alerting.ShowWhen{
+					Field: "priority",
+					Is:    "2",
+				},
 			},
 			{
-				Description:  "How many seconds the alerting or OK notification will continue to be retried.",
-				Label:        "Expire (Only used for Emergency Priority)",
+				Label:        "Expire",
 				Element:      alerting.ElementTypeInput,
 				InputType:    alerting.InputTypeText,
 				Placeholder:  "maximum 86400 seconds",
 				PropertyName: "expire",
+				ShowWhen: alerting.ShowWhen{
+					Field: "priority",
+					Is:    "2",
+				},
 			},
 			{
 				Label:         "Alerting sound",
@@ -195,14 +193,7 @@ func NewPushoverNotifier(model *models.AlertNotification) (alerting.Notifier, er
 	userKey := model.DecryptedValue("userKey", model.Settings.Get("userKey").MustString())
 	APIToken := model.DecryptedValue("apiToken", model.Settings.Get("apiToken").MustString())
 	device := model.Settings.Get("device").MustString()
-	alertingPriority, err := strconv.Atoi(model.Settings.Get("priority").MustString("0")) // default Normal
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert alerting priority to integer: %w", err)
-	}
-	okPriority, err := strconv.Atoi(model.Settings.Get("okPriority").MustString("0")) // default Normal
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert OK priority to integer: %w", err)
-	}
+	priority, _ := strconv.Atoi(model.Settings.Get("priority").MustString())
 	retry, _ := strconv.Atoi(model.Settings.Get("retry").MustString())
 	expire, _ := strconv.Atoi(model.Settings.Get("expire").MustString())
 	alertingSound := model.Settings.Get("sound").MustString()
@@ -216,18 +207,17 @@ func NewPushoverNotifier(model *models.AlertNotification) (alerting.Notifier, er
 		return nil, alerting.ValidationError{Reason: "API token not given"}
 	}
 	return &PushoverNotifier{
-		NotifierBase:     NewNotifierBase(model),
-		UserKey:          userKey,
-		APIToken:         APIToken,
-		AlertingPriority: alertingPriority,
-		OKPriority:       okPriority,
-		Retry:            retry,
-		Expire:           expire,
-		Device:           device,
-		AlertingSound:    alertingSound,
-		OKSound:          okSound,
-		Upload:           uploadImage,
-		log:              log.New("alerting.notifier.pushover"),
+		NotifierBase:  NewNotifierBase(model),
+		UserKey:       userKey,
+		APIToken:      APIToken,
+		Priority:      priority,
+		Retry:         retry,
+		Expire:        expire,
+		Device:        device,
+		AlertingSound: alertingSound,
+		OkSound:       okSound,
+		Upload:        uploadImage,
+		log:           log.New("alerting.notifier.pushover"),
 	}, nil
 }
 
@@ -235,17 +225,16 @@ func NewPushoverNotifier(model *models.AlertNotification) (alerting.Notifier, er
 // alert notifications to Pushover
 type PushoverNotifier struct {
 	NotifierBase
-	UserKey          string
-	APIToken         string
-	AlertingPriority int
-	OKPriority       int
-	Retry            int
-	Expire           int
-	Device           string
-	AlertingSound    string
-	OKSound          string
-	Upload           bool
-	log              log.Logger
+	UserKey       string
+	APIToken      string
+	Priority      int
+	Retry         int
+	Expire        int
+	Device        string
+	AlertingSound string
+	OkSound       string
+	Upload        bool
+	log           log.Logger
 }
 
 // Notify sends a alert notification to Pushover
@@ -303,11 +292,7 @@ func (pn *PushoverNotifier) genPushoverBody(evalContext *alerting.EvalContext, m
 		if err != nil {
 			return nil, b, err
 		}
-		defer func() {
-			if err := f.Close(); err != nil {
-				pn.log.Warn("Failed to close file", "path", evalContext.ImageOnDiskPath, "err", err)
-			}
-		}()
+		defer f.Close()
 
 		fw, err := w.CreateFormFile("attachment", evalContext.ImageOnDiskPath)
 		if err != nil {
@@ -333,16 +318,12 @@ func (pn *PushoverNotifier) genPushoverBody(evalContext *alerting.EvalContext, m
 	}
 
 	// Add priority
-	priority := pn.AlertingPriority
-	if evalContext.Rule.State == models.AlertStateOK {
-		priority = pn.OKPriority
-	}
-	err = w.WriteField("priority", strconv.Itoa(priority))
+	err = w.WriteField("priority", strconv.Itoa(pn.Priority))
 	if err != nil {
 		return nil, b, err
 	}
 
-	if priority == 2 {
+	if pn.Priority == 2 {
 		err = w.WriteField("retry", strconv.Itoa(pn.Retry))
 		if err != nil {
 			return nil, b, err
@@ -365,7 +346,7 @@ func (pn *PushoverNotifier) genPushoverBody(evalContext *alerting.EvalContext, m
 	// Add sound
 	sound := pn.AlertingSound
 	if evalContext.Rule.State == models.AlertStateOK {
-		sound = pn.OKSound
+		sound = pn.OkSound
 	}
 	if sound != "default" {
 		err = w.WriteField("sound", sound)
@@ -402,10 +383,8 @@ func (pn *PushoverNotifier) genPushoverBody(evalContext *alerting.EvalContext, m
 	if err != nil {
 		return nil, b, err
 	}
-	if err := w.Close(); err != nil {
-		return nil, b, err
-	}
 
+	w.Close()
 	headers := map[string]string{
 		"Content-Type": w.FormDataContentType(),
 	}

@@ -1,4 +1,4 @@
-import { each, isString, map } from 'lodash';
+import _ from 'lodash';
 import coreModule from '../core_module';
 
 /** @ngInject */
@@ -9,12 +9,12 @@ export function uiSegmentSrv(this: any, $sce: any, templateSrv: any) {
     value: string;
     html: any;
     type: any;
-    expandable?: boolean;
-    text?: string;
-    cssClass?: string;
-    fake?: boolean;
-    custom?: boolean;
-    selectMode?: any;
+    expandable: boolean;
+    text: string;
+    cssClass: string;
+    fake: boolean;
+    custom: boolean;
+    selectMode: any;
 
     constructor(options: any) {
       if (options === '*' || options.value === '*') {
@@ -25,7 +25,7 @@ export function uiSegmentSrv(this: any, $sce: any, templateSrv: any) {
         return;
       }
 
-      if (isString(options)) {
+      if (_.isString(options)) {
         this.value = options;
         this.html = $sce.trustAsHtml(templateSrv.highlightVariablesAsHtml(this.value));
         return;
@@ -40,12 +40,13 @@ export function uiSegmentSrv(this: any, $sce: any, templateSrv: any) {
       this.fake = options.fake;
       this.value = options.value;
       this.selectMode = options.selectMode;
+      this.type = options.type;
       this.expandable = options.expandable;
       this.html = options.html || $sce.trustAsHtml(templateSrv.highlightVariablesAsHtml(this.value));
     }
   }
 
-  this.getSegmentForValue = function (value: string, fallbackText: string) {
+  this.getSegmentForValue = function(value: string, fallbackText: string) {
     if (value) {
       return this.newSegment(value);
     } else {
@@ -82,19 +83,19 @@ export function uiSegmentSrv(this: any, $sce: any, templateSrv: any) {
   };
 
   this.newOperators = (ops: string[]) => {
-    return map(ops, (op) => {
+    return _.map(ops, op => {
       return new MetricSegment({ value: op, type: 'operator', cssClass: 'query-segment-operator' });
     });
   };
 
   this.transformToSegments = (addTemplateVars: boolean, variableTypeFilter: string) => {
     return (results: any[]) => {
-      const segments = map(results, (segment) => {
+      const segments = _.map(results, segment => {
         return self.newSegment({ value: segment.text, expandable: segment.expandable });
       });
 
       if (addTemplateVars) {
-        each(templateSrv.getVariables(), (variable) => {
+        _.each(templateSrv.getVariables(), variable => {
           if (variableTypeFilter === void 0 || variableTypeFilter === variable.type) {
             segments.unshift(self.newSegment({ type: 'value', value: '$' + variable.name, expandable: true }));
           }

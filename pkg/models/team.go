@@ -7,12 +7,12 @@ import (
 
 // Typed errors
 var (
-	ErrTeamNotFound                         = errors.New("team not found")
-	ErrTeamNameTaken                        = errors.New("team name is taken")
-	ErrTeamMemberNotFound                   = errors.New("team member not found")
-	ErrLastTeamAdmin                        = errors.New("not allowed to remove last admin")
-	ErrNotAllowedToUpdateTeam               = errors.New("user not allowed to update team")
-	ErrNotAllowedToUpdateTeamInDifferentOrg = errors.New("user not allowed to update team in another org")
+	ErrTeamNotFound                         = errors.New("Team not found")
+	ErrTeamNameTaken                        = errors.New("Team name is taken")
+	ErrTeamMemberNotFound                   = errors.New("Team member not found")
+	ErrLastTeamAdmin                        = errors.New("Not allowed to remove last admin")
+	ErrNotAllowedToUpdateTeam               = errors.New("User not allowed to update team")
+	ErrNotAllowedToUpdateTeamInDifferentOrg = errors.New("User not allowed to update team in another org")
 )
 
 // Team model
@@ -50,11 +50,9 @@ type DeleteTeamCommand struct {
 }
 
 type GetTeamByIdQuery struct {
-	OrgId        int64
-	Id           int64
-	SignedInUser *SignedInUser
-	HiddenUsers  map[string]struct{}
-	Result       *TeamDTO
+	OrgId  int64
+	Id     int64
+	Result *TeamDTO
 }
 
 type GetTeamsByUserQuery struct {
@@ -70,8 +68,6 @@ type SearchTeamsQuery struct {
 	Page         int
 	OrgId        int64
 	UserIdFilter int64
-	SignedInUser *SignedInUser
-	HiddenUsers  map[string]struct{}
 
 	Result SearchTeamQueryResult
 }

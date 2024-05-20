@@ -1,5 +1,5 @@
 import React, { FC, memo } from 'react';
-import { css } from '@emotion/css';
+import { css } from 'emotion';
 import { useTheme, CustomScrollbar, stylesFactory, IconButton } from '@grafana/ui';
 import { GrafanaTheme } from '@grafana/data';
 import { useSearchQuery } from '../hooks/useSearchQuery';
@@ -7,13 +7,19 @@ import { useDashboardSearch } from '../hooks/useDashboardSearch';
 import { SearchField } from './SearchField';
 import { SearchResults } from './SearchResults';
 import { ActionRow } from './ActionRow';
+import { connectWithRouteParams, ConnectProps, DispatchProps } from '../connect';
 
-export interface Props {
+export interface OwnProps {
   onCloseSearch: () => void;
 }
 
-export const DashboardSearch: FC<Props> = memo(({ onCloseSearch }) => {
-  const { query, onQueryChange, onTagFilterChange, onTagAdd, onSortChange, onLayoutChange } = useSearchQuery({});
+export type Props = OwnProps & ConnectProps & DispatchProps;
+
+export const DashboardSearch: FC<Props> = memo(({ onCloseSearch, params, updateLocation }) => {
+  const { query, onQueryChange, onTagFilterChange, onTagAdd, onSortChange, onLayoutChange } = useSearchQuery(
+    params,
+    updateLocation
+  );
   const { results, loading, onToggleSection, onKeyDown } = useDashboardSearch(query, onCloseSearch);
   const theme = useTheme();
   const styles = getStyles(theme);
@@ -52,9 +58,7 @@ export const DashboardSearch: FC<Props> = memo(({ onCloseSearch }) => {
   );
 });
 
-DashboardSearch.displayName = 'DashboardSearch';
-
-export default DashboardSearch;
+export default connectWithRouteParams(DashboardSearch);
 
 const getStyles = stylesFactory((theme: GrafanaTheme) => {
   return {

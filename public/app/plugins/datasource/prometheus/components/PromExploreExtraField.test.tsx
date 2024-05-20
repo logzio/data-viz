@@ -1,13 +1,10 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { PromExploreExtraFieldProps, PromExploreExtraField } from './PromExploreExtraField';
-import { Observable } from 'rxjs';
 
 const setup = (propOverrides?: PromExploreExtraFieldProps) => {
   const queryType = 'range';
   const stepValue = '1';
-  const query = { exemplar: false };
-  const datasource = { exemplarErrors: new Observable() };
   const onStepChange = jest.fn();
   const onQueryTypeChange = jest.fn();
   const onKeyDownFunc = jest.fn();
@@ -15,11 +12,9 @@ const setup = (propOverrides?: PromExploreExtraFieldProps) => {
   const props: any = {
     queryType,
     stepValue,
-    query,
     onStepChange,
     onQueryTypeChange,
     onKeyDownFunc,
-    datasource,
   };
 
   Object.assign(props, propOverrides);

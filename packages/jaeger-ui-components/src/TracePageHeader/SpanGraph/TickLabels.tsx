@@ -17,7 +17,7 @@ import React from 'react';
 import { formatDuration } from '../../utils/date';
 
 import { createStyle } from '../../Theme';
-import { css } from '@emotion/css';
+import { css } from 'emotion';
 
 const getStyles = createStyle(() => {
   return {

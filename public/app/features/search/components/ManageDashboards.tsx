@@ -1,6 +1,6 @@
 import React, { FC, memo, useState } from 'react';
-import { css } from '@emotion/css';
-import { stylesFactory, useTheme, Spinner } from '@grafana/ui';
+import { css } from 'emotion';
+import { HorizontalGroup, stylesFactory, useTheme, Spinner } from '@grafana/ui';
 import { GrafanaTheme } from '@grafana/data';
 import { contextSrv } from 'app/core/services/context_srv';
 import EmptyListCTA from 'app/core/components/EmptyListCTA/EmptyListCTA';
@@ -14,6 +14,7 @@ import { useSearchQuery } from '../hooks/useSearchQuery';
 import { SearchResultsFilter } from './SearchResultsFilter';
 import { SearchResults } from './SearchResults';
 import { DashboardActions } from './DashboardActions';
+import { connectWithRouteParams, ConnectProps, DispatchProps } from '../connect';
 
 export interface Props {
   folder?: FolderDTO;
@@ -21,7 +22,7 @@ export interface Props {
 
 const { isEditor } = contextSrv;
 
-export const ManageDashboards: FC<Props> = memo(({ folder }) => {
+export const ManageDashboards: FC<Props & ConnectProps & DispatchProps> = memo(({ folder, params, updateLocation }) => {
   const folderId = folder?.id;
   const folderUid = folder?.uid;
   const theme = useTheme();
@@ -29,13 +30,13 @@ export const ManageDashboards: FC<Props> = memo(({ folder }) => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
   const defaultLayout = folderId ? SearchLayout.List : SearchLayout.Folders;
-  const queryParamsDefaults = {
+  const queryParams = {
     skipRecent: true,
     skipStarred: true,
     folderIds: folderId ? [folderId] : [],
     layout: defaultLayout,
+    ...params,
   };
-
   const {
     query,
     hasFilters,
@@ -45,7 +46,7 @@ export const ManageDashboards: FC<Props> = memo(({ folder }) => {
     onTagAdd,
     onSortChange,
     onLayoutChange,
-  } = useSearchQuery(queryParamsDefaults);
+  } = useSearchQuery(queryParams, updateLocation);
 
   const {
     results,
@@ -93,11 +94,17 @@ export const ManageDashboards: FC<Props> = memo(({ folder }) => {
 
   return (
     <div className={styles.container}>
-      <div className="page-action-bar">
-        <div className="gf-form gf-form--grow m-r-2">
-          <FilterInput value={query.query} onChange={onQueryChange} placeholder={'Search dashboards by name'} />
-        </div>
-        <DashboardActions isEditor={isEditor} canEdit={hasEditPermissionInFolders || canSave} folderId={folderId} />
+      <div>
+        <HorizontalGroup justify="space-between">
+          <FilterInput
+            labelClassName="gf-form--has-input-icon"
+            inputClassName="gf-form-input width-20"
+            value={query.query}
+            onChange={onQueryChange}
+            placeholder={'Search dashboards by name'}
+          />
+          <DashboardActions isEditor={isEditor} canEdit={hasEditPermissionInFolders || canSave} folderId={folderId} />
+        </HorizontalGroup>
       </div>
 
       <div className={styles.results}>
@@ -142,21 +149,19 @@ export const ManageDashboards: FC<Props> = memo(({ folder }) => {
   );
 });
 
-export default ManageDashboards;
+export default connectWithRouteParams(ManageDashboards);
 
 const getStyles = stylesFactory((theme: GrafanaTheme) => {
   return {
     container: css`
       height: 100%;
-      display: flex;
-      flex-direction: column;
     `,
     results: css`
       display: flex;
       flex-direction: column;
-      flex: 1 1 0;
+      flex: 1;
       height: 100%;
-      padding-top: ${theme.spacing.lg};
+      margin-top: ${theme.spacing.xl};
     `,
     spinner: css`
       display: flex;

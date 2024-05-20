@@ -1,14 +1,12 @@
-import { chunk, flatten, initial, startCase, uniqBy } from 'lodash';
-import { ALIGNMENTS, AGGREGATIONS, SYSTEM_LABELS } from './constants';
+import _ from 'lodash';
+import { alignOptions, aggOptions, ValueTypes, MetricKind, systemLabels } from './constants';
 import { SelectableValue } from '@grafana/data';
 import CloudMonitoringDatasource from './datasource';
-import { TemplateSrv, getTemplateSrv } from '@grafana/runtime';
-import { MetricDescriptor, ValueTypes, MetricKind, AlignmentTypes, PreprocessorType, Filter } from './types';
-
-const templateSrv: TemplateSrv = getTemplateSrv();
+import { TemplateSrv } from '@grafana/runtime';
+import { MetricDescriptor, Filter, MetricQuery } from './types';
 
 export const extractServicesFromMetricDescriptors = (metricDescriptors: MetricDescriptor[]) =>
-  uniqBy(metricDescriptors, 'service');
+  _.uniqBy(metricDescriptors, 'service');
 
 export const getMetricTypesByService = (metricDescriptors: MetricDescriptor[], service: string) =>
   metricDescriptors.filter((m: MetricDescriptor) => m.service === service);
@@ -19,33 +17,24 @@ export const getMetricTypes = (
   interpolatedMetricType: string,
   selectedService: string
 ) => {
-  const metricTypes = getMetricTypesByService(metricDescriptors, selectedService).map((m) => ({
+  const metricTypes = getMetricTypesByService(metricDescriptors, selectedService).map((m: any) => ({
     value: m.type,
     name: m.displayName,
   }));
   const metricTypeExistInArray = metricTypes.some(
     (m: { value: string; name: string }) => m.value === interpolatedMetricType
   );
-  const metricTypeByService = metricTypes.length ? metricTypes[0].value : '';
-  const selectedMetricType = metricTypeExistInArray ? metricType : metricTypeByService;
+  const selectedMetricType = metricTypeExistInArray ? metricType : metricTypes[0].value;
   return {
     metricTypes,
     selectedMetricType,
   };
 };
 
-export const getAlignmentOptionsByMetric = (
-  metricValueType: string,
-  metricKind: string,
-  preprocessor?: PreprocessorType
-) => {
-  if (preprocessor && preprocessor === PreprocessorType.Rate) {
-    metricKind = MetricKind.GAUGE;
-  }
-
+export const getAlignmentOptionsByMetric = (metricValueType: string, metricKind: string) => {
   return !metricValueType
     ? []
-    : ALIGNMENTS.filter((i) => {
+    : alignOptions.filter(i => {
         return (
           i.valueTypes.indexOf(metricValueType as ValueTypes) !== -1 &&
           i.metricKinds.indexOf(metricKind as MetricKind) !== -1
@@ -56,7 +45,7 @@ export const getAlignmentOptionsByMetric = (
 export const getAggregationOptionsByMetric = (valueType: ValueTypes, metricKind: MetricKind) => {
   return !metricKind
     ? []
-    : AGGREGATIONS.filter((i) => {
+    : aggOptions.filter(i => {
         return i.valueTypes.indexOf(valueType) !== -1 && i.metricKinds.indexOf(metricKind) !== -1;
       });
 };
@@ -68,29 +57,27 @@ export const getLabelKeys = async (
 ) => {
   const refId = 'handleLabelKeysQuery';
   const labels = await datasource.getLabels(selectedMetricType, refId, projectName);
-  return [...Object.keys(labels), ...SYSTEM_LABELS];
+  return [...Object.keys(labels), ...systemLabels];
 };
 
 export const getAlignmentPickerData = (
-  valueType: string | undefined = ValueTypes.DOUBLE,
-  metricKind: string | undefined = MetricKind.GAUGE,
-  perSeriesAligner: string | undefined = AlignmentTypes.ALIGN_MEAN,
-  preprocessor?: PreprocessorType
+  { valueType, metricKind, perSeriesAligner }: Partial<MetricQuery>,
+  templateSrv: TemplateSrv
 ) => {
-  const alignOptions = getAlignmentOptionsByMetric(valueType!, metricKind!, preprocessor!).map((option) => ({
+  const alignOptions = getAlignmentOptionsByMetric(valueType!, metricKind!).map(option => ({
     ...option,
     label: option.text,
   }));
-  if (!alignOptions.some((o: { value: string }) => o.value === templateSrv.replace(perSeriesAligner))) {
-    perSeriesAligner = alignOptions.length > 0 ? alignOptions[0].value : AlignmentTypes.ALIGN_MEAN;
+  if (!alignOptions.some((o: { value: string }) => o.value === templateSrv.replace(perSeriesAligner!))) {
+    perSeriesAligner = alignOptions.length > 0 ? alignOptions[0].value : '';
   }
   return { alignOptions, perSeriesAligner };
 };
 
 export const labelsToGroupedOptions = (groupBys: string[]) => {
   const groups = groupBys.reduce((acc: any, curr: string) => {
-    const arr = curr.split('.').map(startCase);
-    const group = (arr.length === 2 ? arr : initial(arr)).join(' ');
+    const arr = curr.split('.').map(_.startCase);
+    const group = (arr.length === 2 ? arr : _.initial(arr)).join(' ');
     const option = {
       value: curr,
       label: curr,
@@ -106,12 +93,12 @@ export const labelsToGroupedOptions = (groupBys: string[]) => {
 };
 
 export const filtersToStringArray = (filters: Filter[]) => {
-  const strArr = flatten(filters.map(({ key, operator, value, condition }) => [key, operator, value, condition!]));
+  const strArr = _.flatten(filters.map(({ key, operator, value, condition }) => [key, operator, value, condition!]));
   return strArr.filter((_, i) => i !== strArr.length - 1);
 };
 
 export const stringArrayToFilters = (filterArray: string[]) =>
-  chunk(filterArray, 4).map(([key, operator, value, condition = 'AND']) => ({
+  _.chunk(filterArray, 4).map(([key, operator, value, condition = 'AND']) => ({
     key,
     operator,
     value,

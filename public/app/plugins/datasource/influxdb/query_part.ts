@@ -1,4 +1,4 @@
-import { map, clone } from 'lodash';
+import _ from 'lodash';
 import { QueryPartDef, QueryPart, functionRenderer, suffixRenderer } from 'app/core/components/query_part/query_part';
 
 const index: any[] = [];
@@ -126,8 +126,8 @@ function addAliasStrategy(selectParts: any[], partModel: any) {
 
 function addFieldStrategy(selectParts: any, partModel: any, query: { selectModels: any[][] }) {
   // copy all parts
-  const parts = map(selectParts, (part: any) => {
-    return createPart({ type: part.def.type, params: clone(part.params) });
+  const parts = _.map(selectParts, (part: any) => {
+    return createPart({ type: part.def.type, params: _.clone(part.params) });
   });
 
   query.selectModels.push(parts);

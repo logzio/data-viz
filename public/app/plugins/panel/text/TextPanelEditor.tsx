@@ -1,5 +1,5 @@
 import React, { FC, useMemo } from 'react';
-import { css, cx } from '@emotion/css';
+import { css, cx } from 'emotion';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import {
   CodeEditor,
@@ -10,10 +10,10 @@ import {
 } from '@grafana/ui';
 import { GrafanaTheme, StandardEditorProps } from '@grafana/data';
 
-import { PanelOptions, TextMode } from './models.gen';
+import { TextOptions } from './types';
 
-export const TextPanelEditor: FC<StandardEditorProps<string, any, PanelOptions>> = ({ value, onChange, context }) => {
-  const language = useMemo(() => context.options?.mode ?? TextMode.Markdown, [context]);
+export const TextPanelEditor: FC<StandardEditorProps<string, any, TextOptions>> = ({ value, onChange, context }) => {
+  const language = useMemo(() => context.options?.mode ?? 'markdown', [context]);
   const theme = useTheme();
   const styles = getStyles(theme);
 
@@ -21,7 +21,7 @@ export const TextPanelEditor: FC<StandardEditorProps<string, any, PanelOptions>>
     if (!context.getSuggestions) {
       return [];
     }
-    return context.getSuggestions().map((v) => variableSuggestionToCodeEditorSuggestion(v));
+    return context.getSuggestions().map(v => variableSuggestionToCodeEditorSuggestion(v));
   };
 
   return (

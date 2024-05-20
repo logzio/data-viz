@@ -1,7 +1,6 @@
 import React from 'react';
-import { Story } from '@storybook/react';
-import { Badge, BadgeProps } from '@grafana/ui';
-import { iconOptions } from '../../utils/storybook/knobs';
+import { boolean, text, select } from '@storybook/addon-knobs';
+import { Badge, BadgeColor } from '@grafana/ui';
 
 export default {
   title: 'Data Display/Badge',
@@ -10,19 +9,27 @@ export default {
   parameters: {
     docs: {},
   },
-  argTypes: {
-    icon: { options: iconOptions, control: { type: 'select' } },
-    color: { control: 'select' },
-    text: { control: 'text' },
-  },
 };
 
-const Template: Story<BadgeProps> = (args) => <Badge {...args} />;
-
-export const Basic = Template.bind({});
-
-Basic.args = {
-  text: 'Badge label',
-  color: 'blue',
-  icon: 'rocket',
+export const basic = () => {
+  const badgeColor = select<BadgeColor>(
+    'Badge color',
+    {
+      Red: 'red',
+      Green: 'green',
+      Blue: 'blue',
+      Orange: 'orange',
+    },
+    'blue'
+  );
+  const withIcon = boolean('With icon', true);
+  const tooltipText = text('Tooltip text', '');
+  return (
+    <Badge
+      text={'Badge label'}
+      color={badgeColor}
+      icon={withIcon ? 'rocket' : undefined}
+      tooltip={tooltipText.trim() === '' ? undefined : tooltipText}
+    />
+  );
 };

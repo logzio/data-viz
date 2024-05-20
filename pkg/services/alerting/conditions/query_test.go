@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/grafana/grafana/pkg/services/validations"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/grafana/grafana-plugin-sdk-go/data"
@@ -15,22 +13,12 @@ import (
 	"github.com/grafana/grafana/pkg/components/null"
 	"github.com/grafana/grafana/pkg/components/simplejson"
 	"github.com/grafana/grafana/pkg/models"
-	"github.com/grafana/grafana/pkg/plugins"
 	"github.com/grafana/grafana/pkg/services/alerting"
+	"github.com/grafana/grafana/pkg/tsdb"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/require"
 	"github.com/xorcare/pointer"
 )
-
-func newTimeSeriesPointsFromArgs(values ...float64) plugins.DataTimeSeriesPoints {
-	points := make(plugins.DataTimeSeriesPoints, 0)
-
-	for i := 0; i < len(values); i += 2 {
-		points = append(points, plugins.DataTimePoint{null.FloatFrom(values[i]), null.FloatFrom(values[i+1])})
-	}
-
-	return points
-}
 
 func TestQueryCondition(t *testing.T) {
 	Convey("when evaluating query condition", t, func() {
@@ -59,8 +47,8 @@ func TestQueryCondition(t *testing.T) {
 			})
 
 			Convey("should fire when avg is above 100", func() {
-				points := newTimeSeriesPointsFromArgs(120, 0)
-				ctx.series = plugins.DataTimeSeriesSlice{plugins.DataTimeSeries{Name: "test1", Points: points}}
+				points := tsdb.NewTimeSeriesPointsFromArgs(120, 0)
+				ctx.series = tsdb.TimeSeriesSlice{tsdb.NewTimeSeries("test1", points)}
 				cr, err := ctx.exec()
 
 				So(err, ShouldBeNil)
@@ -79,8 +67,8 @@ func TestQueryCondition(t *testing.T) {
 			})
 
 			Convey("Should not fire when avg is below 100", func() {
-				points := newTimeSeriesPointsFromArgs(90, 0)
-				ctx.series = plugins.DataTimeSeriesSlice{plugins.DataTimeSeries{Name: "test1", Points: points}}
+				points := tsdb.NewTimeSeriesPointsFromArgs(90, 0)
+				ctx.series = tsdb.TimeSeriesSlice{tsdb.NewTimeSeries("test1", points)}
 				cr, err := ctx.exec()
 
 				So(err, ShouldBeNil)
@@ -99,9 +87,9 @@ func TestQueryCondition(t *testing.T) {
 			})
 
 			Convey("Should fire if only first series matches", func() {
-				ctx.series = plugins.DataTimeSeriesSlice{
-					plugins.DataTimeSeries{Name: "test1", Points: newTimeSeriesPointsFromArgs(120, 0)},
-					plugins.DataTimeSeries{Name: "test2", Points: newTimeSeriesPointsFromArgs(0, 0)},
+				ctx.series = tsdb.TimeSeriesSlice{
+					tsdb.NewTimeSeries("test1", tsdb.NewTimeSeriesPointsFromArgs(120, 0)),
+					tsdb.NewTimeSeries("test2", tsdb.NewTimeSeriesPointsFromArgs(0, 0)),
 				}
 				cr, err := ctx.exec()
 
@@ -111,7 +99,7 @@ func TestQueryCondition(t *testing.T) {
 
 			Convey("No series", func() {
 				Convey("Should set NoDataFound when condition is gt", func() {
-					ctx.series = plugins.DataTimeSeriesSlice{}
+					ctx.series = tsdb.TimeSeriesSlice{}
 					cr, err := ctx.exec()
 
 					So(err, ShouldBeNil)
@@ -121,7 +109,7 @@ func TestQueryCondition(t *testing.T) {
 
 				Convey("Should be firing when condition is no_value", func() {
 					ctx.evaluator = `{"type": "no_value", "params": []}`
-					ctx.series = plugins.DataTimeSeriesSlice{}
+					ctx.series = tsdb.TimeSeriesSlice{}
 					cr, err := ctx.exec()
 
 					So(err, ShouldBeNil)
@@ -132,8 +120,8 @@ func TestQueryCondition(t *testing.T) {
 			Convey("Empty series", func() {
 				Convey("Should set Firing if eval match", func() {
 					ctx.evaluator = `{"type": "no_value", "params": []}`
-					ctx.series = plugins.DataTimeSeriesSlice{
-						plugins.DataTimeSeries{Name: "test1", Points: newTimeSeriesPointsFromArgs()},
+					ctx.series = tsdb.TimeSeriesSlice{
+						tsdb.NewTimeSeries("test1", tsdb.NewTimeSeriesPointsFromArgs()),
 					}
 					cr, err := ctx.exec()
 
@@ -142,9 +130,9 @@ func TestQueryCondition(t *testing.T) {
 				})
 
 				Convey("Should set NoDataFound both series are empty", func() {
-					ctx.series = plugins.DataTimeSeriesSlice{
-						plugins.DataTimeSeries{Name: "test1", Points: newTimeSeriesPointsFromArgs()},
-						plugins.DataTimeSeries{Name: "test2", Points: newTimeSeriesPointsFromArgs()},
+					ctx.series = tsdb.TimeSeriesSlice{
+						tsdb.NewTimeSeries("test1", tsdb.NewTimeSeriesPointsFromArgs()),
+						tsdb.NewTimeSeries("test2", tsdb.NewTimeSeriesPointsFromArgs()),
 					}
 					cr, err := ctx.exec()
 
@@ -153,9 +141,9 @@ func TestQueryCondition(t *testing.T) {
 				})
 
 				Convey("Should set NoDataFound both series contains null", func() {
-					ctx.series = plugins.DataTimeSeriesSlice{
-						plugins.DataTimeSeries{Name: "test1", Points: plugins.DataTimeSeriesPoints{plugins.DataTimePoint{null.FloatFromPtr(nil), null.FloatFrom(0)}}},
-						plugins.DataTimeSeries{Name: "test2", Points: plugins.DataTimeSeriesPoints{plugins.DataTimePoint{null.FloatFromPtr(nil), null.FloatFrom(0)}}},
+					ctx.series = tsdb.TimeSeriesSlice{
+						tsdb.NewTimeSeries("test1", tsdb.TimeSeriesPoints{tsdb.TimePoint{null.FloatFromPtr(nil), null.FloatFrom(0)}}),
+						tsdb.NewTimeSeries("test2", tsdb.TimeSeriesPoints{tsdb.TimePoint{null.FloatFromPtr(nil), null.FloatFrom(0)}}),
 					}
 					cr, err := ctx.exec()
 
@@ -164,9 +152,9 @@ func TestQueryCondition(t *testing.T) {
 				})
 
 				Convey("Should not set NoDataFound if one series is empty", func() {
-					ctx.series = plugins.DataTimeSeriesSlice{
-						plugins.DataTimeSeries{Name: "test1", Points: newTimeSeriesPointsFromArgs()},
-						plugins.DataTimeSeries{Name: "test2", Points: newTimeSeriesPointsFromArgs(120, 0)},
+					ctx.series = tsdb.TimeSeriesSlice{
+						tsdb.NewTimeSeries("test1", tsdb.NewTimeSeriesPointsFromArgs()),
+						tsdb.NewTimeSeries("test2", tsdb.NewTimeSeriesPointsFromArgs(120, 0)),
 					}
 					cr, err := ctx.exec()
 
@@ -181,7 +169,7 @@ func TestQueryCondition(t *testing.T) {
 type queryConditionTestContext struct {
 	reducer   string
 	evaluator string
-	series    plugins.DataTimeSeriesSlice
+	series    tsdb.TimeSeriesSlice
 	frame     *data.Frame
 	result    *alerting.EvalContext
 	condition *QueryCondition
@@ -189,7 +177,6 @@ type queryConditionTestContext struct {
 
 type queryConditionScenarioFunc func(c *queryConditionTestContext)
 
-//nolint: staticcheck // plugins.DataPlugin deprecated
 func (ctx *queryConditionTestContext) exec() (*alerting.ConditionResult, error) {
 	jsonModel, err := simplejson.NewJson([]byte(`{
             "type": "query",
@@ -208,48 +195,37 @@ func (ctx *queryConditionTestContext) exec() (*alerting.ConditionResult, error) 
 
 	ctx.condition = condition
 
-	qr := plugins.DataQueryResult{
+	qr := &tsdb.QueryResult{
 		Series: ctx.series,
 	}
 
 	if ctx.frame != nil {
-		qr = plugins.DataQueryResult{
-			Dataframes: plugins.NewDecodedDataFrames(data.Frames{ctx.frame}),
+		qr = &tsdb.QueryResult{
+			Dataframes: tsdb.NewDecodedDataFrames(data.Frames{ctx.frame}),
 		}
 	}
-	reqHandler := fakeReqHandler{
-		response: plugins.DataResponse{
-			Results: map[string]plugins.DataQueryResult{
+
+	condition.HandleRequest = func(context context.Context, dsInfo *models.DataSource, req *tsdb.TsdbQuery) (*tsdb.Response, error) {
+		return &tsdb.Response{
+			Results: map[string]*tsdb.QueryResult{
 				"A": qr,
 			},
-		},
+		}, nil
 	}
 
-	return condition.Eval(ctx.result, reqHandler)
-}
-
-type fakeReqHandler struct {
-	//nolint: staticcheck // plugins.DataPlugin deprecated
-	response plugins.DataResponse
-}
-
-//nolint: staticcheck // plugins.DataPlugin deprecated
-func (rh fakeReqHandler) HandleRequest(context.Context, *models.DataSource, plugins.DataQuery) (
-	plugins.DataResponse, error) {
-	return rh.response, nil
+	return condition.Eval(ctx.result)
 }
 
 func queryConditionScenario(desc string, fn queryConditionScenarioFunc) {
 	Convey(desc, func() {
-		bus.AddHandler("test", func(query *models.GetDataSourceQuery) error {
+		bus.AddHandler("test", func(query *models.GetDataSourceByIdQuery) error {
 			query.Result = &models.DataSource{Id: 1, Type: "graphite"}
 			return nil
 		})
 
 		ctx := &queryConditionTestContext{}
 		ctx.result = &alerting.EvalContext{
-			Rule:             &alerting.Rule{},
-			RequestValidator: &validations.OSSPluginRequestValidator{},
+			Rule: &alerting.Rule{},
 		}
 
 		fn(ctx)
@@ -260,7 +236,7 @@ func TestFrameToSeriesSlice(t *testing.T) {
 	tests := []struct {
 		name        string
 		frame       *data.Frame
-		seriesSlice plugins.DataTimeSeriesSlice
+		seriesSlice tsdb.TimeSeriesSlice
 		Err         require.ErrorAssertionFunc
 	}{
 		{
@@ -279,21 +255,21 @@ func TestFrameToSeriesSlice(t *testing.T) {
 					4.0,
 				})),
 
-			seriesSlice: plugins.DataTimeSeriesSlice{
-				plugins.DataTimeSeries{
+			seriesSlice: tsdb.TimeSeriesSlice{
+				&tsdb.TimeSeries{
 					Name: "Values Int64s {Animal Factor=cat}",
 					Tags: map[string]string{"Animal Factor": "cat"},
-					Points: plugins.DataTimeSeriesPoints{
-						plugins.DataTimePoint{null.FloatFrom(math.NaN()), null.FloatFrom(1577934240000)},
-						plugins.DataTimePoint{null.FloatFrom(3), null.FloatFrom(1577934270000)},
+					Points: tsdb.TimeSeriesPoints{
+						tsdb.TimePoint{null.FloatFrom(math.NaN()), null.FloatFrom(1577934240000)},
+						tsdb.TimePoint{null.FloatFrom(3), null.FloatFrom(1577934270000)},
 					},
 				},
-				plugins.DataTimeSeries{
+				&tsdb.TimeSeries{
 					Name: "Values Floats {Animal Factor=sloth}",
 					Tags: map[string]string{"Animal Factor": "sloth"},
-					Points: plugins.DataTimeSeriesPoints{
-						plugins.DataTimePoint{null.FloatFrom(2), null.FloatFrom(1577934240000)},
-						plugins.DataTimePoint{null.FloatFrom(4), null.FloatFrom(1577934270000)},
+					Points: tsdb.TimeSeriesPoints{
+						tsdb.TimePoint{null.FloatFrom(2), null.FloatFrom(1577934240000)},
+						tsdb.TimePoint{null.FloatFrom(4), null.FloatFrom(1577934270000)},
 					},
 				},
 			},
@@ -306,16 +282,16 @@ func TestFrameToSeriesSlice(t *testing.T) {
 				data.NewField(`Values Int64s`, data.Labels{"Animal Factor": "cat"}, []*int64{}),
 				data.NewField(`Values Floats`, data.Labels{"Animal Factor": "sloth"}, []float64{})),
 
-			seriesSlice: plugins.DataTimeSeriesSlice{
-				plugins.DataTimeSeries{
+			seriesSlice: tsdb.TimeSeriesSlice{
+				&tsdb.TimeSeries{
 					Name:   "Values Int64s {Animal Factor=cat}",
 					Tags:   map[string]string{"Animal Factor": "cat"},
-					Points: plugins.DataTimeSeriesPoints{},
+					Points: tsdb.TimeSeriesPoints{},
 				},
-				plugins.DataTimeSeries{
+				&tsdb.TimeSeries{
 					Name:   "Values Floats {Animal Factor=sloth}",
 					Tags:   map[string]string{"Animal Factor": "sloth"},
-					Points: plugins.DataTimeSeriesPoints{},
+					Points: tsdb.TimeSeriesPoints{},
 				},
 			},
 			Err: require.NoError,
@@ -326,10 +302,10 @@ func TestFrameToSeriesSlice(t *testing.T) {
 				data.NewField("Time", data.Labels{}, []time.Time{}),
 				data.NewField(`Values`, data.Labels{}, []float64{})),
 
-			seriesSlice: plugins.DataTimeSeriesSlice{
-				plugins.DataTimeSeries{
+			seriesSlice: tsdb.TimeSeriesSlice{
+				&tsdb.TimeSeries{
 					Name:   "Values",
-					Points: plugins.DataTimeSeriesPoints{},
+					Points: tsdb.TimeSeriesPoints{},
 				},
 			},
 			Err: require.NoError,
@@ -338,15 +314,14 @@ func TestFrameToSeriesSlice(t *testing.T) {
 			name: "display name from data source",
 			frame: data.NewFrame("",
 				data.NewField("Time", data.Labels{}, []time.Time{}),
-				data.NewField(`Values`, data.Labels{"Rating": "10"}, []*int64{}).SetConfig(&data.FieldConfig{
+				data.NewField(`Values`, data.Labels{}, []*int64{}).SetConfig(&data.FieldConfig{
 					DisplayNameFromDS: "sloth",
 				})),
 
-			seriesSlice: plugins.DataTimeSeriesSlice{
-				plugins.DataTimeSeries{
+			seriesSlice: tsdb.TimeSeriesSlice{
+				&tsdb.TimeSeries{
 					Name:   "sloth",
-					Points: plugins.DataTimeSeriesPoints{},
-					Tags:   map[string]string{"Rating": "10"},
+					Points: tsdb.TimeSeriesPoints{},
 				},
 			},
 			Err: require.NoError,
@@ -360,10 +335,10 @@ func TestFrameToSeriesSlice(t *testing.T) {
 					DisplayNameFromDS: "sloth #2",
 				})),
 
-			seriesSlice: plugins.DataTimeSeriesSlice{
-				plugins.DataTimeSeries{
+			seriesSlice: tsdb.TimeSeriesSlice{
+				&tsdb.TimeSeries{
 					Name:   "sloth #1",
-					Points: plugins.DataTimeSeriesPoints{},
+					Points: tsdb.TimeSeriesPoints{},
 				},
 			},
 			Err: require.NoError,

@@ -1,5 +1,6 @@
 import React, { PureComponent, ReactNode } from 'react';
-import { connect, ConnectedProps } from 'react-redux';
+import { connect, MapDispatchToProps, MapStateToProps } from 'react-redux';
+import { StoreState } from 'app/types';
 import { AdHocVariableFilter, AdHocVariableModel } from 'app/features/variables/types';
 import { VariablePickerProps } from '../../pickers/types';
 import { SelectableValue } from '@grafana/data';
@@ -9,20 +10,20 @@ import { addFilter, changeFilter, removeFilter } from '../actions';
 import { REMOVE_FILTER_KEY } from './AdHocFilterKey';
 import { AdHocFilterRenderer } from './AdHocFilterRenderer';
 
-const mapDispatchToProps = {
-  addFilter,
-  removeFilter,
-  changeFilter,
-};
-
-const connector = connect(null, mapDispatchToProps);
-
 interface OwnProps extends VariablePickerProps<AdHocVariableModel> {}
 
-type Props = OwnProps & ConnectedProps<typeof connector>;
+interface ConnectedProps {}
+
+interface DispatchProps {
+  addFilter: typeof addFilter;
+  removeFilter: typeof removeFilter;
+  changeFilter: typeof changeFilter;
+}
+
+type Props = OwnProps & ConnectedProps & DispatchProps;
 
 export class AdHocPickerUnconnected extends PureComponent<Props> {
-  onChange = (index: number, prop: string) => (key: SelectableValue<string | null>) => {
+  onChange = (index: number, prop: string) => (key: SelectableValue<string>) => {
     const { id, filters } = this.props.variable;
     const { value } = key;
 
@@ -84,5 +85,13 @@ export class AdHocPickerUnconnected extends PureComponent<Props> {
   }
 }
 
-export const AdHocPicker = connector(AdHocPickerUnconnected);
+const mapDispatchToProps: MapDispatchToProps<DispatchProps, OwnProps> = {
+  addFilter,
+  removeFilter,
+  changeFilter,
+};
+
+const mapStateToProps: MapStateToProps<ConnectedProps, OwnProps, StoreState> = state => ({});
+
+export const AdHocPicker = connect(mapStateToProps, mapDispatchToProps)(AdHocPickerUnconnected);
 AdHocPicker.displayName = 'AdHocPicker';

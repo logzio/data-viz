@@ -1,7 +1,7 @@
 import React from 'react';
 import { shallow } from 'enzyme';
 import { BigValue, Props, BigValueColorMode, BigValueGraphMode } from './BigValue';
-import { createTheme } from '@grafana/data';
+import { getTheme } from '../../themes';
 
 function getProps(propOverrides?: Partial<Props>): Props {
   const props: Props = {
@@ -12,9 +12,8 @@ function getProps(propOverrides?: Partial<Props>): Props {
     value: {
       text: '25',
       numeric: 25,
-      color: 'red',
     },
-    theme: createTheme(),
+    theme: getTheme(),
   };
 
   Object.assign(props, propOverrides);

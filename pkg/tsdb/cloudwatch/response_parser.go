@@ -46,7 +46,7 @@ func (e *cloudWatchExecutor) parseResponse(metricDataOutputs []*cloudwatch.GetMe
 		}
 	}
 
-	cloudWatchResponses := make([]*cloudwatchResponse, 0, len(mdrs))
+	cloudWatchResponses := make([]*cloudwatchResponse, 0)
 	for id, lr := range mdrs {
 		query := queries[id]
 		frames, partialData, err := parseMetricResults(lr, labels[id], query)

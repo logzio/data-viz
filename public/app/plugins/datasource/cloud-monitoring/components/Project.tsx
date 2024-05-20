@@ -1,9 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { SelectableValue } from '@grafana/data';
-import { Select } from '@grafana/ui';
+import { SegmentAsync } from '@grafana/ui';
 import CloudMonitoringDatasource from '../datasource';
-import { SELECT_WIDTH } from '../constants';
-import { QueryEditorRow } from '.';
 
 export interface Props {
   datasource: CloudMonitoringDatasource;
@@ -13,30 +11,27 @@ export interface Props {
 }
 
 export function Project({ projectName, datasource, onChange, templateVariableOptions }: Props) {
-  const [projects, setProjects] = useState<Array<SelectableValue<string>>>([]);
-  useEffect(() => {
-    datasource.getProjects().then((projects) =>
-      setProjects([
-        {
-          label: 'Template Variables',
-          options: templateVariableOptions,
-        },
-        ...projects,
-      ])
-    );
-  }, [datasource, templateVariableOptions]);
-
   return (
-    <QueryEditorRow label="Project">
-      <Select
-        width={SELECT_WIDTH}
+    <div className="gf-form-inline">
+      <span className="gf-form-label width-9 query-keyword">Project</span>
+      <SegmentAsync
         allowCustomValue
-        formatCreateLabel={(v) => `Use project: ${v}`}
         onChange={({ value }) => onChange(value!)}
-        options={projects}
-        value={{ value: projectName, label: projectName }}
+        loadOptions={() =>
+          datasource.getProjects().then(projects => [
+            {
+              label: 'Template Variables',
+              options: templateVariableOptions,
+            },
+            ...projects,
+          ])
+        }
+        value={projectName}
         placeholder="Select Project"
       />
-    </QueryEditorRow>
+      <div className="gf-form gf-form--grow">
+        <div className="gf-form-label gf-form-label--grow" />
+      </div>
+    </div>
   );
 }

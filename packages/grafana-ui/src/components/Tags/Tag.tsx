@@ -1,12 +1,9 @@
 import React, { forwardRef, HTMLAttributes } from 'react';
-import { cx, css } from '@emotion/css';
+import { cx, css } from 'emotion';
 import { GrafanaTheme } from '@grafana/data';
 import { useTheme } from '../../themes';
 import { getTagColor, getTagColorsFromName } from '../../utils';
 
-/**
- * @public
- */
 export type OnTagClick = (name: string, event: React.MouseEvent<HTMLElement>) => any;
 
 export interface Props extends Omit<HTMLAttributes<HTMLElement>, 'onClick'> {
@@ -39,8 +36,6 @@ export const Tag = forwardRef<HTMLElement, Props>(({ name, onClick, className, c
     </span>
   );
 });
-
-Tag.displayName = 'Tag';
 
 const getTagStyles = (theme: GrafanaTheme, name: string, colorIndex?: number) => {
   let colors;

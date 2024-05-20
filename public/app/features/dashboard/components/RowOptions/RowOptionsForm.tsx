@@ -1,5 +1,5 @@
 import React, { FC, useCallback, useState } from 'react';
-import { Button, Field, Form, Modal, Input } from '@grafana/ui';
+import { Button, Field, Form, HorizontalGroup, Input } from '@grafana/ui';
 
 import { RepeatRowSelect } from '../RepeatRowSelect/RepeatRowSelect';
 
@@ -26,19 +26,19 @@ export const RowOptionsForm: FC<Props> = ({ repeat, title, onUpdate, onCancel })
       {({ register }) => (
         <>
           <Field label="Title">
-            <Input {...register('title')} type="text" />
+            <Input name="title" ref={register} type="text" />
           </Field>
 
           <Field label="Repeat for">
             <RepeatRowSelect repeat={newRepeat} onChange={onChangeRepeat} />
           </Field>
 
-          <Modal.ButtonRow>
-            <Button type="button" variant="secondary" onClick={onCancel} fill="outline">
+          <HorizontalGroup>
+            <Button type="submit">Update</Button>
+            <Button variant="secondary" onClick={onCancel}>
               Cancel
             </Button>
-            <Button type="submit">Update</Button>
-          </Modal.ButtonRow>
+          </HorizontalGroup>
         </>
       )}
     </Form>

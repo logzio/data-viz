@@ -10,27 +10,25 @@ import (
 )
 
 func init() {
+	bus.AddHandler("sql", GetPluginSettings)
 	bus.AddHandler("sql", GetPluginSettingById)
 	bus.AddHandler("sql", UpdatePluginSetting)
 	bus.AddHandler("sql", UpdatePluginSettingVersion)
 }
 
-func (ss *SQLStore) GetPluginSettings(orgID int64) ([]*models.PluginSettingInfoDTO, error) {
+func GetPluginSettings(query *models.GetPluginSettingsQuery) error {
 	sql := `SELECT org_id, plugin_id, enabled, pinned, plugin_version
 					FROM plugin_setting `
 	params := make([]interface{}, 0)
 
-	if orgID != 0 {
+	if query.OrgId != 0 {
 		sql += "WHERE org_id=?"
-		params = append(params, orgID)
+		params = append(params, query.OrgId)
 	}
 
 	sess := x.SQL(sql, params...)
-	var rslt []*models.PluginSettingInfoDTO
-	if err := sess.Find(&rslt); err != nil {
-		return nil, err
-	}
-	return rslt, nil
+	query.Result = make([]*models.PluginSettingInfoDTO, 0)
+	return sess.Find(&query.Result)
 }
 
 func GetPluginSettingById(query *models.GetPluginSettingByIdQuery) error {

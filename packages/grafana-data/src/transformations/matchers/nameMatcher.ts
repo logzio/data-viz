@@ -9,28 +9,6 @@ export interface RegexpOrNamesMatcherOptions {
   names?: string[];
 }
 
-/**
- * Mode to be able to toggle if the names matcher should match fields in provided
- * list or all except provided names.
- * @public
- */
-export enum ByNamesMatcherMode {
-  exclude = 'exclude',
-  include = 'include',
-}
-
-/**
- * Options to instruct the by names matcher to either match all fields in given list
- * or all except the fields in the list.
- * @public
- */
-export interface ByNamesMatcherOptions {
-  mode?: ByNamesMatcherMode;
-  names?: string[];
-  readOnly?: boolean;
-  prefix?: string;
-}
-
 // General Field matcher
 const fieldNameMatcher: FieldMatcherInfo<string> = {
   id: FieldMatcherID.byName,
@@ -49,34 +27,22 @@ const fieldNameMatcher: FieldMatcherInfo<string> = {
   },
 };
 
-const multipleFieldNamesMatcher: FieldMatcherInfo<ByNamesMatcherOptions> = {
+const multipleFieldNamesMatcher: FieldMatcherInfo<string[]> = {
   id: FieldMatcherID.byNames,
   name: 'Field Names',
   description: 'match any of the given the field names',
-  defaultOptions: {
-    mode: ByNamesMatcherMode.include,
-    names: [],
-  },
+  defaultOptions: [],
 
-  get: (options: ByNamesMatcherOptions): FieldMatcher => {
-    const { names, mode = ByNamesMatcherMode.include } = options;
+  get: (names: string[]): FieldMatcher => {
     const uniqueNames = new Set<string>(names ?? []);
 
     return (field: Field, frame: DataFrame, allFrames: DataFrame[]) => {
-      if (mode === ByNamesMatcherMode.exclude) {
-        return !uniqueNames.has(getFieldDisplayName(field, frame, allFrames));
-      }
       return uniqueNames.has(getFieldDisplayName(field, frame, allFrames));
     };
   },
 
-  getOptionsDisplayText: (options: ByNamesMatcherOptions): string => {
-    const { names, mode } = options;
-    const displayText = (names ?? []).join(', ');
-    if (mode === ByNamesMatcherMode.exclude) {
-      return `All except: ${displayText}`;
-    }
-    return `All of: ${displayText}`;
+  getOptionsDisplayText: (names: string[]): string => {
+    return `Field names: ${names.join(', ')}`;
   },
 };
 
@@ -100,28 +66,6 @@ const regexpFieldNameMatcher: FieldMatcherInfo<string> = {
   },
 };
 
-/**
- * Field matcher that will match all fields that exists in a
- * data frame with configured refId.
- * @public
- */
-const fieldsInFrameMatcher: FieldMatcherInfo<string> = {
-  id: FieldMatcherID.byFrameRefID,
-  name: 'Fields by frame refId',
-  description: 'match all fields returned in data frame with refId.',
-  defaultOptions: '',
-
-  get: (refId: string): FieldMatcher => {
-    return (field: Field, frame: DataFrame, allFrames: DataFrame[]) => {
-      return frame.refId === refId;
-    };
-  },
-
-  getOptionsDisplayText: (refId: string): string => {
-    return `Math all fields returned by query with reference ID: ${refId}`;
-  },
-};
-
 const regexpOrMultipleNamesMatcher: FieldMatcherInfo<RegexpOrNamesMatcherOptions> = {
   id: FieldMatcherID.byRegexpOrNames,
   name: 'Field Name by Regexp or Names',
@@ -133,10 +77,7 @@ const regexpOrMultipleNamesMatcher: FieldMatcherInfo<RegexpOrNamesMatcherOptions
 
   get: (options: RegexpOrNamesMatcherOptions): FieldMatcher => {
     const regexpMatcher = regexpFieldNameMatcher.get(options?.pattern || '');
-    const namesMatcher = multipleFieldNamesMatcher.get({
-      mode: ByNamesMatcherMode.include,
-      names: options?.names ?? [],
-    });
+    const namesMatcher = multipleFieldNamesMatcher.get(options?.names ?? []);
 
     return (field: Field, frame: DataFrame, allFrames: DataFrame[]) => {
       return namesMatcher(field, frame, allFrames) || regexpMatcher(field, frame, allFrames);
@@ -186,13 +127,7 @@ const frameNameMatcher: FrameMatcherInfo<string> = {
  * Registry Initialization
  */
 export function getFieldNameMatchers(): FieldMatcherInfo[] {
-  return [
-    fieldNameMatcher,
-    regexpFieldNameMatcher,
-    multipleFieldNamesMatcher,
-    regexpOrMultipleNamesMatcher,
-    fieldsInFrameMatcher,
-  ];
+  return [fieldNameMatcher, regexpFieldNameMatcher, multipleFieldNamesMatcher, regexpOrMultipleNamesMatcher];
 }
 
 export function getFrameNameMatchers(): FrameMatcherInfo[] {

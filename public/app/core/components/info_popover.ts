@@ -1,4 +1,4 @@
-import { each } from 'lodash';
+import _ from 'lodash';
 import coreModule from 'app/core/core_module';
 // @ts-ignore
 import Drop from 'tether-drop';
@@ -28,7 +28,7 @@ export function infoPopover() {
         const content = document.createElement('div');
         content.className = 'markdown-html';
 
-        each(clone, (node) => {
+        _.each(clone, node => {
           content.appendChild(node);
         });
 

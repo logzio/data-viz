@@ -1,7 +1,6 @@
 package search
 
 import (
-	"context"
 	"testing"
 
 	"github.com/grafana/grafana/pkg/bus"
@@ -13,11 +12,11 @@ import (
 func TestSearch_SortedResults(t *testing.T) {
 	bus.AddHandler("test", func(query *FindPersistedDashboardsQuery) error {
 		query.Result = HitList{
-			&Hit{ID: 16, Title: "CCAA", Type: "dash-db", Tags: []string{"BB", "AA"}},
-			&Hit{ID: 10, Title: "AABB", Type: "dash-db", Tags: []string{"CC", "AA"}},
-			&Hit{ID: 15, Title: "BBAA", Type: "dash-db", Tags: []string{"EE", "AA", "BB"}},
-			&Hit{ID: 25, Title: "bbAAa", Type: "dash-db", Tags: []string{"EE", "AA", "BB"}},
-			&Hit{ID: 17, Title: "FOLDER", Type: "dash-folder"},
+			&Hit{Id: 16, Title: "CCAA", Type: "dash-db", Tags: []string{"BB", "AA"}},
+			&Hit{Id: 10, Title: "AABB", Type: "dash-db", Tags: []string{"CC", "AA"}},
+			&Hit{Id: 15, Title: "BBAA", Type: "dash-db", Tags: []string{"EE", "AA", "BB"}},
+			&Hit{Id: 25, Title: "bbAAa", Type: "dash-db", Tags: []string{"EE", "AA", "BB"}},
+			&Hit{Id: 17, Title: "FOLDER", Type: "dash-folder"},
 		}
 		return nil
 	})
@@ -27,7 +26,7 @@ func TestSearch_SortedResults(t *testing.T) {
 		return nil
 	})
 
-	bus.AddHandlerCtx("test", func(ctx context.Context, query *models.GetSignedInUserQuery) error {
+	bus.AddHandler("test", func(query *models.GetSignedInUserQuery) error {
 		query.Result = &models.SignedInUser{IsGrafanaAdmin: true}
 		return nil
 	})

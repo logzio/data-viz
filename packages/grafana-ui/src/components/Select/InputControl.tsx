@@ -1,10 +1,10 @@
 import React from 'react';
-import { useTheme2 } from '../../themes/ThemeContext';
+import { useTheme } from '../../themes/ThemeContext';
 import { sharedInputStyle } from '../Forms/commonStyles';
 import { getInputStyles } from '../Input/Input';
-import { css, cx } from '@emotion/css';
+import { css, cx } from 'emotion';
 import { stylesFactory } from '../../themes';
-import { GrafanaTheme2 } from '@grafana/data';
+import { GrafanaTheme } from '@grafana/data';
 import { focusCss } from '../../themes/mixins';
 
 interface InputControlProps {
@@ -17,7 +17,7 @@ interface InputControlProps {
 }
 
 const getInputControlStyles = stylesFactory(
-  (theme: GrafanaTheme2, invalid: boolean, focused: boolean, disabled: boolean, withPrefix: boolean) => {
+  (theme: GrafanaTheme, invalid: boolean, focused: boolean, disabled: boolean, withPrefix: boolean) => {
     const styles = getInputStyles({ theme, invalid });
 
     return {
@@ -26,7 +26,7 @@ const getInputControlStyles = stylesFactory(
         sharedInputStyle(theme, invalid),
         focused &&
           css`
-            ${focusCss(theme.v1)}
+            ${focusCss(theme)}
           `,
         disabled && styles.inputDisabled,
         css`
@@ -60,7 +60,7 @@ const getInputControlStyles = stylesFactory(
 
 export const InputControl = React.forwardRef<HTMLDivElement, React.PropsWithChildren<InputControlProps>>(
   function InputControl({ focused, invalid, disabled, children, innerProps, prefix, ...otherProps }, ref) {
-    const theme = useTheme2();
+    const theme = useTheme();
     const styles = getInputControlStyles(theme, invalid, focused, disabled, !!prefix);
     return (
       <div className={styles.wrapper} {...innerProps} ref={ref}>

@@ -5,7 +5,7 @@ import (
 )
 
 type InstalledPlugin struct {
-	ID   string `json:"id"`
+	Id   string `json:"id"`
 	Name string `json:"name"`
 	Type string `json:"type"`
 
@@ -24,21 +24,21 @@ type PluginInfo struct {
 }
 
 type Plugin struct {
-	ID       string    `json:"id"`
+	Id       string    `json:"id"`
 	Category string    `json:"category"`
 	Versions []Version `json:"versions"`
 }
 
 type Version struct {
 	Commit  string `json:"commit"`
-	URL     string `json:"url"`
+	Url     string `json:"url"`
 	Version string `json:"version"`
-	// Arch contains architecture metadata.
+	// os-arch to md5 checksum to check when downloading the file
 	Arch map[string]ArchMeta `json:"arch"`
 }
 
 type ArchMeta struct {
-	SHA256 string `json:"sha256"`
+	Md5 string `json:"md5"`
 }
 
 type PluginRepo struct {

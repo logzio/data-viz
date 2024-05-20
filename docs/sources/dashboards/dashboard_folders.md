@@ -1,7 +1,11 @@
 +++
 title = "Dashboard Folders"
 keywords = ["grafana", "dashboard", "dashboard folders", "folder", "folders", "documentation", "guide"]
+type = "docs"
 aliases = ["/docs/grafana/latest/reference/dashboard_folders/"]
+[menu.docs]
+name = "Folders"
+parent = "dashboard_features"
 weight = 3
 +++
 
@@ -21,7 +25,7 @@ On the Create Folder page, fill in a unique name for the folder and then click C
 
 ## Manage Dashboards
 
-{{< figure src="/static/img/docs/v50/manage_dashboard_menu.png" max-width="300px" class="docs-image--right" >}}
+{{< docs-imagebox img="/img/docs/v50/manage_dashboard_menu.png" max-width="300px" class="docs-image--right" >}}
 
 There is a new Manage Dashboards page where you can carry out a variety of tasks:
 
@@ -46,6 +50,6 @@ The Dashboard Folder Page is similar to the Manage Dashboards page and is where 
 
 Permissions can be assigned to a folder and inherited by the containing dashboards. An Access Control List (ACL) is used where
 **Organization Role**, **Team** and Individual **User** can be assigned permissions. Read the
- [Dashboard and Folder Permissions]({{< relref "../permissions/dashboard-folder-permissions.md" >}}) docs for more detail
+ [Dashboard and Folder Permissions]({{< relref "../permissions/dashboard_folder_permissions.md" >}}) docs for more detail
  on the permission system.
 

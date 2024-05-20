@@ -1,7 +1,7 @@
 import React, { FunctionComponent } from 'react';
 import { ErrorBoundaryApi } from './ErrorBoundary';
 import { stylesFactory } from '../../themes';
-import { css } from '@emotion/css';
+import { css } from 'emotion';
 
 const getStyles = stylesFactory(() => {
   return css`

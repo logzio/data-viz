@@ -1,4 +1,4 @@
-import React, { useRef, useState, useLayoutEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import { Icon, Tooltip } from '@grafana/ui';
 import { sanitize, sanitizeUrl } from '@grafana/data/src/text/sanitize';
 import { getBackendSrv } from 'app/core/services/backend_srv';
@@ -14,16 +14,11 @@ interface Props {
   dashboardId: any;
 }
 
-export const DashboardLinksDashboard: React.FC<Props> = (props) => {
+export const DashboardLinksDashboard: React.FC<Props> = props => {
   const { link, linkInfo } = props;
   const listRef = useRef<HTMLUListElement>(null);
-  const [dropdownCssClass, setDropdownCssClass] = useState('invisible');
   const [opened, setOpened] = useState(0);
   const resolvedLinks = useResolvedLinks(props, opened);
-
-  useLayoutEffect(() => {
-    setDropdownCssClass(getDropdownLocationCssClass(listRef.current));
-  }, [resolvedLinks]);
 
   if (link.asDropdown) {
     return (
@@ -38,7 +33,7 @@ export const DashboardLinksDashboard: React.FC<Props> = (props) => {
             <Icon name="bars" style={{ marginRight: '4px' }} />
             <span>{linkInfo.title}</span>
           </a>
-          <ul className={`dropdown-menu ${dropdownCssClass}`} role="menu" ref={listRef}>
+          <ul className={`dropdown-menu ${getDropdownLocationCssClass(listRef.current)}`} role="menu" ref={listRef}>
             {resolvedLinks.length > 0 &&
               resolvedLinks.map((resolvedLink, index) => {
                 return (
@@ -46,8 +41,8 @@ export const DashboardLinksDashboard: React.FC<Props> = (props) => {
                     <a
                       href={resolvedLink.url}
                       // LOGZ.IO GRAFANA CHANGE :: link open on same tab to open on top frame
+                      // target={link.targetBlank ? '_blank' : '_self'}
                       target={link.targetBlank ? '_blank' : '_top'}
-                      rel="noreferrer"
                       aria-label={selectors.components.DashboardLinks.link}
                     >
                       {resolvedLink.title}
@@ -72,11 +67,11 @@ export const DashboardLinksDashboard: React.FC<Props> = (props) => {
               aria-label={selectors.components.DashboardLinks.container}
             >
               <a
-                className="gf-form-label gf-form-label--dashlink"
+                className="gf-form-label"
                 href={resolvedLink.url}
                 // LOGZ.IO GRAFANA CHANGE :: link open on same tab to open on top frame
+                // target={link.targetBlank ? '_blank' : '_self'}
                 target={link.targetBlank ? '_blank' : '_top'}
-                rel="noreferrer"
                 aria-label={selectors.components.DashboardLinks.link}
               >
                 <Icon name="apps" style={{ marginRight: '4px' }} />
@@ -96,7 +91,7 @@ interface LinkElementProps {
   children: JSX.Element;
 }
 
-const LinkElement: React.FC<LinkElementProps> = (props) => {
+const LinkElement: React.FC<LinkElementProps> = props => {
   const { link, children, ...rest } = props;
 
   return (
@@ -143,8 +138,8 @@ export function resolveLinks(
   }
 ): ResolvedLinkDTO[] {
   return searchHits
-    .filter((searchHit) => searchHit.id !== dashboardId)
-    .map((searchHit) => {
+    .filter(searchHit => searchHit.id !== dashboardId)
+    .map(searchHit => {
       const id = searchHit.id;
       const title = dependencies.sanitize(searchHit.title);
       const resolvedLink = dependencies.getLinkSrv().getLinkUrl({ ...link, url: searchHit.url });

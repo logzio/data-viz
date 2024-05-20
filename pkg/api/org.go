@@ -1,10 +1,7 @@
 package api
 
 import (
-	"errors"
-
 	"github.com/grafana/grafana/pkg/api/dtos"
-	"github.com/grafana/grafana/pkg/api/response"
 	"github.com/grafana/grafana/pkg/bus"
 	"github.com/grafana/grafana/pkg/infra/metrics"
 	"github.com/grafana/grafana/pkg/models"
@@ -13,25 +10,26 @@ import (
 )
 
 // GET /api/org
-func GetOrgCurrent(c *models.ReqContext) response.Response {
+func GetOrgCurrent(c *models.ReqContext) Response {
 	return getOrgHelper(c.OrgId)
 }
 
 // GET /api/orgs/:orgId
-func GetOrgByID(c *models.ReqContext) response.Response {
+func GetOrgByID(c *models.ReqContext) Response {
 	return getOrgHelper(c.ParamsInt64(":orgId"))
 }
 
 // Get /api/orgs/name/:name
-func (hs *HTTPServer) GetOrgByName(c *models.ReqContext) response.Response {
-	org, err := hs.SQLStore.GetOrgByName(c.Params(":name"))
-	if err != nil {
-		if errors.Is(err, models.ErrOrgNotFound) {
-			return response.Error(404, "Organization not found", err)
+func GetOrgByName(c *models.ReqContext) Response {
+	query := models.GetOrgByNameQuery{Name: c.Params(":name")}
+	if err := bus.Dispatch(&query); err != nil {
+		if err == models.ErrOrgNotFound {
+			return Error(404, "Organization not found", err)
 		}
 
-		return response.Error(500, "Failed to get organization", err)
+		return Error(500, "Failed to get organization", err)
 	}
+	org := query.Result
 	result := models.OrgDetailsDTO{
 		Id:   org.Id,
 		Name: org.Name,
@@ -45,18 +43,18 @@ func (hs *HTTPServer) GetOrgByName(c *models.ReqContext) response.Response {
 		},
 	}
 
-	return response.JSON(200, &result)
+	return JSON(200, &result)
 }
 
-func getOrgHelper(orgID int64) response.Response {
+func getOrgHelper(orgID int64) Response {
 	query := models.GetOrgByIdQuery{Id: orgID}
 
 	if err := bus.Dispatch(&query); err != nil {
-		if errors.Is(err, models.ErrOrgNotFound) {
-			return response.Error(404, "Organization not found", err)
+		if err == models.ErrOrgNotFound {
+			return Error(404, "Organization not found", err)
 		}
 
-		return response.Error(500, "Failed to get organization", err)
+		return Error(500, "Failed to get organization", err)
 	}
 
 	org := query.Result
@@ -73,64 +71,64 @@ func getOrgHelper(orgID int64) response.Response {
 		},
 	}
 
-	return response.JSON(200, &result)
+	return JSON(200, &result)
 }
 
 // POST /api/orgs
-func CreateOrg(c *models.ReqContext, cmd models.CreateOrgCommand) response.Response {
+func CreateOrg(c *models.ReqContext, cmd models.CreateOrgCommand) Response {
 	if !c.IsSignedIn || (!setting.AllowUserOrgCreate && !c.IsGrafanaAdmin) {
-		return response.Error(403, "Access denied", nil)
+		return Error(403, "Access denied", nil)
 	}
 
 	cmd.UserId = c.UserId
 	if err := bus.Dispatch(&cmd); err != nil {
-		if errors.Is(err, models.ErrOrgNameTaken) {
-			return response.Error(409, "Organization name taken", err)
+		if err == models.ErrOrgNameTaken {
+			return Error(409, "Organization name taken", err)
 		}
-		return response.Error(500, "Failed to create organization", err)
+		return Error(500, "Failed to create organization", err)
 	}
 
 	metrics.MApiOrgCreate.Inc()
 
-	return response.JSON(200, &util.DynMap{
+	return JSON(200, &util.DynMap{
 		"orgId":   cmd.Result.Id,
 		"message": "Organization created",
 	})
 }
 
 // PUT /api/org
-func UpdateOrgCurrent(c *models.ReqContext, form dtos.UpdateOrgForm) response.Response {
+func UpdateOrgCurrent(c *models.ReqContext, form dtos.UpdateOrgForm) Response {
 	return updateOrgHelper(form, c.OrgId)
 }
 
 // PUT /api/orgs/:orgId
-func UpdateOrg(c *models.ReqContext, form dtos.UpdateOrgForm) response.Response {
+func UpdateOrg(c *models.ReqContext, form dtos.UpdateOrgForm) Response {
 	return updateOrgHelper(form, c.ParamsInt64(":orgId"))
 }
 
-func updateOrgHelper(form dtos.UpdateOrgForm, orgID int64) response.Response {
+func updateOrgHelper(form dtos.UpdateOrgForm, orgID int64) Response {
 	cmd := models.UpdateOrgCommand{Name: form.Name, OrgId: orgID}
 	if err := bus.Dispatch(&cmd); err != nil {
-		if errors.Is(err, models.ErrOrgNameTaken) {
-			return response.Error(400, "Organization name taken", err)
+		if err == models.ErrOrgNameTaken {
+			return Error(400, "Organization name taken", err)
 		}
-		return response.Error(500, "Failed to update organization", err)
+		return Error(500, "Failed to update organization", err)
 	}
 
-	return response.Success("Organization updated")
+	return Success("Organization updated")
 }
 
 // PUT /api/org/address
-func UpdateOrgAddressCurrent(c *models.ReqContext, form dtos.UpdateOrgAddressForm) response.Response {
+func UpdateOrgAddressCurrent(c *models.ReqContext, form dtos.UpdateOrgAddressForm) Response {
 	return updateOrgAddressHelper(form, c.OrgId)
 }
 
 // PUT /api/orgs/:orgId/address
-func UpdateOrgAddress(c *models.ReqContext, form dtos.UpdateOrgAddressForm) response.Response {
+func UpdateOrgAddress(c *models.ReqContext, form dtos.UpdateOrgAddressForm) Response {
 	return updateOrgAddressHelper(form, c.ParamsInt64(":orgId"))
 }
 
-func updateOrgAddressHelper(form dtos.UpdateOrgAddressForm, orgID int64) response.Response {
+func updateOrgAddressHelper(form dtos.UpdateOrgAddressForm, orgID int64) Response {
 	cmd := models.UpdateOrgAddressCommand{
 		OrgId: orgID,
 		Address: models.Address{
@@ -144,24 +142,24 @@ func updateOrgAddressHelper(form dtos.UpdateOrgAddressForm, orgID int64) respons
 	}
 
 	if err := bus.Dispatch(&cmd); err != nil {
-		return response.Error(500, "Failed to update org address", err)
+		return Error(500, "Failed to update org address", err)
 	}
 
-	return response.Success("Address updated")
+	return Success("Address updated")
 }
 
 // GET /api/orgs/:orgId
-func DeleteOrgByID(c *models.ReqContext) response.Response {
+func DeleteOrgByID(c *models.ReqContext) Response {
 	if err := bus.Dispatch(&models.DeleteOrgCommand{Id: c.ParamsInt64(":orgId")}); err != nil {
-		if errors.Is(err, models.ErrOrgNotFound) {
-			return response.Error(404, "Failed to delete organization. ID not found", nil)
+		if err == models.ErrOrgNotFound {
+			return Error(404, "Failed to delete organization. ID not found", nil)
 		}
-		return response.Error(500, "Failed to update organization", err)
+		return Error(500, "Failed to update organization", err)
 	}
-	return response.Success("Organization deleted")
+	return Success("Organization deleted")
 }
 
-func SearchOrgs(c *models.ReqContext) response.Response {
+func SearchOrgs(c *models.ReqContext) Response {
 	perPage := c.QueryInt("perpage")
 	if perPage <= 0 {
 		perPage = 1000
@@ -177,8 +175,8 @@ func SearchOrgs(c *models.ReqContext) response.Response {
 	}
 
 	if err := bus.Dispatch(&query); err != nil {
-		return response.Error(500, "Failed to search orgs", err)
+		return Error(500, "Failed to search orgs", err)
 	}
 
-	return response.JSON(200, query.Result)
+	return JSON(200, query.Result)
 }

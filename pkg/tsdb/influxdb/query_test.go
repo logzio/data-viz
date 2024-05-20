@@ -6,7 +6,7 @@ import (
 
 	"strings"
 
-	"github.com/grafana/grafana/pkg/plugins"
+	"github.com/grafana/grafana/pkg/tsdb"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -27,9 +27,8 @@ func TestInfluxdbQueryBuilder(t *testing.T) {
 		tag1 := &Tag{Key: "hostname", Value: "server1", Operator: "="}
 		tag2 := &Tag{Key: "hostname", Value: "server2", Operator: "=", Condition: "OR"}
 
-		timeRange := plugins.NewDataTimeRange("5m", "now")
-		queryContext := plugins.DataQuery{
-			TimeRange: &timeRange,
+		queryContext := &tsdb.TsdbQuery{
+			TimeRange: tsdb.NewTimeRange("5m", "now"),
 		}
 
 		Convey("can build simple query", func() {
@@ -115,14 +114,12 @@ func TestInfluxdbQueryBuilder(t *testing.T) {
 			query := Query{}
 			Convey("render from: 2h to now-1h", func() {
 				query := Query{}
-				timeRange := plugins.NewDataTimeRange("2h", "now-1h")
-				queryContext := plugins.DataQuery{TimeRange: &timeRange}
+				queryContext := &tsdb.TsdbQuery{TimeRange: tsdb.NewTimeRange("2h", "now-1h")}
 				So(query.renderTimeFilter(queryContext), ShouldEqual, "time > now() - 2h and time < now() - 1h")
 			})
 
 			Convey("render from: 10m", func() {
-				timeRange := plugins.NewDataTimeRange("10m", "now")
-				queryContext := plugins.DataQuery{TimeRange: &timeRange}
+				queryContext := &tsdb.TsdbQuery{TimeRange: tsdb.NewTimeRange("10m", "now")}
 				So(query.renderTimeFilter(queryContext), ShouldEqual, "time > now() - 10m")
 			})
 		})

@@ -5,7 +5,7 @@ import { Button, VerticalGroup } from '@grafana/ui';
 
 import { Layout } from '@grafana/ui/src/components/Layout/Layout';
 import { PanelEditorTabId } from './types';
-import { locationService } from '@grafana/runtime';
+import { updateLocation } from '../../../../core/actions';
 
 export interface Props {
   message: string;
@@ -13,12 +13,10 @@ export interface Props {
 }
 
 export const PanelNotSupported: FC<Props> = ({ message, dispatch: propsDispatch }) => {
-  let dispatch = useDispatch();
-  // @ts-ignore
-  dispatch = propsDispatch ?? dispatch;
+  const dispatch = propsDispatch ? propsDispatch : useDispatch();
   const onBackToQueries = useCallback(() => {
-    locationService.partial({ tab: PanelEditorTabId.Query });
-  }, []);
+    dispatch(updateLocation({ query: { tab: PanelEditorTabId.Query }, partial: true }));
+  }, [dispatch]);
 
   return (
     <Layout justify="center" style={{ marginTop: '100px' }}>

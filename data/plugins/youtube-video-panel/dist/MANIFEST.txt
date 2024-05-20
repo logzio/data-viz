@@ -5,17 +5,14 @@ Hash: SHA512
 {
   "manifestVersion": "2.0.0",
   "signatureType": "private",
-  "signedByOrg": "themike",
-  "signedByOrgName": "themike",
+  "signedByOrg": "orcohen",
+  "signedByOrgName": "orcohen",
   "rootUrls": [
-    "http://app.logz.io/",
-    "https://*.logz.io/",
-    "https://grafana-services:9990/",
-    "http://grafana-service:9990/grafana-app/grafana-app"
+    "https://*.logz.io/"
   ],
   "plugin": "youtube-video-panel",
   "version": "%VERSION%",
-  "time": 1638374176550,
+  "time": 1610634024526,
   "keyId": "7e4d0c6a708866e7",
   "files": {
     "LICENSE": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1",
@@ -32,9 +29,9 @@ Hash: SHA512
 Version: OpenPGP.js v4.10.1
 Comment: https://openpgpjs.org
 
-wqEEARMKAAYFAmGnmyAACgkQfk0ManCIZuf2xQIHTh1gxCqgLsvCBvAEWsdJ
-/Zehda8q3cN1hWhoVh41GFRAsIZMOkEzKfYCVznJ/nxXSexs3c6BQ4z+9w4B
-48dLMigCCQFvblDQQPzn6stVRbJP5N5+RfqkUOrya0RquDFuyAn4WhaFA1Ba
-lfKrPqqOcxomr0rErZNtXA92bZ3Db+OEOzwCEg==
-=/CRU
+wqEEARMKAAYFAmAAUygACgkQfk0ManCIZud+JgIJAUVu0KvqQQy0jec7osRq
+kmWcYgoZOOP60dmFyVGiAbRahh0FwZmuxtx26Ej/3BxTn6CCJavZLXmev5kf
++ymmHURDAgdihYASO80Tkg2nhgwThCSKRR1DrlJl4tKkS9vpdTs7CL7lYliR
+s6CRDVUZaglBy3qdcIDghz00zsK5TEK2ieoxhQ==
+=Ut9h
 -----END PGP SIGNATURE-----

@@ -2,46 +2,68 @@ package cloudmonitoring
 
 import (
 	"context"
+	"strconv"
 	"strings"
+	"time"
 
-	"github.com/grafana/grafana/pkg/plugins"
+	"github.com/grafana/grafana/pkg/tsdb"
 )
 
-//nolint: staticcheck // plugins.DataPlugin deprecated
-func (e *Executor) executeAnnotationQuery(ctx context.Context, tsdbQuery plugins.DataQuery) (
-	plugins.DataResponse, error) {
-	result := plugins.DataResponse{
-		Results: make(map[string]plugins.DataQueryResult),
+func (e *CloudMonitoringExecutor) executeAnnotationQuery(ctx context.Context, tsdbQuery *tsdb.TsdbQuery) (*tsdb.Response, error) {
+	result := &tsdb.Response{
+		Results: make(map[string]*tsdb.QueryResult),
 	}
 
 	firstQuery := tsdbQuery.Queries[0]
 
-	queries, err := e.buildQueryExecutors(tsdbQuery)
+	queries, err := e.buildQueries(tsdbQuery)
 	if err != nil {
-		return plugins.DataResponse{}, err
+		return nil, err
 	}
 
-	queryRes, resp, _, err := queries[0].run(ctx, tsdbQuery, e)
+	queryRes, resp, err := e.executeQuery(ctx, queries[0], tsdbQuery)
 	if err != nil {
-		return plugins.DataResponse{}, err
+		return nil, err
 	}
 
 	metricQuery := firstQuery.Model.Get("metricQuery")
 	title := metricQuery.Get("title").MustString()
 	text := metricQuery.Get("text").MustString()
 	tags := metricQuery.Get("tags").MustString()
-
-	err = queries[0].parseToAnnotations(&queryRes, resp, title, text, tags)
-	result.Results[firstQuery.RefID] = queryRes
+	err = e.parseToAnnotations(queryRes, resp, queries[0], title, text, tags)
+	result.Results[firstQuery.RefId] = queryRes
 
 	return result, err
 }
 
-//nolint: staticcheck // plugins.DataPlugin deprecated
-func transformAnnotationToTable(data []map[string]string, result *plugins.DataQueryResult) {
-	table := plugins.DataTable{
-		Columns: make([]plugins.DataTableColumn, 4),
-		Rows:    make([]plugins.DataRowValues, 0),
+func (e *CloudMonitoringExecutor) parseToAnnotations(queryRes *tsdb.QueryResult, data cloudMonitoringResponse, query *cloudMonitoringQuery, title string, text string, tags string) error {
+	annotations := make([]map[string]string, 0)
+
+	for _, series := range data.TimeSeries {
+		// reverse the order to be ascending
+		for i := len(series.Points) - 1; i >= 0; i-- {
+			point := series.Points[i]
+			value := strconv.FormatFloat(point.Value.DoubleValue, 'f', 6, 64)
+			if series.ValueType == "STRING" {
+				value = point.Value.StringValue
+			}
+			annotation := make(map[string]string)
+			annotation["time"] = point.Interval.EndTime.UTC().Format(time.RFC3339)
+			annotation["title"] = formatAnnotationText(title, value, series.Metric.Type, series.Metric.Labels, series.Resource.Labels)
+			annotation["tags"] = tags
+			annotation["text"] = formatAnnotationText(text, value, series.Metric.Type, series.Metric.Labels, series.Resource.Labels)
+			annotations = append(annotations, annotation)
+		}
+	}
+
+	transformAnnotationToTable(annotations, queryRes)
+	return nil
+}
+
+func transformAnnotationToTable(data []map[string]string, result *tsdb.QueryResult) {
+	table := &tsdb.Table{
+		Columns: make([]tsdb.TableColumn, 4),
+		Rows:    make([]tsdb.RowValues, 0),
 	}
 	table.Columns[0].Text = "time"
 	table.Columns[1].Text = "title"

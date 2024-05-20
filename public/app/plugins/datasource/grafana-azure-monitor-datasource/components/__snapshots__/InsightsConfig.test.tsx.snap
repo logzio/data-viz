@@ -5,7 +5,7 @@ exports[`Render should disable insights api key input 1`] = `
   <h3
     className="page-heading"
   >
-    Azure Application Insights
+    Application Insights Details
   </h3>
   <div
     className="gf-form-group"
@@ -16,11 +16,11 @@ exports[`Render should disable insights api key input 1`] = `
       <div
         className="gf-form"
       >
-        <FormLabel
+        <Component
           className="width-12"
         >
           API Key
-        </FormLabel>
+        </Component>
         <Input
           className="width-25"
           disabled={true}
@@ -49,11 +49,11 @@ exports[`Render should disable insights api key input 1`] = `
       <div
         className="gf-form"
       >
-        <FormLabel
+        <Component
           className="width-12"
         >
           Application ID
-        </FormLabel>
+        </Component>
         <div
           className="width-15"
         >
@@ -65,12 +65,6 @@ exports[`Render should disable insights api key input 1`] = `
       </div>
     </div>
   </div>
-  <Alert
-    severity="info"
-    title="Application Insights credentials are deprecated"
-  >
-    Configure using Azure AD App Registration above and update existing queries to use Metrics or Logs.
-  </Alert>
 </Fragment>
 `;
 
@@ -79,7 +73,7 @@ exports[`Render should enable insights api key input 1`] = `
   <h3
     className="page-heading"
   >
-    Azure Application Insights
+    Application Insights Details
   </h3>
   <div
     className="gf-form-group"
@@ -90,11 +84,11 @@ exports[`Render should enable insights api key input 1`] = `
       <div
         className="gf-form"
       >
-        <FormLabel
+        <Component
           className="width-12"
         >
           API Key
-        </FormLabel>
+        </Component>
         <div
           className="width-15"
         >
@@ -112,11 +106,11 @@ exports[`Render should enable insights api key input 1`] = `
       <div
         className="gf-form"
       >
-        <FormLabel
+        <Component
           className="width-12"
         >
           Application ID
-        </FormLabel>
+        </Component>
         <div
           className="width-15"
         >
@@ -128,12 +122,6 @@ exports[`Render should enable insights api key input 1`] = `
       </div>
     </div>
   </div>
-  <Alert
-    severity="info"
-    title="Application Insights credentials are deprecated"
-  >
-    Configure using Azure AD App Registration above and update existing queries to use Metrics or Logs.
-  </Alert>
 </Fragment>
 `;
 
@@ -142,7 +130,7 @@ exports[`Render should render component 1`] = `
   <h3
     className="page-heading"
   >
-    Azure Application Insights
+    Application Insights Details
   </h3>
   <div
     className="gf-form-group"
@@ -153,11 +141,11 @@ exports[`Render should render component 1`] = `
       <div
         className="gf-form"
       >
-        <FormLabel
+        <Component
           className="width-12"
         >
           API Key
-        </FormLabel>
+        </Component>
         <div
           className="width-15"
         >
@@ -175,11 +163,11 @@ exports[`Render should render component 1`] = `
       <div
         className="gf-form"
       >
-        <FormLabel
+        <Component
           className="width-12"
         >
           Application ID
-        </FormLabel>
+        </Component>
         <div
           className="width-15"
         >
@@ -191,11 +179,5 @@ exports[`Render should render component 1`] = `
       </div>
     </div>
   </div>
-  <Alert
-    severity="info"
-    title="Application Insights credentials are deprecated"
-  >
-    Configure using Azure AD App Registration above and update existing queries to use Metrics or Logs.
-  </Alert>
 </Fragment>
 `;

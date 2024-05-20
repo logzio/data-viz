@@ -63,4 +63,5 @@ func (arr *defaultRuleReader) fetchOne(cmd *models.GetAlertByIdQuery) *Rule {
 		return model
 	}
 }
+
 // LOGZ.IO GRAFANA CHANGE :: end

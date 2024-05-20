@@ -1,22 +1,22 @@
 import React, { FC, HTMLAttributes, ReactNode } from 'react';
-import { stylesFactory, useTheme2 } from '../../themes';
-import { css, cx } from '@emotion/css';
-import { GrafanaTheme2 } from '@grafana/data';
+import { stylesFactory, useTheme } from '../../themes';
+import { css, cx } from 'emotion';
+import { GrafanaTheme } from '@grafana/data';
 
 interface Props extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
 }
 
-const getTabContentStyle = stylesFactory((theme: GrafanaTheme2) => {
+const getTabContentStyle = stylesFactory((theme: GrafanaTheme) => {
   return {
     tabContent: css`
-      background: ${theme.colors.background.primary};
+      padding: ${theme.spacing.sm};
     `,
   };
 });
 
 export const TabContent: FC<Props> = ({ children, className, ...restProps }) => {
-  const theme = useTheme2();
+  const theme = useTheme();
   const styles = getTabContentStyle(theme);
 
   return (

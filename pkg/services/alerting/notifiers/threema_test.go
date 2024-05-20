@@ -1,7 +1,6 @@
 package notifiers
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/grafana/grafana/pkg/components/simplejson"
@@ -71,9 +70,7 @@ func TestThreemaNotifier(t *testing.T) {
 
 				not, err := NewThreemaNotifier(model)
 				So(not, ShouldBeNil)
-				var valErr alerting.ValidationError
-				So(errors.As(err, &valErr), ShouldBeTrue)
-				So(valErr.Reason, ShouldEqual, "Invalid Threema Gateway ID: Must start with a *")
+				So(err.(alerting.ValidationError).Reason, ShouldEqual, "Invalid Threema Gateway ID: Must start with a *")
 			})
 
 			Convey("invalid Threema Gateway IDs should be rejected (length)", func() {
@@ -93,9 +90,7 @@ func TestThreemaNotifier(t *testing.T) {
 
 				not, err := NewThreemaNotifier(model)
 				So(not, ShouldBeNil)
-				var valErr alerting.ValidationError
-				So(errors.As(err, &valErr), ShouldBeTrue)
-				So(valErr.Reason, ShouldEqual, "Invalid Threema Gateway ID: Must be 8 characters long")
+				So(err.(alerting.ValidationError).Reason, ShouldEqual, "Invalid Threema Gateway ID: Must be 8 characters long")
 			})
 
 			Convey("invalid Threema Recipient IDs should be rejected (length)", func() {
@@ -115,9 +110,7 @@ func TestThreemaNotifier(t *testing.T) {
 
 				not, err := NewThreemaNotifier(model)
 				So(not, ShouldBeNil)
-				var valErr alerting.ValidationError
-				So(errors.As(err, &valErr), ShouldBeTrue)
-				So(valErr.Reason, ShouldEqual, "Invalid Threema Recipient ID: Must be 8 characters long")
+				So(err.(alerting.ValidationError).Reason, ShouldEqual, "Invalid Threema Recipient ID: Must be 8 characters long")
 			})
 		})
 	})

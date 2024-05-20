@@ -1,6 +1,5 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
-import selectEvent from 'react-select-event';
 import { Props, SearchResultsFilter } from './SearchResultsFilter';
 import { SearchLayout } from '../types';
 
@@ -15,7 +14,6 @@ beforeEach(() => {
 const searchQuery = {
   starred: false,
   sort: null,
-  prevSort: null,
   tag: ['tag'],
   query: '',
   skipRecent: true,
@@ -82,8 +80,9 @@ describe('SearchResultsFilter', () => {
       query: { ...searchQuery, tag: [] },
     });
     const tagComponent = await screen.findByLabelText('Tag filter');
-    await selectEvent.select(tagComponent, 'tag1');
 
+    fireEvent.keyDown(tagComponent.querySelector('div') as Node, { keyCode: 40 });
+    fireEvent.click(await screen.findByText('tag1'));
     expect(mockFilterByTags).toHaveBeenCalledTimes(1);
     expect(mockFilterByTags).toHaveBeenCalledWith(['tag1']);
   });

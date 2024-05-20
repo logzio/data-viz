@@ -1,4 +1,3 @@
-// LOGZ.IO GRAFANA CHANGE
 export let logzioDeprecatedAngularServices: any = {};
 export let logzioServices: any = {};
 export let logzioConfigs: any = {};

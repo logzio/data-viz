@@ -1,31 +1,29 @@
 package sqlstore
 
 import (
-	"context"
-	"fmt"
-
 	"github.com/grafana/grafana/pkg/bus"
 	"github.com/grafana/grafana/pkg/models"
 )
 
 func init() {
+	bus.AddHandler("sql", UpdateDashboardAcl)
 	bus.AddHandler("sql", GetDashboardAclInfoList)
 }
 
-func (ss *SQLStore) UpdateDashboardACL(dashboardID int64, items []*models.DashboardAcl) error {
-	return ss.WithTransactionalDbSession(context.Background(), func(sess *DBSession) error {
+func UpdateDashboardAcl(cmd *models.UpdateDashboardAclCommand) error {
+	return inTransaction(func(sess *DBSession) error {
 		// delete existing items
-		_, err := sess.Exec("DELETE FROM dashboard_acl WHERE dashboard_id=?", dashboardID)
+		_, err := sess.Exec("DELETE FROM dashboard_acl WHERE dashboard_id=?", cmd.DashboardId)
 		if err != nil {
-			return fmt.Errorf("deleting from dashboard_acl failed: %w", err)
+			return err
 		}
 
-		for _, item := range items {
-			if item.UserID == 0 && item.TeamID == 0 && (item.Role == nil || !item.Role.IsValid()) {
+		for _, item := range cmd.Items {
+			if item.UserId == 0 && item.TeamId == 0 && (item.Role == nil || !item.Role.IsValid()) {
 				return models.ErrDashboardAclInfoMissing
 			}
 
-			if item.DashboardID == 0 {
+			if item.DashboardId == 0 {
 				return models.ErrDashboardPermissionDashboardEmpty
 			}
 
@@ -37,7 +35,7 @@ func (ss *SQLStore) UpdateDashboardACL(dashboardID int64, items []*models.Dashbo
 
 		// Update dashboard HasAcl flag
 		dashboard := models.Dashboard{HasAcl: true}
-		_, err = sess.Cols("has_acl").Where("id=?", dashboardID).Update(&dashboard)
+		_, err = sess.Cols("has_acl").Where("id=?", cmd.DashboardId).Update(&dashboard)
 		return err
 	})
 }
@@ -52,7 +50,7 @@ func GetDashboardAclInfoList(query *models.GetDashboardAclInfoListQuery) error {
 
 	falseStr := dialect.BooleanStr(false)
 
-	if query.DashboardID == 0 {
+	if query.DashboardId == 0 {
 		sql := `SELECT
 		da.id,
 		da.org_id,
@@ -116,7 +114,7 @@ func GetDashboardAclInfoList(query *models.GetDashboardAclInfoListQuery) error {
 			`
 
 		query.Result = make([]*models.DashboardAclInfoDTO, 0)
-		err = x.SQL(rawSQL, query.OrgID, query.DashboardID).Find(&query.Result)
+		err = x.SQL(rawSQL, query.OrgId, query.DashboardId).Find(&query.Result)
 	}
 
 	for _, p := range query.Result {

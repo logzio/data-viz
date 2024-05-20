@@ -24,7 +24,10 @@ describe('<AdHocFilterField />', () => {
     const mockOnPairsChanged = jest.fn();
     const wrapper = shallow(<AdHocFilterField datasource={mockDataSourceApi} onPairsChanged={mockOnPairsChanged} />);
     expect(wrapper.state('pairs')).toEqual([]);
-    wrapper.find('button').first().simulate('click');
+    wrapper
+      .find('button')
+      .first()
+      .simulate('click');
     const asyncCheck = setImmediate(() => {
       expect(wrapper.find(AdHocFilter).exists()).toBeTruthy();
     });
@@ -36,7 +39,10 @@ describe('<AdHocFilterField />', () => {
     const wrapper = shallow(<AdHocFilterField datasource={mockDataSourceApi} onPairsChanged={mockOnPairsChanged} />);
     expect(wrapper.state('pairs')).toEqual([]);
 
-    wrapper.find('button').first().simulate('click');
+    wrapper
+      .find('button')
+      .first()
+      .simulate('click');
     const asyncCheck = setImmediate(() => {
       expect(wrapper.find(AdHocFilter).exists()).toBeTruthy();
 
@@ -51,7 +57,10 @@ describe('<AdHocFilterField />', () => {
     const wrapper = shallow(<AdHocFilterField datasource={mockDataSourceApi} onPairsChanged={mockOnPairsChanged} />);
     expect(wrapper.state('pairs')).toEqual([]);
 
-    wrapper.find('button').first().simulate('click');
+    wrapper
+      .find('button')
+      .first()
+      .simulate('click');
     const asyncCheck = setImmediate(() => {
       expect(wrapper.find(AdHocFilter).exists()).toBeTruthy();
 

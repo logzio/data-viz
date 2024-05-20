@@ -1,19 +1,19 @@
 import React, { FC } from 'react';
-import { cloneDeep, filter } from 'lodash';
+import _ from 'lodash';
 import TopSectionItem from './TopSectionItem';
 import config from '../../config';
-import { locationService } from '@grafana/runtime';
+import { getLocationSrv } from '@grafana/runtime';
 
 const TopSection: FC<any> = () => {
-  const navTree = cloneDeep(config.bootData.navTree);
-  const mainLinks = filter(navTree, (item) => !item.hideFromMenu);
+  const navTree = _.cloneDeep(config.bootData.navTree);
+  const mainLinks = _.filter(navTree, item => !item.hideFromMenu);
   const searchLink = {
     text: 'Search',
     icon: 'search',
   };
 
   const onOpenSearch = () => {
-    locationService.partial({ search: 'open' });
+    getLocationSrv().update({ query: { search: 'open' }, partial: true });
   };
 
   return (

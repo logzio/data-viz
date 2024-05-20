@@ -51,8 +51,8 @@ describe('TransformationsEditor', () => {
       const addTransformationButton = screen.getByText(buttonLabel);
       userEvent.click(addTransformationButton);
 
-      const search = screen.getByLabelText(selectors.components.Transforms.searchInput);
-      expect(search).toBeDefined();
+      const picker = screen.getByLabelText(selectors.components.ValuePicker.select(buttonLabel));
+      expect(picker).toBeDefined();
     });
   });
 

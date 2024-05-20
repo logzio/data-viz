@@ -1,17 +1,19 @@
 import React, { FC, MouseEvent, useCallback } from 'react';
-import { css } from '@emotion/css';
-import { Icon, Tooltip, useStyles } from '@grafana/ui';
+import { css } from 'emotion';
+import { getTagColorsFromName, Icon, useStyles } from '@grafana/ui';
 import { selectors } from '@grafana/e2e-selectors';
 import { GrafanaTheme } from '@grafana/data';
+
+import { VariableTag } from '../../types';
 
 interface Props {
   onClick: () => void;
   text: string;
+  tags: VariableTag[];
   loading: boolean;
-  onCancel: () => void;
 }
 
-export const VariableLink: FC<Props> = ({ loading, onClick: propsOnClick, text, onCancel }) => {
+export const VariableLink: FC<Props> = ({ loading, onClick: propsOnClick, tags, text }) => {
   const styles = useStyles(getStyles);
   const onClick = useCallback(
     (event: MouseEvent<HTMLAnchorElement>) => {
@@ -29,8 +31,8 @@ export const VariableLink: FC<Props> = ({ loading, onClick: propsOnClick, text, 
         aria-label={selectors.pages.Dashboard.SubMenu.submenuItemValueDropDownValueLinkTexts(`${text}`)}
         title={text}
       >
-        <VariableLinkText text={text} />
-        <LoadingIndicator onCancel={onCancel} />
+        <VariableLinkText tags={tags} text={text} />
+        <Icon className="spin-clockwise" name="sync" size="xs" />
       </div>
     );
   }
@@ -42,40 +44,30 @@ export const VariableLink: FC<Props> = ({ loading, onClick: propsOnClick, text, 
       aria-label={selectors.pages.Dashboard.SubMenu.submenuItemValueDropDownValueLinkTexts(`${text}`)}
       title={text}
     >
-      <VariableLinkText text={text} />
+      <VariableLinkText tags={tags} text={text} />
       <Icon name="angle-down" size="sm" />
     </a>
   );
 };
 
-interface VariableLinkTextProps {
-  text: string;
-}
-
-const VariableLinkText: FC<VariableLinkTextProps> = ({ text }) => {
+const VariableLinkText: FC<Pick<Props, 'tags' | 'text'>> = ({ tags, text }) => {
   const styles = useStyles(getStyles);
-  return <span className={styles.textAndTags}>{text}</span>;
-};
-
-const LoadingIndicator: FC<Pick<Props, 'onCancel'>> = ({ onCancel }) => {
-  const onClick = useCallback(
-    (event: MouseEvent) => {
-      event.preventDefault();
-      onCancel();
-    },
-    [onCancel]
-  );
-
   return (
-    <Tooltip content="Cancel query">
-      <Icon
-        className="spin-clockwise"
-        name="sync"
-        size="xs"
-        onClick={onClick}
-        aria-label={selectors.components.LoadingIndicator.icon}
-      />
-    </Tooltip>
+    <span className={styles.textAndTags}>
+      {text}
+      {tags.map(tag => {
+        const { color, borderColor } = getTagColorsFromName(tag.text.toString());
+        return (
+          <span key={`${tag.text}`}>
+            <span className="label-tag" style={{ backgroundColor: color, borderColor }}>
+              &nbsp;&nbsp;
+              <Icon name="tag-alt" />
+              &nbsp; {tag.text}
+            </span>
+          </span>
+        );
+      })}
+    </span>
   );
 };
 

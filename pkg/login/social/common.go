@@ -14,10 +14,10 @@ import (
 )
 
 var (
-	errMissingGroupMembership = Error{"user not a member of one of the required groups"}
+	ErrMissingGroupMembership = &Error{"User not a member of one of the required groups"}
 )
 
-type httpGetResponse struct {
+type HttpGetResponse struct {
 	Body    []byte
 	Headers http.Header
 }
@@ -44,24 +44,20 @@ func isEmailAllowed(email string, allowedDomains []string) bool {
 	return valid
 }
 
-func (s *SocialBase) httpGet(client *http.Client, url string) (response httpGetResponse, err error) {
+func HttpGet(client *http.Client, url string) (response HttpGetResponse, err error) {
 	r, err := client.Get(url)
 	if err != nil {
 		return
 	}
 
-	defer func() {
-		if err := r.Body.Close(); err != nil {
-			s.log.Warn("Failed to close response body", "err", err)
-		}
-	}()
+	defer r.Body.Close()
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		return
 	}
 
-	response = httpGetResponse{body, r.Header}
+	response = HttpGetResponse{body, r.Header}
 
 	if r.StatusCode >= 300 {
 		err = fmt.Errorf(string(response.Body))

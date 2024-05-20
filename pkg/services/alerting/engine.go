@@ -6,17 +6,16 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/benbjohnson/clock"
-	"github.com/grafana/grafana/pkg/bus"
-	"github.com/grafana/grafana/pkg/infra/log"
-	"github.com/grafana/grafana/pkg/models"
-	"github.com/grafana/grafana/pkg/plugins"
-	"github.com/grafana/grafana/pkg/registry"
-	"github.com/grafana/grafana/pkg/services/rendering"
-	"github.com/grafana/grafana/pkg/setting"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	tlog "github.com/opentracing/opentracing-go/log"
+
+	"github.com/benbjohnson/clock"
+	"github.com/grafana/grafana/pkg/bus"
+	"github.com/grafana/grafana/pkg/infra/log"
+	"github.com/grafana/grafana/pkg/registry"
+	"github.com/grafana/grafana/pkg/services/rendering"
+	"github.com/grafana/grafana/pkg/setting"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -24,11 +23,8 @@ import (
 // schedules alert evaluations and makes sure notifications
 // are sent.
 type AlertEngine struct {
-	RenderService    rendering.Service             `inject:""`
-	Bus              bus.Bus                       `inject:""`
-	RequestValidator models.PluginRequestValidator `inject:""`
-	DataService      plugins.DataRequestHandler    `inject:""`
-	Cfg              *setting.Cfg                  `inject:""`
+	RenderService rendering.Service `inject:""`
+	Bus           bus.Bus           `inject:""`
 
 	execQueue     chan *Job
 	ticker        *Ticker
@@ -45,15 +41,15 @@ func init() {
 
 // IsDisabled returns true if the alerting service is disable for this instance.
 func (e *AlertEngine) IsDisabled() bool {
-	return !setting.AlertingEnabled || !setting.ExecuteAlerts || e.Cfg.IsNgAlertEnabled()
+	return !setting.AlertingEnabled || !setting.ExecuteAlerts
 }
 
 // Init initializes the AlertingService.
 func (e *AlertEngine) Init() error {
-	e.ticker = NewTicker(time.Now(), time.Second*0, clock.New(), 1)
+	e.ticker = NewTicker(time.Now(), time.Second*0, clock.New())
 	e.execQueue = make(chan *Job, 1000)
 	e.scheduler = newScheduler()
-	e.evalHandler = NewEvalHandler(e.DataService)
+	e.evalHandler = NewEvalHandler()
 	e.ruleReader = newRuleReader()
 	e.log = log.New("alerting.engine")
 	e.resultHandler = newResultHandler(e.RenderService)
@@ -168,8 +164,7 @@ func (e *AlertEngine) processJob(attemptID int, attemptChan chan int, cancelChan
 	span := opentracing.StartSpan("alert execution")
 	alertCtx = opentracing.ContextWithSpan(alertCtx, span)
 
- 	// LOGZ.IO GRAFANA CHANGE :: DEV-19409 - Add eval time as Now
-	evalContext := NewEvalContext(alertCtx, job.Rule, time.Now(), e.RequestValidator)
+	evalContext := NewEvalContext(alertCtx, job.Rule, time.Now()) // LOGZ.IO GRAFANA CHANGE :: DEV-19409 - Add eval time as Now
 	evalContext.Ctx = alertCtx
 
 	go func() {

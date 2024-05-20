@@ -6,7 +6,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"errors"
-	"fmt"
 	"io"
 
 	"golang.org/x/crypto/pbkdf2"
@@ -16,9 +15,6 @@ const saltLength = 8
 
 // Decrypt decrypts a payload with a given secret.
 func Decrypt(payload []byte, secret string) ([]byte, error) {
-	if len(payload) < saltLength {
-		return nil, fmt.Errorf("unable to compute salt")
-	}
 	salt := payload[:saltLength]
 	key, err := encryptionKeyToBytes(secret, string(salt))
 	if err != nil {

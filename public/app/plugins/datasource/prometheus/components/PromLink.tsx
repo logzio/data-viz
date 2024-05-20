@@ -1,9 +1,9 @@
-import { map } from 'lodash';
-import React, { FC, useEffect, useState, memo } from 'react';
+import _ from 'lodash';
+import React, { Component } from 'react';
 
 import { PrometheusDatasource } from '../datasource';
 import { PromQuery } from '../types';
-import { DataQueryRequest, PanelData, textUtil } from '@grafana/data';
+import { DataQueryRequest, PanelData } from '@grafana/data';
 
 interface Props {
   datasource: PrometheusDatasource;
@@ -11,53 +11,62 @@ interface Props {
   panelData?: PanelData;
 }
 
-const PromLink: FC<Props> = ({ panelData, query, datasource }) => {
-  const [href, setHref] = useState('');
+interface State {
+  href: string;
+}
 
-  useEffect(() => {
-    if (panelData) {
-      const getExternalLink = () => {
-        if (!panelData.request) {
-          return '';
-        }
+export default class PromLink extends Component<Props, State> {
+  state: State = { href: '' };
 
-        const {
-          request: { range, interval },
-        } = panelData;
+  async componentDidUpdate(prevProps: Props) {
+    const { panelData } = this.props;
 
-        const start = datasource.getPrometheusTime(range.from, false);
-        const end = datasource.getPrometheusTime(range.to, true);
-        const rangeDiff = Math.ceil(end - start);
-        const endTime = range.to.utc().format('YYYY-MM-DD HH:mm');
-
-        const options = {
-          interval,
-        } as DataQueryRequest<PromQuery>;
-
-        const queryOptions = datasource.createQuery(query, options, start, end);
-        const expr = {
-          'g0.expr': queryOptions.expr,
-          'g0.range_input': rangeDiff + 's',
-          'g0.end_input': endTime,
-          'g0.step_input': queryOptions.step,
-          'g0.tab': 0,
-        };
-
-        const args = map(expr, (v: string, k: string) => {
-          return k + '=' + encodeURIComponent(v);
-        }).join('&');
-        return `${datasource.directUrl}/graph?${args}`;
-      };
-
-      setHref(getExternalLink());
+    if (panelData && panelData.request && prevProps.panelData !== panelData) {
+      const href = await this.getExternalLink(panelData);
+      this.setState({ href });
     }
-  }, [datasource, panelData, query]);
+  }
 
-  return (
-    <a href={textUtil.sanitizeUrl(href)} target="_blank" rel="noopener noreferrer">
-      Prometheus
-    </a>
-  );
-};
+  async getExternalLink(panelData: PanelData): Promise<string> {
+    const { query, datasource } = this.props;
+    const { request } = panelData;
 
-export default memo(PromLink);
+    if (!request) {
+      return '';
+    }
+
+    const range = request.range;
+    const start = datasource.getPrometheusTime(range.from, false);
+    const end = datasource.getPrometheusTime(range.to, true);
+    const rangeDiff = Math.ceil(end - start);
+    const endTime = range.to.utc().format('YYYY-MM-DD HH:mm');
+
+    const options = {
+      interval: request.interval,
+    } as DataQueryRequest<PromQuery>;
+
+    const queryOptions = datasource.createQuery(query, options, start, end);
+    const expr = {
+      'g0.expr': queryOptions.expr,
+      'g0.range_input': rangeDiff + 's',
+      'g0.end_input': endTime,
+      'g0.step_input': queryOptions.step,
+      'g0.tab': 0,
+    };
+
+    const args = _.map(expr, (v: string, k: string) => {
+      return k + '=' + encodeURIComponent(v);
+    }).join('&');
+    return `${datasource.directUrl}/graph?${args}`;
+  }
+
+  render() {
+    const { href } = this.state;
+
+    return (
+      <a href={href} target="_blank" rel="noopener">
+        Prometheus
+      </a>
+    );
+  }
+}

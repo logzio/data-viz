@@ -18,7 +18,7 @@
     },
     "type": {
       "type": "string",
-      "description": "Plugin type.",
+      "description": "Plugin type. Possible values are `app`, `datasource`, and `panel`.",
       "enum": ["app", "datasource", "panel"]
     },
     "name": {
@@ -27,7 +27,7 @@
     },
     "category": {
       "type": "string",
-      "description": "Plugin category used on the Add data source page.",
+      "description": "Plugin category used on the Add data source page. Possible values are: `tsdb`, `logging`, `cloud`, `tracing`, `sql`, `enterprise` and `other`.",
       "enum": ["tsdb", "logging", "cloud", "tracing", "sql", "enterprise", "other"]
     },
     "annotations": {
@@ -57,41 +57,27 @@
     },
     "includes": {
       "type": "array",
-      "description": "Resources to include in plugin.",
       "items": {
         "type": "object",
         "additionalItems": false,
         "properties": {
           "type": {
-            "type": "string",
-            "enum": ["dashboard", "page", "panel", "datasource"]
+            "type": "string"
           },
           "name": {
             "type": "string"
           },
           "component": {
-            "type": "string",
-            "description": "(Legacy) The Angular component to use for a page."
+            "type": "string"
           },
           "role": {
-            "type": "string",
-            "enum": ["Admin", "Editor", "Viewer"]
-          },
-          "path": {
-            "type": "string",
-            "description": "Used for app plugins."
+            "type": "string"
           },
           "addToNav": {
-            "type": "boolean",
-            "description": "Add the include to the side menu."
+            "type": "boolean"
           },
           "defaultNav": {
-            "type": "boolean",
-            "description": "Page or dashboard when user clicks the icon in the side menu."
-          },
-          "icon": {
-            "type": "string",
-            "description": "Icon to use in the side menu. For information on available icon, refer to [Icons Overview](https://developers.grafana.com/ui/latest/index.html?path=/story/docs-overview-icon--icons-overview)."
+            "type": "boolean"
           }
         }
       }
@@ -104,9 +90,33 @@
       "type": "boolean",
       "description": "For panel plugins. Hides the query editor."
     },
+    "partials": {
+      "type": "object",
+      "additionalItems": false,
+      "properties": {
+        "config": {
+          "type": "string"
+        }
+      }
+    },
     "metrics": {
       "type": "boolean",
       "description": "For data source plugins. If the plugin supports metric queries. Used in the Explore feature."
+    },
+    "mixed": {
+      "type": "boolean",
+      "description": "Not to be used by external plugins. Special property for the built-in mixed plugin."
+    },
+    "module": {
+      "type": "string",
+      "description": ""
+    },
+    "sort": {
+      "type": "number",
+      "description": "Internal property for sorting. Cannot be used as will be overwritten by Grafana."
+    },
+    "staticRoot": {
+      "type": "string"
     },
     "streaming": {
       "type": "boolean",
@@ -122,13 +132,9 @@
     "hiddenQueries": {
       "type": "boolean"
     },
-    "autoEnabled": {
-      "type": "boolean",
-      "description": "Set to true for app plugins that should be enabled by default in all orgs"
-    },
     "dependencies": {
       "type": "object",
-      "description": "Dependencies needed by the plugin.",
+      "description": "Plugin dependencies.",
       "required": ["grafanaDependency"],
       "additionalProperties": false,
       "properties": {
@@ -145,27 +151,8 @@
         "plugins": {
           "type": "array",
           "description": "An array of required plugins on which this plugin depends.",
-          "additionalItems": false,
           "items": {
-            "type": "object",
-            "description": "Plugin dependency. Used to display information about plugin dependencies in the Grafana UI.",
-            "required": ["id", "name", "type", "version"],
-            "properties": {
-              "id": {
-                "type": "string",
-                "pattern": "^[0-9a-z]+\\-([0-9a-z]+\\-)?(app|panel|datasource)$"
-              },
-              "type": {
-                "type": "string",
-                "enum": ["app", "datasource", "panel"]
-              },
-              "name": {
-                "type": "string"
-              },
-              "version": {
-                "type": "string"
-              }
-            }
+            "type": "string"
           }
         }
       }
@@ -194,37 +181,6 @@
               "type": "string",
               "description": "Link to author's website.",
               "format": "uri"
-            }
-          }
-        },
-        "build": {
-          "type": "object",
-          "description": "Build information",
-          "additionalProperties": false,
-          "properties": {
-            "time": {
-              "type": "number",
-              "description": "Time when the plugin was built, as a Unix timestamp."
-            },
-            "repo": {
-              "type": "string",
-              "description": ""
-            },
-            "branch": {
-              "type": "string",
-              "description": "Git branch the plugin was built from."
-            },
-            "hash": {
-              "type": "string",
-              "description": "Git hash of the commit the plugin was built from"
-            },
-            "number": {
-              "type": "number",
-              "description": ""
-            },
-            "pr": {
-              "type": "number",
-              "description": "GitHub pull request the plugin was built from"
             }
           }
         },
@@ -350,10 +306,6 @@
             "type": "array",
             "description": "For data source plugins. Route headers adds HTTP headers to the proxied request."
           },
-          "body": {
-            "type": "object",
-            "description": "For data source plugins. Route headers set the body content and length to the proxied request."
-          },
           "tokenAuth": {
             "type": "object",
             "description": "For data source plugins. Token authentication section used with an OAuth API.",
@@ -361,74 +313,29 @@
             "properties": {
               "url": {
                 "type": "string",
-                "description": "URL to fetch the authentication token."
-              },
-              "scopes": {
-                "type": "string",
-                "description": ""
+                "description": "For data source plugins. URL to fetch the authentication token.",
+                "format": "uri"
               },
               "params": {
                 "type": "object",
-                "description": "Parameters for the token authentication request.",
+                "description": "For data source plugins. Parameters for the token authentication request.",
                 "additionalProperties": false,
                 "properties": {
                   "grant_type": {
                     "type": "string",
-                    "description": "OAuth grant type"
+                    "description": "For data source plugins. OAuth grant type."
                   },
                   "client_id": {
                     "type": "string",
-                    "description": "OAuth client ID"
+                    "description": "For data source plugins. OAuth client id."
                   },
                   "client_secret": {
                     "type": "string",
-                    "description": "OAuth client secret. Usually populated by decrypting the secret from the SecureJson blob."
+                    "description": "For data source plugins. OAuth client secret. Usually populated by decrypting the secret from the SecureJson blob."
                   },
                   "resource": {
                     "type": "string",
-                    "description": "OAuth resource"
-                  }
-                }
-              }
-            }
-          },
-          "jwtTokenAuth": {
-            "type": "object",
-            "description": "For data source plugins. Token authentication section used with an JWT OAuth API.",
-            "additionalProperties": false,
-            "properties": {
-              "url": {
-                "type": "string",
-                "description": "URL to fetch the JWT token.",
-                "format": "uri"
-              },
-              "scopes": {
-                "type": "string",
-                "description": ""
-              },
-              "params": {
-                "type": "object",
-                "description": "Parameters for the JWT token authentication request.",
-                "additionalProperties": false,
-                "properties": {
-                  "scopes": {
-                    "type": "array",
-                    "description": "",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "token_uri": {
-                    "type": "string",
-                    "description": ""
-                  },
-                  "client_email": {
-                    "type": "string",
-                    "description": ""
-                  },
-                  "private_key": {
-                    "type": "string",
-                    "description": ""
+                    "description": "For data source plugins. OAuth resource."
                   }
                 }
               }

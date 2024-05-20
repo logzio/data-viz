@@ -7,6 +7,7 @@ import (
 	"github.com/grafana/grafana/pkg/components/null"
 )
 
+// LOGZ.IO GRAFANA CHANGE :: DEV-17927 - add time and result.
 // Job holds state about when the alert rule should be evaluated.
 type Job struct {
 	Offset      int64
@@ -15,9 +16,9 @@ type Job struct {
 	running     bool
 	Rule        *Rule
 	runningLock sync.Mutex // Lock for running property which is used in the Scheduler and AlertEngine execution
-	EvalTime    time.Time // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - add time and result.
+	EvalTime    time.Time
 
-	Result *EvalContext // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - add time and result.
+	Result *EvalContext
 }
 
 // GetRunning returns true if the job is running. A lock is taken and released on the Job to ensure atomicity.

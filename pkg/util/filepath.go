@@ -46,34 +46,24 @@ func Walk(path string, followSymlinks bool, detectSymlinkInfiniteLoop bool, walk
 // If symlinkPathsFollowed is not nil, then we need to detect infinite loop.
 func walk(path string, info os.FileInfo, resolvedPath string, symlinkPathsFollowed map[string]bool, walkFn WalkFunc) error {
 	if info == nil {
-		return errors.New("walk: Nil FileInfo passed")
+		return errors.New("Walk: Nil FileInfo passed")
 	}
 	err := walkFn(resolvedPath, info, nil)
 	if err != nil {
-		if info.IsDir() && errors.Is(err, ErrWalkSkipDir) {
+		if info.IsDir() && err == ErrWalkSkipDir {
 			err = nil
 		}
 		return err
 	}
-
 	if resolvedPath != "" && info.Mode()&os.ModeSymlink == os.ModeSymlink {
-		// We only want to lstat on directories. If this entry is a symbolic link to a file, no need to recurse.
-		statInfo, err := os.Stat(resolvedPath)
-		if err != nil {
-			return err
-		}
-		if !statInfo.IsDir() {
-			return nil
-		}
-
-		path2, err := filepath.EvalSymlinks(resolvedPath)
+		path2, err := os.Readlink(resolvedPath)
 		if err != nil {
 			return err
 		}
 		// vout("SymLink Path: %v, links to: %v", resolvedPath, path2)
 		if symlinkPathsFollowed != nil {
 			if _, ok := symlinkPathsFollowed[path2]; ok {
-				errMsg := "potential symLink infinite loop, path: %v, link to: %v"
+				errMsg := "Potential SymLink Infinite Loop. Path: %v, Link To: %v"
 				return fmt.Errorf(errMsg, resolvedPath, path2)
 			}
 			symlinkPathsFollowed[path2] = true
@@ -83,7 +73,8 @@ func walk(path string, info os.FileInfo, resolvedPath string, symlinkPathsFollow
 			return err
 		}
 		return walk(path, info2, path2, symlinkPathsFollowed, walkFn)
-	} else if info.IsDir() {
+	}
+	if info.IsDir() {
 		list, err := ioutil.ReadDir(path)
 		if err != nil {
 			return walkFn(resolvedPath, info, err)

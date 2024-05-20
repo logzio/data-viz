@@ -114,8 +114,7 @@ exports[`Render should render users table 1`] = `
       <td
         className="width-8"
       >
-        <OrgRolePicker
-          disabled={false}
+        <Component
           onChange={[Function]}
           value="Admin"
         />
@@ -127,7 +126,7 @@ exports[`Render should render users table 1`] = `
           size="sm"
           variant="destructive"
         />
-        <ConfirmModal
+        <Component
           body="Are you sure you want to delete user user-0?"
           confirmText="Delete"
           isOpen={false}
@@ -184,8 +183,7 @@ exports[`Render should render users table 1`] = `
       <td
         className="width-8"
       >
-        <OrgRolePicker
-          disabled={false}
+        <Component
           onChange={[Function]}
           value="Admin"
         />
@@ -197,7 +195,7 @@ exports[`Render should render users table 1`] = `
           size="sm"
           variant="destructive"
         />
-        <ConfirmModal
+        <Component
           body="Are you sure you want to delete user user-1?"
           confirmText="Delete"
           isOpen={false}
@@ -254,8 +252,7 @@ exports[`Render should render users table 1`] = `
       <td
         className="width-8"
       >
-        <OrgRolePicker
-          disabled={false}
+        <Component
           onChange={[Function]}
           value="Admin"
         />
@@ -267,7 +264,7 @@ exports[`Render should render users table 1`] = `
           size="sm"
           variant="destructive"
         />
-        <ConfirmModal
+        <Component
           body="Are you sure you want to delete user user-2?"
           confirmText="Delete"
           isOpen={false}
@@ -324,8 +321,7 @@ exports[`Render should render users table 1`] = `
       <td
         className="width-8"
       >
-        <OrgRolePicker
-          disabled={false}
+        <Component
           onChange={[Function]}
           value="Admin"
         />
@@ -337,7 +333,7 @@ exports[`Render should render users table 1`] = `
           size="sm"
           variant="destructive"
         />
-        <ConfirmModal
+        <Component
           body="Are you sure you want to delete user user-3?"
           confirmText="Delete"
           isOpen={false}
@@ -394,8 +390,7 @@ exports[`Render should render users table 1`] = `
       <td
         className="width-8"
       >
-        <OrgRolePicker
-          disabled={false}
+        <Component
           onChange={[Function]}
           value="Admin"
         />
@@ -407,7 +402,7 @@ exports[`Render should render users table 1`] = `
           size="sm"
           variant="destructive"
         />
-        <ConfirmModal
+        <Component
           body="Are you sure you want to delete user user-4?"
           confirmText="Delete"
           isOpen={false}
@@ -464,8 +459,7 @@ exports[`Render should render users table 1`] = `
       <td
         className="width-8"
       >
-        <OrgRolePicker
-          disabled={false}
+        <Component
           onChange={[Function]}
           value="Admin"
         />
@@ -477,7 +471,7 @@ exports[`Render should render users table 1`] = `
           size="sm"
           variant="destructive"
         />
-        <ConfirmModal
+        <Component
           body="Are you sure you want to delete user user-5?"
           confirmText="Delete"
           isOpen={false}

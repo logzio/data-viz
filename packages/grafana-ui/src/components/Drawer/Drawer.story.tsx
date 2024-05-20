@@ -1,10 +1,9 @@
 import React from 'react';
-import { Story } from '@storybook/react';
+import { text } from '@storybook/addon-knobs';
 import { Button, Drawer } from '@grafana/ui';
 import { UseState } from '../../utils/storybook/UseState';
 import { withCenteredStory } from '../../utils/storybook/withCenteredStory';
 import mdx from './Drawer.mdx';
-import { Props } from './Drawer';
 
 export default {
   title: 'Overlays/Drawer',
@@ -15,21 +14,11 @@ export default {
       page: mdx,
     },
   },
-  args: {
-    closeOnMaskClick: true,
-    scrollableContent: false,
-    width: '40%',
-    expandable: false,
-    subtitle: 'This is a subtitle.',
-  },
-  argTypes: {
-    title: { control: { type: 'text' } },
-    width: { control: { type: 'text' } },
-    subtitle: { control: { type: 'text' } },
-  },
 };
 
-export const Global: Story<Props> = (args) => {
+export const global = () => {
+  const drawerTitle = text('title', 'Drawer title');
+
   return (
     <UseState initialState={{ isOpen: false }}>
       {(state, updateValue) => {
@@ -38,11 +27,8 @@ export const Global: Story<Props> = (args) => {
             <Button onClick={() => updateValue({ isOpen: !state.isOpen })}>Open drawer</Button>
             {state.isOpen && (
               <Drawer
-                title={args.title}
-                subtitle={args.subtitle}
-                closeOnMaskClick={args.closeOnMaskClick}
-                scrollableContent={args.scrollableContent}
-                width={args.width}
+                title={drawerTitle}
+                subtitle="This is a subtitle."
                 onClose={() => {
                   updateValue({ isOpen: !state.isOpen });
                 }}
@@ -66,11 +52,8 @@ export const Global: Story<Props> = (args) => {
     </UseState>
   );
 };
-Global.args = {
-  title: 'Drawer title',
-};
 
-export const LongContent: Story<Props> = (args) => {
+export const longContent = () => {
   return (
     <UseState initialState={{ isOpen: true }}>
       {(state, updateValue) => {
@@ -79,11 +62,9 @@ export const LongContent: Story<Props> = (args) => {
             <Button onClick={() => updateValue({ isOpen: !state.isOpen })}>Open drawer</Button>
             {state.isOpen && (
               <Drawer
-                title={args.title}
-                subtitle={args.subtitle}
-                closeOnMaskClick={args.closeOnMaskClick}
-                scrollableContent={args.scrollableContent}
-                width={args.width}
+                scrollableContent
+                expandable
+                title="Drawer with long content"
                 onClose={() => {
                   updateValue({ isOpen: !state.isOpen });
                 }}
@@ -167,11 +148,10 @@ export const LongContent: Story<Props> = (args) => {
     </UseState>
   );
 };
-LongContent.args = {
-  title: 'Drawer title with long content',
-};
 
-export const InLine: Story<Props> = (args) => {
+export const inLine = () => {
+  const drawerTitle = text('title', 'Storybook');
+
   return (
     <UseState initialState={{ isOpen: false }}>
       {(state, updateValue) => {
@@ -189,12 +169,8 @@ export const InLine: Story<Props> = (args) => {
               <Button onClick={() => updateValue({ isOpen: !state.isOpen })}>Open drawer</Button>
               {state.isOpen && (
                 <Drawer
-                  inline={args.inline}
-                  title={args.title}
-                  subtitle={args.subtitle}
-                  closeOnMaskClick={args.closeOnMaskClick}
-                  scrollableContent={args.scrollableContent}
-                  width={args.width}
+                  inline={true}
+                  title={drawerTitle}
                   onClose={() => {
                     updateValue({ isOpen: !state.isOpen });
                   }}
@@ -216,8 +192,4 @@ export const InLine: Story<Props> = (args) => {
       }}
     </UseState>
   );
-};
-InLine.args = {
-  title: 'Storybook',
-  inline: true,
 };

@@ -127,6 +127,12 @@
 }
 
 .share-modal-body {
+  padding: 10px 0;
+
+  .tight-form {
+    text-align: left;
+  }
+
   .share-modal-options {
     margin: 11px 0px 33px 0px;
     display: inline-block;
@@ -152,6 +158,10 @@
 
   .share-modal-content {
     flex-grow: 1;
+  }
+
+  .tight-form {
+    text-align: left;
   }
 
   .share-modal-link {

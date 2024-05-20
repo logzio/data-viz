@@ -1,28 +1,19 @@
-import marked from 'marked';
-import { sanitize } from './sanitize';
+import marked, { MarkedOptions } from 'marked';
 
-let hasInitialized = false;
+const defaultMarkedOptions: MarkedOptions = {
+  renderer: new marked.Renderer(),
+  pedantic: false,
+  gfm: true,
+  sanitize: true,
+  smartLists: true,
+  smartypants: false,
+  xhtml: false,
+};
 
-export interface RenderMarkdownOptions {
-  noSanitize?: boolean;
+export function setMarkdownOptions(optionsOverride?: MarkedOptions) {
+  marked.setOptions({ ...defaultMarkedOptions, ...optionsOverride });
 }
 
-export function renderMarkdown(str?: string, options?: RenderMarkdownOptions): string {
-  if (!hasInitialized) {
-    marked.setOptions({
-      pedantic: false,
-      gfm: true,
-      smartLists: true,
-      smartypants: false,
-      xhtml: false,
-    });
-    hasInitialized = true;
-  }
-
-  const html = marked(str || '');
-  if (options?.noSanitize) {
-    return html;
-  }
-
-  return sanitize(html);
+export function renderMarkdown(str?: string): string {
+  return marked(str || '');
 }

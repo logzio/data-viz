@@ -1,8 +1,12 @@
 +++
 title = "TestData"
 keywords = ["grafana", "dashboard", "documentation", "panels", "testdata"]
+type = "docs"
 aliases = ["/docs/grafana/latest/features/datasources/testdata"]
-weight = 1500
+[menu.docs]
+name = "TestData"
+parent = "datasources"
+weight = 1400
 +++
 
 # Grafana TestData DB
@@ -13,9 +17,9 @@ This makes it much easier to verify functionality since the data can be shared v
 
 ## Enable
 
-The `TestData DB` data source is not enabled by default. To enable it:
+The `TestData DB` data source is not enabled by default. To enable it: 
 
-1. In the **Configuration** menu (small gear on the left side of the screen), click **Data Sources**.
+1. In the **Configuration** menu (small gear on the left side of the screen), click **Data Sources**. 
 1. Click **Add Data Source**.
 1. Search and click `TestData DB`.
 1. Click **Save & Test** to enable it.
@@ -24,18 +28,18 @@ The `TestData DB` data source is not enabled by default. To enable it:
 
 Once `TestData DB` is enabled, you can use it as a data source in any metric panel.
 
-![](/static/img/docs/v41/test_data_add.png)
+![](/img/docs/v41/test_data_add.png)
 
 ## CSV
 
 The comma separated values scenario is the most powerful one since it lets you create any kind of graph you like.
 Once you provided the numbers, `TestData DB` distributes them evenly based on the time range of your query.
 
-![](/static/img/docs/v41/test_data_csv_example.png)
+![](/img/docs/v41/test_data_csv_example.png)
 
 ## Dashboards
 
-`TestData DB` also contains some dashboards with examples.
+`TestData DB` also contains some dashboards with examples. 
 1. Click **Configuration** > **Data Sources** > **TestData DB** > **Dashboards**.
 1. **Import** the **Simple Streaming Example** dashboard.
 

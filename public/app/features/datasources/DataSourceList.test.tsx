@@ -1,8 +1,8 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { shallow } from 'enzyme';
 import DataSourcesList from './DataSourcesList';
 import { getMockDataSources } from './__mocks__/dataSourcesMocks';
-import { LayoutModes } from '@grafana/data';
+import { LayoutModes } from '../../core/components/LayoutSelector/LayoutSelector';
 
 const setup = () => {
   const props = {
@@ -10,20 +10,13 @@ const setup = () => {
     layoutMode: LayoutModes.Grid,
   };
 
-  return render(<DataSourcesList {...props} />);
+  return shallow(<DataSourcesList {...props} />);
 };
 
-describe('DataSourcesList', () => {
-  it('should render list of datasources', () => {
-    setup();
-    expect(screen.getAllByRole('listitem')).toHaveLength(3);
-    expect(screen.getAllByRole('heading')).toHaveLength(3);
-  });
+describe('Render', () => {
+  it('should render component', () => {
+    const wrapper = setup();
 
-  it('should render all elements in the list item', () => {
-    setup();
-    expect(screen.getByRole('heading', { name: 'dataSource-0' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'dataSource-0 dataSource-0' })).toBeInTheDocument();
-    expect(screen.getByAltText('dataSource-0')).toBeInTheDocument();
+    expect(wrapper).toMatchSnapshot();
   });
 });

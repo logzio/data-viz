@@ -8,9 +8,11 @@
 .alert {
   padding: 15px 20px;
   margin-bottom: $space-xs;
-  border-left: 3px solid $alert-error-bg;
-  background: $layer2;
+  text-shadow: 0 2px 0 rgba(255, 255, 255, 0.5);
+  background: $alert-error-bg;
   position: relative;
+  color: $white;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
   border-radius: $border-radius;
   display: flex;
   flex-direction: row;
@@ -21,20 +23,20 @@
 // -------------------------
 
 .alert-success {
-  border-color: $alert-success-bg;
+  background: $alert-success-bg;
 }
 
 .alert-danger,
 .alert-error {
-  border-color: $alert-error-bg;
+  background: $alert-error-bg;
 }
 
 .alert-info {
-  border-color: $alert-info-bg;
+  background: $alert-info-bg;
 }
 
 .alert-warning {
-  border-color: $alert-warning-bg;
+  background: $alert-warning-bg;
 }
 
 .page-alert-list {
@@ -52,7 +54,6 @@
   background: none;
   display: flex;
   align-items: center;
-
   .fa {
     align-self: flex-end;
     font-size: 21px;
@@ -70,15 +71,12 @@
   align-items: center;
   justify-content: center;
   width: 35px;
-
   .fa {
     font-size: 21px;
   }
 }
 
 .alert-body {
-  overflow-wrap: break-word;
-  word-break: break-word;
   flex-grow: 1;
 }
 

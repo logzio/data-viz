@@ -1,7 +1,8 @@
 import { AnyAction, createAction } from '@reduxjs/toolkit';
-import { DataSourcePluginMeta, DataSourceSettings, LayoutMode, LayoutModes } from '@grafana/data';
+import { DataSourcePluginMeta, DataSourceSettings } from '@grafana/data';
 
-import { DataSourcesState, DataSourceSettingsState, TestingStatus } from 'app/types';
+import { DataSourcesState, DataSourceSettingsState } from 'app/types';
+import { LayoutMode, LayoutModes } from 'app/core/components/LayoutSelector/LayoutSelector';
 import { DataSourceTypesLoadedPayload } from './actions';
 import { GenericDataSourcePlugin } from '../settings/PluginSettings';
 
@@ -95,7 +96,10 @@ export const dataSourcesReducer = (state: DataSourcesState = initialState, actio
 };
 
 export const initialDataSourceSettingsState: DataSourceSettingsState = {
-  testingStatus: {},
+  testingStatus: {
+    status: null,
+    message: null,
+  },
   loadError: null,
   plugin: null,
 };
@@ -108,9 +112,12 @@ export const initDataSourceSettingsFailed = createAction<Error>('dataSourceSetti
 
 export const testDataSourceStarting = createAction<undefined>('dataSourceSettings/testDataSourceStarting');
 
-export const testDataSourceSucceeded = createAction<TestingStatus>('dataSourceSettings/testDataSourceSucceeded');
+export const testDataSourceSucceeded = createAction<{
+  status: string;
+  message: string;
+}>('dataSourceSettings/testDataSourceSucceeded');
 
-export const testDataSourceFailed = createAction<TestingStatus>('dataSourceSettings/testDataSourceFailed');
+export const testDataSourceFailed = createAction<{ message: string }>('dataSourceSettings/testDataSourceFailed');
 
 export const dataSourceSettingsReducer = (
   state: DataSourceSettingsState = initialDataSourceSettingsState,
@@ -138,9 +145,8 @@ export const dataSourceSettingsReducer = (
     return {
       ...state,
       testingStatus: {
-        status: action.payload?.status,
-        message: action.payload?.message,
-        details: action.payload?.details,
+        status: action.payload.status,
+        message: action.payload.message,
       },
     };
   }
@@ -150,8 +156,7 @@ export const dataSourceSettingsReducer = (
       ...state,
       testingStatus: {
         status: 'error',
-        message: action.payload?.message,
-        details: action.payload?.details,
+        message: action.payload.message,
       },
     };
   }

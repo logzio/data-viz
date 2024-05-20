@@ -4,9 +4,7 @@ import (
 	"testing"
 
 	"github.com/grafana/grafana/pkg/bus"
-	"github.com/grafana/grafana/pkg/dashboards"
 	"github.com/grafana/grafana/pkg/models"
-	"github.com/stretchr/testify/assert"
 
 	"github.com/grafana/grafana/pkg/services/guardian"
 
@@ -16,9 +14,8 @@ import (
 func TestFolderService(t *testing.T) {
 	Convey("Folder service tests", t, func() {
 		service := dashboardServiceImpl{
-			orgId:          1,
-			user:           &models.SignedInUser{UserId: 1},
-			dashboardStore: &fakeDashboardStore{},
+			orgId: 1,
+			user:  &models.SignedInUser{UserId: 1},
 		}
 
 		Convey("Given user has no permissions", func() {
@@ -30,26 +27,32 @@ func TestFolderService(t *testing.T) {
 				return nil
 			})
 
-			origStore := service.dashboardStore
-			t.Cleanup(func() {
-				service.dashboardStore = origStore
+			bus.AddHandler("test", func(cmd *models.ValidateDashboardAlertsCommand) error {
+				return nil
 			})
-			service.dashboardStore = &fakeDashboardStore{
-				validationError: models.ErrDashboardUpdateAccessDenied,
-			}
+
+			bus.AddHandler("test", func(cmd *models.ValidateDashboardBeforeSaveCommand) error {
+				cmd.Result = &models.ValidateDashboardBeforeSaveResult{}
+				return models.ErrDashboardUpdateAccessDenied
+			})
 
 			Convey("When get folder by id should return access denied error", func() {
 				_, err := service.GetFolderByID(1)
+				So(err, ShouldNotBeNil)
 				So(err, ShouldEqual, models.ErrFolderAccessDenied)
 			})
 
 			Convey("When get folder by uid should return access denied error", func() {
 				_, err := service.GetFolderByUID("uid")
+				So(err, ShouldNotBeNil)
 				So(err, ShouldEqual, models.ErrFolderAccessDenied)
 			})
 
 			Convey("When creating folder should return access denied error", func() {
-				_, err := service.CreateFolder("Folder", "")
+				err := service.CreateFolder(&models.CreateFolderCommand{
+					Title: "Folder",
+				})
+				So(err, ShouldNotBeNil)
 				So(err, ShouldEqual, models.ErrFolderAccessDenied)
 			})
 
@@ -58,6 +61,7 @@ func TestFolderService(t *testing.T) {
 					Uid:   "uid",
 					Title: "Folder",
 				})
+				So(err, ShouldNotBeNil)
 				So(err, ShouldEqual, models.ErrFolderAccessDenied)
 			})
 
@@ -84,14 +88,18 @@ func TestFolderService(t *testing.T) {
 				return nil
 			})
 
-			origUpdateAlerting := UpdateAlerting
-			t.Cleanup(func() {
-				UpdateAlerting = origUpdateAlerting
-			})
-			UpdateAlerting = func(store dashboards.Store, orgID int64, dashboard *models.Dashboard,
-				user *models.SignedInUser) error {
+			bus.AddHandler("test", func(cmd *models.ValidateDashboardAlertsCommand) error {
 				return nil
-			}
+			})
+
+			bus.AddHandler("test", func(cmd *models.ValidateDashboardBeforeSaveCommand) error {
+				cmd.Result = &models.ValidateDashboardBeforeSaveResult{}
+				return nil
+			})
+
+			bus.AddHandler("test", func(cmd *models.UpdateDashboardAlertsCommand) error {
+				return nil
+			})
 
 			bus.AddHandler("test", func(cmd *models.SaveDashboardCommand) error {
 				cmd.Result = dash
@@ -102,9 +110,20 @@ func TestFolderService(t *testing.T) {
 				return nil
 			})
 
+			provisioningValidated := false
+
+			bus.AddHandler("test", func(query *models.GetProvisionedDashboardDataByIdQuery) error {
+				provisioningValidated = true
+				query.Result = nil
+				return nil
+			})
+
 			Convey("When creating folder should not return access denied error", func() {
-				_, err := service.CreateFolder("Folder", "")
+				err := service.CreateFolder(&models.CreateFolderCommand{
+					Title: "Folder",
+				})
 				So(err, ShouldBeNil)
+				So(provisioningValidated, ShouldBeFalse)
 			})
 
 			Convey("When updating folder should not return access denied error", func() {
@@ -113,6 +132,7 @@ func TestFolderService(t *testing.T) {
 					Title: "Folder",
 				})
 				So(err, ShouldBeNil)
+				So(provisioningValidated, ShouldBeFalse)
 			})
 
 			Convey("When deleting folder by uid should not return access denied error", func() {
@@ -174,8 +194,9 @@ func TestFolderService(t *testing.T) {
 
 			for _, tc := range testCases {
 				actualError := toFolderError(tc.ActualError)
-				assert.EqualErrorf(t, actualError, tc.ExpectedError.Error(),
-					"For error '%s' expected error '%s', actual '%s'", tc.ActualError, tc.ExpectedError, actualError)
+				if actualError != tc.ExpectedError {
+					t.Errorf("For error '%s' expected error '%s', actual '%s'", tc.ActualError, tc.ExpectedError, actualError)
+				}
 			}
 		})
 	})

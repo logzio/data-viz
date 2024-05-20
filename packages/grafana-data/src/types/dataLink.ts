@@ -1,12 +1,12 @@
+import { ScopedVars } from './ScopedVars';
 import { DataQuery } from './datasource';
-import { InterpolateFunction } from './panel';
 
 /**
  * Callback info for DataLink click events
  */
 export interface DataLinkClickEvent<T = any> {
   origin: T;
-  replaceVariables: InterpolateFunction | undefined;
+  scopedVars?: ScopedVars;
   e?: any; // mouse|react event
 }
 
@@ -33,17 +33,13 @@ export interface DataLink<T extends DataQuery = any> {
   onClick?: (event: DataLinkClickEvent) => void;
 
   // If dataLink represents internal link this has to be filled. Internal link is defined as a query in a particular
-  // data source that we want to show to the user. Usually this results in a link to explore but can also lead to
+  // datas ource that we want to show to the user. Usually this results in a link to explore but can also lead to
   // more custom onClick behaviour if needed.
   // @internal and subject to change in future releases
-  internal?: InternalDataLink<T>;
-}
-
-/** @internal */
-export interface InternalDataLink<T extends DataQuery = any> {
-  query: T;
-  datasourceUid: string;
-  datasourceName: string;
+  internal?: {
+    query: T;
+    datasourceUid: string;
+  };
 }
 
 // LOGZ.IO GRAFANA CHANGE :: Add top type
@@ -68,7 +64,7 @@ export interface LinkModel<T = any> {
  * TODO: ScopedVars in in GrafanaUI package!
  */
 export interface LinkModelSupplier<T extends object> {
-  getLinks(replaceVariables?: InterpolateFunction): Array<LinkModel<T>>;
+  getLinks(scopedVars?: any): Array<LinkModel<T>>;
 }
 
 export enum VariableOrigin {

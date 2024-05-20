@@ -11,17 +11,13 @@ import {
 } from './reducers';
 import { notifyApp } from 'app/core/actions';
 import { loadPanelPlugin } from 'app/features/plugins/state/actions';
-import { updateTimeZoneForSession } from 'app/features/profile/state/reducers';
 // Types
 import { DashboardAcl, DashboardAclUpdateDTO, NewDashboardAclItem, PermissionLevel, ThunkResult } from 'app/types';
 import { PanelModel } from './PanelModel';
 import { cancelVariables } from '../../variables/state/actions';
-import { getPanelPluginNotFound } from '../dashgrid/PanelPluginError';
-import { getTimeSrv } from '../services/TimeSrv';
-import { TimeZone } from '@grafana/data';
 
 export function getDashboardPermissions(id: number): ThunkResult<void> {
-  return async (dispatch) => {
+  return async dispatch => {
     const permissions = await getBackendSrv().get(`/api/dashboards/id/${id}/permissions`);
     dispatch(loadDashboardPermissions(permissions));
   };
@@ -65,13 +61,13 @@ export function updateDashboardPermission(
   };
 }
 
-export function removeDashboardPermission(dashboardId: number, recordToDelete: DashboardAcl): ThunkResult<void> {
+export function removeDashboardPermission(dashboardId: number, itemToDelete: DashboardAcl): ThunkResult<void> {
   return async (dispatch, getStore) => {
     const dashboard = getStore().dashboard;
     const itemsToUpdate = [];
 
     for (const item of dashboard.permissions) {
-      if (item.inherited || item === recordToDelete) {
+      if (item.inherited || item === itemToDelete) {
         continue;
       }
       itemsToUpdate.push(toUpdateItem(item));
@@ -107,7 +103,7 @@ export function addDashboardPermission(dashboardId: number, newItem: NewDashboar
 }
 
 export function importDashboard(data: any, dashboardTitle: string): ThunkResult<void> {
-  return async (dispatch) => {
+  return async dispatch => {
     await getBackendSrv().post('/api/dashboards/import', data);
     dispatch(notifyApp(createSuccessNotification('Dashboard Imported', dashboardTitle)));
     dispatch(loadPluginDashboards());
@@ -115,7 +111,7 @@ export function importDashboard(data: any, dashboardTitle: string): ThunkResult<
 }
 
 export function removeDashboard(uri: string): ThunkResult<void> {
-  return async (dispatch) => {
+  return async dispatch => {
     await getBackendSrv().delete(`/api/dashboards/${uri}`);
     dispatch(loadPluginDashboards());
   };
@@ -123,16 +119,10 @@ export function removeDashboard(uri: string): ThunkResult<void> {
 
 export function initDashboardPanel(panel: PanelModel): ThunkResult<void> {
   return async (dispatch, getStore) => {
-    let pluginToLoad = panel.type;
-    let plugin = getStore().plugins.panels[pluginToLoad];
+    let plugin = getStore().plugins.panels[panel.type];
 
     if (!plugin) {
-      try {
-        plugin = await dispatch(loadPanelPlugin(pluginToLoad));
-      } catch (e) {
-        // When plugin not found
-        plugin = getPanelPluginNotFound(pluginToLoad, pluginToLoad === 'row');
-      }
+      plugin = await dispatch(loadPanelPlugin(panel.type));
     }
 
     if (!panel.plugin) {
@@ -170,21 +160,7 @@ export function changePanelPlugin(panel: PanelModel, pluginId: string): ThunkRes
   };
 }
 
-export const cleanUpDashboardAndVariables = (): ThunkResult<void> => (dispatch, getStore) => {
-  const store = getStore();
-  const dashboard = store.dashboard.getModel();
-
-  if (dashboard) {
-    dashboard.destroy();
-  }
-
-  getTimeSrv().stopAutoRefresh();
-
+export const cleanUpDashboardAndVariables = (): ThunkResult<void> => dispatch => {
   dispatch(cleanUpDashboard());
   dispatch(cancelVariables());
-};
-
-export const updateTimeZoneDashboard = (timeZone: TimeZone): ThunkResult<void> => (dispatch) => {
-  dispatch(updateTimeZoneForSession(timeZone));
-  getTimeSrv().refreshDashboard();
 };

@@ -1,9 +1,9 @@
 import React, { HTMLProps, ReactNode } from 'react';
-import { GrafanaTheme2 } from '@grafana/data';
-import { css, cx } from '@emotion/css';
+import { GrafanaTheme } from '@grafana/data';
+import { css, cx } from 'emotion';
 import { getFocusStyle, sharedInputStyle } from '../Forms/commonStyles';
-import { stylesFactory, useTheme2 } from '../../themes';
-import { Spinner } from '../Spinner/Spinner';
+import { stylesFactory, useTheme } from '../../themes';
+import { Icon } from '../Icon/Icon';
 import { useClientRect } from '../../utils/useClientRect';
 
 export interface Props extends Omit<HTMLProps<HTMLInputElement>, 'prefix' | 'size'> {
@@ -24,12 +24,16 @@ export interface Props extends Omit<HTMLProps<HTMLInputElement>, 'prefix' | 'siz
 }
 
 interface StyleDeps {
-  theme: GrafanaTheme2;
+  theme: GrafanaTheme;
   invalid: boolean;
   width?: number;
 }
 
 export const getInputStyles = stylesFactory(({ theme, invalid = false, width }: StyleDeps) => {
+  const { palette, colors } = theme;
+  const borderRadius = theme.border.radius.sm;
+  const height = theme.spacing.formInputHeight;
+
   const prefixSuffixStaticWidth = '28px';
   const prefixSuffix = css`
     position: absolute;
@@ -44,7 +48,7 @@ export const getInputStyles = stylesFactory(({ theme, invalid = false, width }: 
     height: 100%;
     /* Min width specified for prefix/suffix classes used outside React component*/
     min-width: ${prefixSuffixStaticWidth};
-    color: ${theme.colors.text.secondary};
+    color: ${theme.colors.textWeak};
   `;
 
   return {
@@ -53,14 +57,14 @@ export const getInputStyles = stylesFactory(({ theme, invalid = false, width }: 
       css`
         label: input-wrapper;
         display: flex;
-        width: ${width ? `${theme.spacing(width)}` : '100%'};
-        height: ${theme.spacing(theme.components.height.md)};
-        border-radius: ${theme.shape.borderRadius()};
+        width: ${width ? `${8 * width}px` : '100%'};
+        height: ${height}px;
+        border-radius: ${borderRadius};
         &:hover {
           > .prefix,
           .suffix,
           .input {
-            border-color: ${invalid ? theme.colors.error.border : theme.colors.primary.border};
+            border-color: ${invalid ? palette.redBase : colors.formInputBorder};
           }
 
           // only show number buttons on hover
@@ -130,25 +134,21 @@ export const getInputStyles = stylesFactory(({ theme, invalid = false, width }: 
     `,
 
     input: cx(
-      getFocusStyle(theme.v1),
+      getFocusStyle(theme),
       sharedInputStyle(theme, invalid),
       css`
         label: input-input;
         position: relative;
         z-index: 0;
         flex-grow: 1;
-        border-radius: ${theme.shape.borderRadius()};
+        border-radius: ${borderRadius};
         height: 100%;
         width: 100%;
       `
     ),
     inputDisabled: css`
-      background-color: ${theme.colors.action.disabledBackground};
-      color: ${theme.colors.action.disabledText};
-      border: 1px solid ${theme.colors.action.disabledBackground};
-      &:focus {
-        box-shadow: none;
-      }
+      background-color: ${colors.formInputBgDisabled};
+      color: ${colors.formInputDisabledText};
     `,
     addon: css`
       label: input-addon;
@@ -185,8 +185,8 @@ export const getInputStyles = stylesFactory(({ theme, invalid = false, width }: 
       prefixSuffix,
       css`
         label: input-prefix;
-        padding-left: ${theme.spacing(1)};
-        padding-right: ${theme.spacing(0.5)};
+        padding-left: ${theme.spacing.sm};
+        padding-right: ${theme.spacing.xs};
         border-right: none;
         border-top-right-radius: 0;
         border-bottom-right-radius: 0;
@@ -196,8 +196,8 @@ export const getInputStyles = stylesFactory(({ theme, invalid = false, width }: 
       prefixSuffix,
       css`
         label: input-suffix;
-        padding-left: ${theme.spacing(1)};
-        padding-right: ${theme.spacing(1)};
+        padding-right: ${theme.spacing.sm};
+        padding-left: ${theme.spacing.xs};
         margin-bottom: -2px;
         border-left: none;
         border-top-left-radius: 0;
@@ -207,7 +207,7 @@ export const getInputStyles = stylesFactory(({ theme, invalid = false, width }: 
     ),
     loadingIndicator: css`
       & + * {
-        margin-left: ${theme.spacing(0.5)};
+        margin-left: ${theme.spacing.xs};
       }
     `,
   };
@@ -223,7 +223,7 @@ export const Input = React.forwardRef<HTMLInputElement, Props>((props, ref) => {
   const [prefixRect, prefixRef] = useClientRect<HTMLDivElement>();
   const [suffixRect, suffixRef] = useClientRect<HTMLDivElement>();
 
-  const theme = useTheme2();
+  const theme = useTheme();
   const styles = getInputStyles({ theme, invalid: !!invalid, width });
 
   return (
@@ -249,7 +249,7 @@ export const Input = React.forwardRef<HTMLInputElement, Props>((props, ref) => {
 
         {(suffix || loading) && (
           <div className={styles.suffix} ref={suffixRef}>
-            {loading && <Spinner className={styles.loadingIndicator} inline={true} />}
+            {loading && <Icon name="fa fa-spinner" className={cx('fa-spin', styles.loadingIndicator)} />}
             {suffix}
           </div>
         )}

@@ -2,8 +2,7 @@ import {
   ApplyFieldOverrideOptions,
   DataFrame,
   DataLink,
-  DisplayProcessor,
-  DisplayValue,
+  DataSourceInstanceSettings,
   DynamicConfigValue,
   Field,
   FieldColorModeId,
@@ -11,16 +10,19 @@ import {
   FieldConfigPropertyItem,
   FieldOverrideContext,
   FieldType,
+  GrafanaTheme,
   InterpolateFunction,
   LinkModel,
-  NumericRange,
   ScopedVars,
   TimeZone,
   ValueLinkConfig,
 } from '../types';
 import { fieldMatchers, reduceField, ReducerID } from '../transformations';
 import { FieldMatcher } from '../types/transformations';
-import { isNumber, set, unset, get, cloneDeep } from 'lodash';
+import isNumber from 'lodash/isNumber';
+import set from 'lodash/set';
+import unset from 'lodash/unset';
+import get from 'lodash/get';
 import { getDisplayProcessor, getRawDisplayProcessor } from './displayProcessor';
 import { guessFieldTypeForField } from '../dataframe';
 import { standardFieldConfigEditorRegistry } from './standardFieldConfigEditorRegistry';
@@ -38,7 +40,12 @@ interface OverrideProps {
   properties: DynamicConfigValue[];
 }
 
-export function findNumericFieldMinMax(data: DataFrame[]): NumericRange {
+interface GlobalMinMax {
+  min?: number | null;
+  max?: number | null;
+}
+
+export function findNumericFieldMinMax(data: DataFrame[]): GlobalMinMax {
   let min: number | null = null;
   let max: number | null = null;
 
@@ -62,7 +69,7 @@ export function findNumericFieldMinMax(data: DataFrame[]): NumericRange {
     }
   }
 
-  return { min, max, delta: (max ?? 0) - (min ?? 0) };
+  return { min, max };
 }
 
 /**
@@ -81,7 +88,7 @@ export function applyFieldOverrides(options: ApplyFieldOverrideOptions): DataFra
   const fieldConfigRegistry = options.fieldConfigRegistry ?? standardFieldConfigEditorRegistry;
 
   let seriesIndex = 0;
-  let globalRange: NumericRange | undefined = undefined;
+  let range: GlobalMinMax | undefined = undefined;
 
   // Prepare the Matchers
   const override: OverrideProps[] = [];
@@ -105,7 +112,7 @@ export function applyFieldOverrides(options: ApplyFieldOverrideOptions): DataFra
       __series: { text: 'Series', value: { name: getFrameDisplayName(frame, index) } }, // might be missing
     };
 
-    const fields: Field[] = frame.fields.map((field) => {
+    const fields: Field[] = frame.fields.map(field => {
       // Config is mutable within this scope
       const fieldScopedVars = { ...scopedVars };
       const displayName = getFieldDisplayName(field, frame, options.data);
@@ -121,12 +128,13 @@ export function applyFieldOverrides(options: ApplyFieldOverrideOptions): DataFra
         displayName,
       };
 
-      const config: FieldConfig = { ...cloneDeep(field.config) };
+      const config: FieldConfig = { ...field.config };
       const context = {
         field,
         data: options.data!,
         dataFrameIndex: index,
         replaceVariables: options.replaceVariables,
+        getDataSourceSettingsByUid: options.getDataSourceSettingsByUid,
         fieldConfigRegistry: fieldConfigRegistry,
       };
 
@@ -152,15 +160,36 @@ export function applyFieldOverrides(options: ApplyFieldOverrideOptions): DataFra
         }
       }
 
-      // Set the Min/Max value automatically
-      let range: NumericRange | undefined = undefined;
-      if (field.type === FieldType.number) {
-        if (!globalRange && (!isNumber(config.min) || !isNumber(config.max))) {
-          globalRange = findNumericFieldMinMax(options.data!);
+      // Some units have an implied range
+      if (config.unit === 'percent') {
+        if (!isNumber(config.min)) {
+          config.min = 0;
         }
-        const min = config.min ?? globalRange!.min;
-        const max = config.max ?? globalRange!.max;
-        range = { min, max, delta: max! - min! };
+        if (!isNumber(config.max)) {
+          config.max = 100;
+        }
+      } else if (config.unit === 'percentunit') {
+        if (!isNumber(config.min)) {
+          config.min = 0;
+        }
+        if (!isNumber(config.max)) {
+          config.max = 1;
+        }
+      }
+
+      // Set the Min/Max value automatically
+      if (options.autoMinMax && field.type === FieldType.number) {
+        if (!isNumber(config.min) || !isNumber(config.max)) {
+          if (!range) {
+            range = findNumericFieldMinMax(options.data!); // Global value
+          }
+          if (!isNumber(config.min)) {
+            config.min = range.min;
+          }
+          if (!isNumber(config.max)) {
+            config.max = range.max;
+          }
+        }
       }
 
       // Some color modes needs series index to assign field color so we count
@@ -178,7 +207,6 @@ export function applyFieldOverrides(options: ApplyFieldOverrideOptions): DataFra
           ...field.state,
           displayName: null,
           seriesIndex,
-          range,
         },
       };
 
@@ -189,18 +217,17 @@ export function applyFieldOverrides(options: ApplyFieldOverrideOptions): DataFra
         timeZone: options.timeZone,
       });
 
-      // Wrap the display with a cache to avoid double calls
-      if (newField.config.unit !== 'dateTimeFromNow') {
-        newField.display = cachingDisplayProcessor(newField.display, 2500);
-      }
-
       // Attach data links supplier
       newField.getLinks = getLinksSupplier(
         newFrame,
         newField,
         fieldScopedVars,
         context.replaceVariables,
-        options.timeZone
+        context.getDataSourceSettingsByUid,
+        {
+          theme: options.theme,
+          timeZone: options.timeZone,
+        }
       );
 
       return newField;
@@ -209,24 +236,6 @@ export function applyFieldOverrides(options: ApplyFieldOverrideOptions): DataFra
     newFrame.fields = fields;
     return newFrame;
   });
-}
-
-function cachingDisplayProcessor(disp: DisplayProcessor, maxCacheSize = 2500): DisplayProcessor {
-  const cache = new Map<any, DisplayValue>();
-
-  return (value: any) => {
-    let v = cache.get(value);
-    if (!v) {
-      // Don't grow too big
-      if (cache.size === maxCacheSize) {
-        cache.clear();
-      }
-
-      v = disp(value);
-      cache.set(value, v);
-    }
-    return v;
-  };
 }
 
 export interface FieldOverrideEnv extends FieldOverrideContext {
@@ -289,6 +298,7 @@ const processFieldConfigValue = (
   const currentConfig = get(destination, fieldConfigProperty.path);
   if (currentConfig === null || currentConfig === undefined) {
     const item = context.fieldConfigRegistry.getIfExists(fieldConfigProperty.id);
+    // console.log(item);
     if (!item) {
       return;
     }
@@ -334,7 +344,11 @@ export const getLinksSupplier = (
   field: Field,
   fieldScopedVars: ScopedVars,
   replaceVariables: InterpolateFunction,
-  timeZone?: TimeZone
+  getDataSourceSettingsByUid: (uid: string) => DataSourceInstanceSettings | undefined,
+  options: {
+    theme: GrafanaTheme;
+    timeZone?: TimeZone;
+  }
 ) => (config: ValueLinkConfig): Array<LinkModel<Field>> => {
   if (!field.config.links || field.config.links.length === 0) {
     return [];
@@ -349,19 +363,13 @@ export const getLinksSupplier = (
 
     // We are not displaying reduction result
     if (config.valueRowIndex !== undefined && !isNaN(config.valueRowIndex)) {
-      const fieldsProxy = getFieldDisplayValuesProxy({
-        frame,
-        rowIndex: config.valueRowIndex,
-        timeZone: timeZone,
-      });
-
+      const fieldsProxy = getFieldDisplayValuesProxy(frame, config.valueRowIndex, options);
       valueVars = {
         raw: field.values.get(config.valueRowIndex),
         numeric: fieldsProxy[field.name].numeric,
         text: fieldsProxy[field.name].text,
         time: timeField ? timeField.values.get(config.valueRowIndex) : undefined,
       };
-
       dataFrameVars = {
         __data: {
           value: {
@@ -401,13 +409,9 @@ export const getLinksSupplier = (
 
     if (link.internal) {
       // For internal links at the moment only destination is Explore.
-      return mapInternalLinkToExplore({
-        link,
-        internalLink: link.internal,
-        scopedVars: variables,
-        field,
-        range: {} as any,
+      return mapInternalLinkToExplore(link, variables, {} as any, field, {
         replaceVariables,
+        getDataSourceSettingsByUid,
       });
     } else {
       let href = locationUtil.assureBaseUrl(link.url.replace(/\n/g, ''));

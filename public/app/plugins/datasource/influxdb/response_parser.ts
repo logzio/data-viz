@@ -1,8 +1,8 @@
-import { each, isArray } from 'lodash';
+import _ from 'lodash';
 
 export default class ResponseParser {
   parse(query: string, results: { results: any }) {
-    if (!results?.results || results.results.length === 0) {
+    if (!results || results.results.length === 0) {
       return [];
     }
 
@@ -15,10 +15,10 @@ export default class ResponseParser {
     const isValueFirst =
       normalizedQuery.indexOf('show field keys') >= 0 || normalizedQuery.indexOf('show retention policies') >= 0;
 
-    const res = new Set<string>();
-    each(influxResults.series, (serie) => {
-      each(serie.values, (value) => {
-        if (isArray(value)) {
+    const res = {};
+    _.each(influxResults.series, serie => {
+      _.each(serie.values, value => {
+        if (_.isArray(value)) {
           // In general, there are 2 possible shapes for the returned value.
           // The first one is a two-element array,
           // where the first element is somewhat a metadata value:
@@ -44,14 +44,14 @@ export default class ResponseParser {
       });
     });
 
-    // NOTE: it is important to keep the order of items in the parsed output
-    // the same as it was in the influxdb-response.
-    // we use a `Set` to collect the unique-results, and `Set` iteration
-    // order is insertion-order, so this should be ok.
-    return Array.from(res).map((v) => ({ text: v }));
+    // @ts-ignore problems with typings for this _.map only accepts [] but this needs to be object
+    return _.map(res, value => {
+      // @ts-ignore
+      return { text: value.toString() };
+    });
   }
 }
 
-function addUnique(s: Set<string>, value: string | number) {
-  s.add(value.toString());
+function addUnique(arr: { [x: string]: any }, value: string | number) {
+  arr[value] = value;
 }

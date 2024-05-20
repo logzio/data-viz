@@ -1,20 +1,20 @@
-import { isString } from 'lodash';
-import { ALIGNMENT_PERIODS, SELECTORS } from './constants';
+import isString from 'lodash/isString';
+import { alignmentPeriods, ValueTypes, MetricKind, selectors } from './constants';
 import CloudMonitoringDatasource from './datasource';
-import { CloudMonitoringVariableQuery, MetricDescriptor, MetricFindQueryTypes, MetricKind, ValueTypes } from './types';
+import { MetricFindQueryTypes, VariableQueryData } from './types';
 import { SelectableValue } from '@grafana/data';
 import {
-  extractServicesFromMetricDescriptors,
-  getAggregationOptionsByMetric,
-  getAlignmentOptionsByMetric,
-  getLabelKeys,
   getMetricTypesByService,
+  getAlignmentOptionsByMetric,
+  getAggregationOptionsByMetric,
+  extractServicesFromMetricDescriptors,
+  getLabelKeys,
 } from './functions';
 
 export default class CloudMonitoringMetricFindQuery {
   constructor(private datasource: CloudMonitoringDatasource) {}
 
-  async execute(query: CloudMonitoringVariableQuery) {
+  async execute(query: VariableQueryData) {
     try {
       if (!query.projectName) {
         query.projectName = this.datasource.getDefaultProject();
@@ -63,23 +63,23 @@ export default class CloudMonitoringMetricFindQuery {
     }));
   }
 
-  async handleServiceQuery({ projectName }: CloudMonitoringVariableQuery) {
+  async handleServiceQuery({ projectName }: VariableQueryData) {
     const metricDescriptors = await this.datasource.getMetricTypes(projectName);
-    const services: MetricDescriptor[] = extractServicesFromMetricDescriptors(metricDescriptors);
-    return services.map((s) => ({
+    const services: any[] = extractServicesFromMetricDescriptors(metricDescriptors);
+    return services.map(s => ({
       text: s.serviceShortName,
       value: s.service,
       expandable: true,
     }));
   }
 
-  async handleMetricTypesQuery({ selectedService, projectName }: CloudMonitoringVariableQuery) {
+  async handleMetricTypesQuery({ selectedService, projectName }: VariableQueryData) {
     if (!selectedService) {
       return [];
     }
     const metricDescriptors = await this.datasource.getMetricTypes(projectName);
     return getMetricTypesByService(metricDescriptors, this.datasource.templateSrv.replace(selectedService)).map(
-      (s) => ({
+      (s: any) => ({
         text: s.displayName,
         value: s.type,
         expandable: true,
@@ -87,7 +87,7 @@ export default class CloudMonitoringMetricFindQuery {
     );
   }
 
-  async handleLabelKeysQuery({ selectedMetricType, projectName }: CloudMonitoringVariableQuery) {
+  async handleLabelKeysQuery({ selectedMetricType, projectName }: VariableQueryData) {
     if (!selectedMetricType) {
       return [];
     }
@@ -95,7 +95,7 @@ export default class CloudMonitoringMetricFindQuery {
     return labelKeys.map(this.toFindQueryResult);
   }
 
-  async handleLabelValuesQuery({ selectedMetricType, labelKey, projectName }: CloudMonitoringVariableQuery) {
+  async handleLabelValuesQuery({ selectedMetricType, labelKey, projectName }: VariableQueryData) {
     if (!selectedMetricType) {
       return [];
     }
@@ -106,22 +106,22 @@ export default class CloudMonitoringMetricFindQuery {
     return values.map(this.toFindQueryResult);
   }
 
-  async handleResourceTypeQuery({ selectedMetricType, projectName }: CloudMonitoringVariableQuery) {
+  async handleResourceTypeQuery({ selectedMetricType, projectName }: VariableQueryData) {
     if (!selectedMetricType) {
       return [];
     }
     const refId = 'handleResourceTypeQueryQueryType';
     const labels = await this.datasource.getLabels(selectedMetricType, refId, projectName);
-    return labels['resource.type']?.map(this.toFindQueryResult) ?? [];
+    return labels['resource.type'].map(this.toFindQueryResult);
   }
 
-  async handleAlignersQuery({ selectedMetricType, projectName }: CloudMonitoringVariableQuery) {
+  async handleAlignersQuery({ selectedMetricType, projectName }: VariableQueryData) {
     if (!selectedMetricType) {
       return [];
     }
     const metricDescriptors = await this.datasource.getMetricTypes(projectName);
     const descriptor = metricDescriptors.find(
-      (m) => m.type === this.datasource.templateSrv.replace(selectedMetricType)
+      (m: any) => m.type === this.datasource.templateSrv.replace(selectedMetricType)
     );
 
     if (!descriptor) {
@@ -131,14 +131,14 @@ export default class CloudMonitoringMetricFindQuery {
     return getAlignmentOptionsByMetric(descriptor.valueType, descriptor.metricKind).map(this.toFindQueryResult);
   }
 
-  async handleAggregationQuery({ selectedMetricType, projectName }: CloudMonitoringVariableQuery) {
+  async handleAggregationQuery({ selectedMetricType, projectName }: VariableQueryData) {
     if (!selectedMetricType) {
       return [];
     }
 
     const metricDescriptors = await this.datasource.getMetricTypes(projectName);
     const descriptor = metricDescriptors.find(
-      (m) => m.type === this.datasource.templateSrv.replace(selectedMetricType)
+      (m: any) => m.type === this.datasource.templateSrv.replace(selectedMetricType)
     );
 
     if (!descriptor) {
@@ -150,22 +150,22 @@ export default class CloudMonitoringMetricFindQuery {
     );
   }
 
-  async handleSLOServicesQuery({ projectName }: CloudMonitoringVariableQuery) {
+  async handleSLOServicesQuery({ projectName }: VariableQueryData) {
     const services = await this.datasource.getSLOServices(projectName);
     return services.map(this.toFindQueryResult);
   }
 
-  async handleSLOQuery({ selectedSLOService, projectName }: CloudMonitoringVariableQuery) {
+  async handleSLOQuery({ selectedSLOService, projectName }: VariableQueryData) {
     const slos = await this.datasource.getServiceLevelObjectives(projectName, selectedSLOService);
     return slos.map(this.toFindQueryResult);
   }
 
   async handleSelectorQuery() {
-    return SELECTORS.map(this.toFindQueryResult);
+    return selectors.map(this.toFindQueryResult);
   }
 
   handleAlignmentPeriodQuery() {
-    return ALIGNMENT_PERIODS.map(this.toFindQueryResult);
+    return alignmentPeriods.map(this.toFindQueryResult);
   }
 
   toFindQueryResult(x: any) {

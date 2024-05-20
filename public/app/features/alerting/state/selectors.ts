@@ -1,11 +1,11 @@
-import { AlertRule, AlertRulesState, NotificationChannelState, StoreState } from 'app/types';
+import { AlertRulesState, NotificationChannelState } from 'app/types';
 
 export const getSearchQuery = (state: AlertRulesState) => state.searchQuery;
 
-export const getAlertRuleItems = (state: StoreState): AlertRule[] => {
-  const regex = new RegExp(state.alertRules.searchQuery, 'i');
+export const getAlertRuleItems = (state: AlertRulesState) => {
+  const regex = new RegExp(state.searchQuery, 'i');
 
-  return state.alertRules.items.filter((item) => {
+  return state.items.filter(item => {
     return regex.test(item.name) || regex.test(item.stateText) || regex.test(item.info!);
   });
 };

@@ -20,9 +20,9 @@ describe('ConfigEditor', () => {
 
   it('should set defaults', () => {
     const options = createDefaultConfigOptions();
-    // @ts-ignore
+    //@ts-ignore
     delete options.jsonData.esVersion;
-    // @ts-ignore
+    //@ts-ignore
     delete options.jsonData.timeField;
     delete options.jsonData.maxConcurrentShardRequests;
 
@@ -30,8 +30,8 @@ describe('ConfigEditor', () => {
 
     mount(
       <ConfigEditor
-        onOptionsChange={(options) => {
-          expect(options.jsonData.esVersion).toBe('5.0.0');
+        onOptionsChange={options => {
+          expect(options.jsonData.esVersion).toBe(5);
           expect(options.jsonData.timeField).toBe('@timestamp');
           expect(options.jsonData.maxConcurrentShardRequests).toBe(256);
         }}
@@ -41,10 +41,17 @@ describe('ConfigEditor', () => {
   });
 
   it('should not apply default if values are set', () => {
-    const onChange = jest.fn();
+    expect.assertions(3);
 
-    mount(<ConfigEditor onOptionsChange={onChange} options={createDefaultConfigOptions()} />);
-
-    expect(onChange).toHaveBeenCalledTimes(0);
+    mount(
+      <ConfigEditor
+        onOptionsChange={options => {
+          expect(options.jsonData.esVersion).toBe(70);
+          expect(options.jsonData.timeField).toBe('@time');
+          expect(options.jsonData.maxConcurrentShardRequests).toBe(300);
+        }}
+        options={createDefaultConfigOptions()}
+      />
+    );
   });
 });

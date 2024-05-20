@@ -1,26 +1,27 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { isNumber, sortBy, toLower, uniqBy } from 'lodash';
-import { DataSourceApi, MetricFindValue, stringToJsRegex } from '@grafana/data';
+import _ from 'lodash';
+import { DataSourceApi, DataSourceSelectItem, MetricFindValue, stringToJsRegex } from '@grafana/data';
 
 import {
   initialVariableModelState,
   QueryVariableModel,
   VariableOption,
-  VariableQueryEditorType,
   VariableRefresh,
   VariableSort,
+  VariableTag,
 } from '../types';
 
 import {
   ALL_VARIABLE_TEXT,
   ALL_VARIABLE_VALUE,
   getInstanceState,
-  initialVariablesState,
   NONE_VARIABLE_TEXT,
   NONE_VARIABLE_VALUE,
   VariablePayload,
-  VariablesState,
 } from '../state/types';
+import { ComponentType } from 'react';
+import { VariableQueryProps } from '../../../types';
+import { initialVariablesState, VariablesState } from '../state/variablesReducer';
 
 interface VariableOptionsUpdate {
   templatedRegex: string;
@@ -28,7 +29,8 @@ interface VariableOptionsUpdate {
 }
 
 export interface QueryVariableEditorState {
-  VariableQueryEditor: VariableQueryEditorType;
+  VariableQueryEditor: ComponentType<VariableQueryProps> | null;
+  dataSources: DataSourceSelectItem[];
   dataSource: DataSourceApi | null;
 }
 
@@ -39,16 +41,20 @@ export const initialQueryVariableModelState: QueryVariableModel = {
   query: '',
   regex: '',
   sort: VariableSort.disabled,
-  refresh: VariableRefresh.onDashboardLoad,
+  refresh: VariableRefresh.never,
   multi: false,
   includeAll: false,
   allValue: null,
   options: [],
   current: {} as VariableOption,
+  tags: [],
+  useTags: false,
+  tagsQuery: '',
+  tagValuesQuery: '',
   definition: '',
 };
 
-export const sortVariableValues = (options: any[], sortOrder: VariableSort) => {
+const sortVariableValues = (options: any[], sortOrder: VariableSort) => {
   if (sortOrder === VariableSort.disabled) {
     return options;
   }
@@ -57,13 +63,9 @@ export const sortVariableValues = (options: any[], sortOrder: VariableSort) => {
   const reverseSort = sortOrder % 2 === 0;
 
   if (sortType === 1) {
-    options = sortBy(options, 'text');
+    options = _.sortBy(options, 'text');
   } else if (sortType === 2) {
-    options = sortBy(options, (opt) => {
-      if (!opt.text) {
-        return -1;
-      }
-
+    options = _.sortBy(options, opt => {
       const matches = opt.text.match(/.*?(\d+).*/);
       if (!matches || matches.length < 2) {
         return -1;
@@ -72,8 +74,8 @@ export const sortVariableValues = (options: any[], sortOrder: VariableSort) => {
       }
     });
   } else if (sortType === 3) {
-    options = sortBy(options, (opt) => {
-      return toLower(opt.text);
+    options = _.sortBy(options, opt => {
+      return _.toLower(opt.text);
     });
   }
 
@@ -84,73 +86,43 @@ export const sortVariableValues = (options: any[], sortOrder: VariableSort) => {
   return options;
 };
 
-const getAllMatches = (str: string, regex: RegExp): RegExpExecArray[] => {
-  const results: RegExpExecArray[] = [];
-  let matches = null;
-
-  regex.lastIndex = 0;
-
-  do {
-    matches = regex.exec(str);
-    if (matches) {
-      results.push(matches);
-    }
-  } while (regex.global && matches && matches[0] !== '' && matches[0] !== undefined);
-
-  return results;
-};
-
-export const metricNamesToVariableValues = (variableRegEx: string, sort: VariableSort, metricNames: any[]) => {
-  let regex;
+const metricNamesToVariableValues = (variableRegEx: string, sort: VariableSort, metricNames: any[]) => {
+  let regex, i, matches;
   let options: VariableOption[] = [];
 
   if (variableRegEx) {
     regex = stringToJsRegex(variableRegEx);
   }
 
-  for (let i = 0; i < metricNames.length; i++) {
+  for (i = 0; i < metricNames.length; i++) {
     const item = metricNames[i];
     let text = item.text === undefined || item.text === null ? item.value : item.text;
+
     let value = item.value === undefined || item.value === null ? item.text : item.value;
 
-    if (isNumber(value)) {
+    if (_.isNumber(value)) {
       value = value.toString();
     }
 
-    if (isNumber(text)) {
+    if (_.isNumber(text)) {
       text = text.toString();
     }
 
     if (regex) {
-      const matches = getAllMatches(value, regex);
-      if (!matches.length) {
+      matches = regex.exec(value);
+      if (!matches) {
         continue;
       }
-
-      const valueGroup = matches.find((m) => m.groups && m.groups.value);
-      const textGroup = matches.find((m) => m.groups && m.groups.text);
-      const firstMatch = matches.find((m) => m.length > 1);
-      const manyMatches = matches.length > 1 && firstMatch;
-
-      if (valueGroup || textGroup) {
-        value = valueGroup?.groups?.value ?? textGroup?.groups?.text;
-        text = textGroup?.groups?.text ?? valueGroup?.groups?.value;
-      } else if (manyMatches) {
-        for (let j = 0; j < matches.length; j++) {
-          const match = matches[j];
-          options.push({ text: match[1], value: match[1], selected: false });
-        }
-        continue;
-      } else if (firstMatch) {
-        text = firstMatch[1];
-        value = firstMatch[1];
+      if (matches.length > 1) {
+        value = matches[1];
+        text = matches[1];
       }
     }
 
     options.push({ text: text, value: value, selected: false });
   }
 
-  options = uniqBy(options, 'value');
+  options = _.uniqBy(options, 'value');
   return sortVariableValues(options, sort);
 };
 
@@ -174,9 +146,19 @@ export const queryVariableSlice = createSlice({
 
       instanceState.options = options;
     },
+    updateVariableTags: (state: VariablesState, action: PayloadAction<VariablePayload<any[]>>) => {
+      const instanceState = getInstanceState<QueryVariableModel>(state, action.payload.id);
+      const results = action.payload.data;
+      const tags: VariableTag[] = [];
+      for (let i = 0; i < results.length; i++) {
+        tags.push({ text: results[i].text, selected: false });
+      }
+
+      instanceState.tags = tags;
+    },
   },
 });
 
 export const queryVariableReducer = queryVariableSlice.reducer;
 
-export const { updateVariableOptions } = queryVariableSlice.actions;
+export const { updateVariableOptions, updateVariableTags } = queryVariableSlice.actions;

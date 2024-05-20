@@ -1,11 +1,11 @@
 import React, { FC } from 'react';
-import { Button, Field, FieldSet, Form, Icon, Input, Tooltip } from '@grafana/ui';
-import { UserDTO } from 'app/types';
+import { Button, Tooltip, Icon, Form, Input, Field, FieldSet } from '@grafana/ui';
+import { User } from 'app/types';
 import config from 'app/core/config';
-import { ProfileUpdateFields } from './types';
+import { ProfileUpdateFields } from 'app/core/utils/UserProvider';
 
 export interface Props {
-  user: UserDTO | null;
+  user: User;
   isSavingUser: boolean;
   updateProfile: (payload: ProfileUpdateFields) => void;
 }
@@ -21,36 +21,30 @@ export const UserProfileEditForm: FC<Props> = ({ user, isSavingUser, updateProfi
     <Form onSubmit={onSubmitProfileUpdate} validateOn="onBlur">
       {({ register, errors }) => {
         return (
-          <FieldSet label="Edit profile">
-            <Field label="Name" invalid={!!errors.name} error="Name is required" disabled={disableLoginForm}>
-              <Input
-                {...register('name', { required: true })}
-                id="edit-user-profile-name"
-                placeholder="Name"
-                defaultValue={user?.name ?? ''}
-                suffix={<InputSuffix />}
-              />
+          <FieldSet label="Edit Profile">
+            <Field label="Name" invalid={!!errors.name} error="Name is required">
+              <Input name="name" ref={register({ required: true })} placeholder="Name" defaultValue={user.name} />
             </Field>
             <Field label="Email" invalid={!!errors.email} error="Email is required" disabled={disableLoginForm}>
               <Input
-                {...register('email', { required: true })}
-                id="edit-user-profile-email"
+                name="email"
+                ref={register({ required: true })}
                 placeholder="Email"
-                defaultValue={user?.email ?? ''}
+                defaultValue={user.email}
                 suffix={<InputSuffix />}
               />
             </Field>
             <Field label="Username" disabled={disableLoginForm}>
               <Input
-                {...register('login')}
-                id="edit-user-profile-username"
-                defaultValue={user?.login ?? ''}
+                name="login"
+                ref={register}
+                defaultValue={user.login}
                 placeholder="Username"
                 suffix={<InputSuffix />}
               />
             </Field>
             <div className="gf-form-button-row">
-              <Button variant="primary" disabled={isSavingUser} aria-label="Edit user profile save button">
+              <Button variant="primary" disabled={isSavingUser}>
                 Save
               </Button>
             </div>
@@ -65,7 +59,7 @@ export default UserProfileEditForm;
 
 const InputSuffix: FC = () => {
   return disableLoginForm ? (
-    <Tooltip content="Login details locked because they are managed in another system.">
+    <Tooltip content="Login Details Locked - managed in another system.">
       <Icon name="lock" />
     </Tooltip>
   ) : null;

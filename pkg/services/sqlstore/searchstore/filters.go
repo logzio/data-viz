@@ -33,10 +33,6 @@ type FilterLeftJoin interface {
 	LeftJoin() string
 }
 
-type FilterSelect interface {
-	Select() string
-}
-
 const (
 	TypeFolder    = "dash-folder"
 	TypeDashboard = "dash-db"

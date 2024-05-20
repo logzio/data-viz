@@ -19,7 +19,7 @@ func (sess *DBSession) publishAfterCommit(msg interface{}) {
 }
 
 // NewSession returns a new DBSession
-func (ss *SQLStore) NewSession() *DBSession {
+func (ss *SqlStore) NewSession() *DBSession {
 	return &DBSession{Session: ss.engine.NewSession()}
 }
 
@@ -46,14 +46,22 @@ func startSession(ctx context.Context, engine *xorm.Engine, beginTran bool) (*DB
 	return newSess, nil
 }
 
-// WithDbSession calls the callback with a session.
-func (ss *SQLStore) WithDbSession(ctx context.Context, callback dbTransactionFunc) error {
-	return withDbSession(ctx, ss.engine, callback)
+// WithDbSession calls the callback with an session attached to the context.
+func (ss *SqlStore) WithDbSession(ctx context.Context, callback dbTransactionFunc) error {
+	sess, err := startSession(ctx, ss.engine, false)
+	if err != nil {
+		return err
+	}
+	defer sess.Close()
+
+	return callback(sess)
 }
 
-func withDbSession(ctx context.Context, engine *xorm.Engine, callback dbTransactionFunc) error {
-	sess := &DBSession{Session: engine.NewSession()}
-	defer sess.Close()
+func withDbSession(ctx context.Context, callback dbTransactionFunc) error {
+	sess, err := startSession(ctx, x, false)
+	if err != nil {
+		return err
+	}
 
 	return callback(sess)
 }

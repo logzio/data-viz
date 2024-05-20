@@ -15,7 +15,6 @@ export type Props = {
 
 export function AnnotationQueryEditor(props: React.PropsWithChildren<Props>) {
   const { query, onChange } = props;
-
   return (
     <>
       <PanelQueryEditor

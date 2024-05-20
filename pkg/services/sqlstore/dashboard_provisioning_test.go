@@ -13,9 +13,9 @@ import (
 
 func TestDashboardProvisioningTest(t *testing.T) {
 	Convey("Testing Dashboard provisioning", t, func() {
-		sqlStore := InitTestDB(t)
+		InitTestDB(t)
 
-		folderCmd := models.SaveDashboardCommand{
+		folderCmd := &models.SaveDashboardCommand{
 			OrgId:    1,
 			FolderId: 0,
 			IsFolder: true,
@@ -25,13 +25,13 @@ func TestDashboardProvisioningTest(t *testing.T) {
 			}),
 		}
 
-		dash, err := sqlStore.SaveDashboard(folderCmd)
+		err := SaveDashboard(folderCmd)
 		So(err, ShouldBeNil)
 
-		saveDashboardCmd := models.SaveDashboardCommand{
+		saveDashboardCmd := &models.SaveDashboardCommand{
 			OrgId:    1,
 			IsFolder: false,
-			FolderId: dash.Id,
+			FolderId: folderCmd.Result.Id,
 			Dashboard: simplejson.NewFromAny(map[string]interface{}{
 				"id":    nil,
 				"title": "test dashboard",
@@ -41,38 +41,43 @@ func TestDashboardProvisioningTest(t *testing.T) {
 		Convey("Saving dashboards with provisioning meta data", func() {
 			now := time.Now()
 
-			provisioning := &models.DashboardProvisioning{
-				Name:       "default",
-				ExternalId: "/var/grafana.json",
-				Updated:    now.Unix(),
-			}
-
-			dash, err := sqlStore.SaveProvisionedDashboard(saveDashboardCmd, provisioning)
-			So(err, ShouldBeNil)
-			So(dash, ShouldNotBeNil)
-			So(dash.Id, ShouldNotEqual, 0)
-			dashId := dash.Id
-
-			Convey("Deleting orphaned provisioned dashboards", func() {
-				saveCmd := models.SaveDashboardCommand{
-					OrgId:    1,
-					IsFolder: false,
-					FolderId: dash.Id,
-					Dashboard: simplejson.NewFromAny(map[string]interface{}{
-						"id":    nil,
-						"title": "another_dashboard",
-					}),
-				}
-				provisioning := &models.DashboardProvisioning{
-					Name:       "another_reader",
+			cmd := &models.SaveProvisionedDashboardCommand{
+				DashboardCmd: saveDashboardCmd,
+				DashboardProvisioning: &models.DashboardProvisioning{
+					Name:       "default",
 					ExternalId: "/var/grafana.json",
 					Updated:    now.Unix(),
+				},
+			}
+
+			err := SaveProvisionedDashboard(cmd)
+			So(err, ShouldBeNil)
+			So(cmd.Result, ShouldNotBeNil)
+			So(cmd.Result.Id, ShouldNotEqual, 0)
+			dashId := cmd.Result.Id
+
+			Convey("Deleting orphaned provisioned dashboards", func() {
+				anotherCmd := &models.SaveProvisionedDashboardCommand{
+					DashboardCmd: &models.SaveDashboardCommand{
+						OrgId:    1,
+						IsFolder: false,
+						FolderId: folderCmd.Result.Id,
+						Dashboard: simplejson.NewFromAny(map[string]interface{}{
+							"id":    nil,
+							"title": "another_dashboard",
+						}),
+					},
+					DashboardProvisioning: &models.DashboardProvisioning{
+						Name:       "another_reader",
+						ExternalId: "/var/grafana.json",
+						Updated:    now.Unix(),
+					},
 				}
 
-				anotherDash, err := sqlStore.SaveProvisionedDashboard(saveCmd, provisioning)
+				err := SaveProvisionedDashboard(anotherCmd)
 				So(err, ShouldBeNil)
 
-				query := &models.GetDashboardsQuery{DashboardIds: []int64{anotherDash.Id}}
+				query := &models.GetDashboardsQuery{DashboardIds: []int64{anotherCmd.Result.Id}}
 				err = GetDashboards(query)
 				So(err, ShouldBeNil)
 				So(query.Result, ShouldNotBeNil)
@@ -80,7 +85,7 @@ func TestDashboardProvisioningTest(t *testing.T) {
 				deleteCmd := &models.DeleteOrphanedProvisionedDashboardsCommand{ReaderNames: []string{"default"}}
 				So(DeleteOrphanedProvisionedDashboards(deleteCmd), ShouldBeNil)
 
-				query = &models.GetDashboardsQuery{DashboardIds: []int64{dash.Id, anotherDash.Id}}
+				query = &models.GetDashboardsQuery{DashboardIds: []int64{cmd.Result.Id, anotherCmd.Result.Id}}
 				err = GetDashboards(query)
 				So(err, ShouldBeNil)
 
@@ -89,38 +94,45 @@ func TestDashboardProvisioningTest(t *testing.T) {
 			})
 
 			Convey("Can query for provisioned dashboards", func() {
-				rslt, err := sqlStore.GetProvisionedDashboardData("default")
+				query := &models.GetProvisionedDashboardDataQuery{Name: "default"}
+				err := GetProvisionedDashboardDataQuery(query)
 				So(err, ShouldBeNil)
 
-				So(len(rslt), ShouldEqual, 1)
-				So(rslt[0].DashboardId, ShouldEqual, dashId)
-				So(rslt[0].Updated, ShouldEqual, now.Unix())
+				So(len(query.Result), ShouldEqual, 1)
+				So(query.Result[0].DashboardId, ShouldEqual, dashId)
+				So(query.Result[0].Updated, ShouldEqual, now.Unix())
 			})
 
 			Convey("Can query for one provisioned dashboard", func() {
-				data, err := sqlStore.GetProvisionedDataByDashboardID(dash.Id)
+				query := &models.GetProvisionedDashboardDataByIdQuery{DashboardId: cmd.Result.Id}
+
+				err := GetProvisionedDataByDashboardId(query)
 				So(err, ShouldBeNil)
 
-				So(data, ShouldNotBeNil)
+				So(query.Result, ShouldNotBeNil)
 			})
 
 			Convey("Can query for none provisioned dashboard", func() {
-				data, err := sqlStore.GetProvisionedDataByDashboardID(3000)
+				query := &models.GetProvisionedDashboardDataByIdQuery{DashboardId: 3000}
+
+				err := GetProvisionedDataByDashboardId(query)
 				So(err, ShouldBeNil)
-				So(data, ShouldBeNil)
+				So(query.Result, ShouldBeNil)
 			})
 
 			Convey("Deleting folder should delete provision meta data", func() {
 				deleteCmd := &models.DeleteDashboardCommand{
-					Id:    dash.Id,
+					Id:    folderCmd.Result.Id,
 					OrgId: 1,
 				}
 
 				So(DeleteDashboard(deleteCmd), ShouldBeNil)
 
-				data, err := sqlStore.GetProvisionedDataByDashboardID(dash.Id)
+				query := &models.GetProvisionedDashboardDataByIdQuery{DashboardId: cmd.Result.Id}
+
+				err = GetProvisionedDataByDashboardId(query)
 				So(err, ShouldBeNil)
-				So(data, ShouldBeNil)
+				So(query.Result, ShouldBeNil)
 			})
 
 			Convey("UnprovisionDashboard should delete provisioning metadata", func() {
@@ -130,9 +142,11 @@ func TestDashboardProvisioningTest(t *testing.T) {
 
 				So(UnprovisionDashboard(unprovisionCmd), ShouldBeNil)
 
-				data, err := sqlStore.GetProvisionedDataByDashboardID(dashId)
+				query := &models.GetProvisionedDashboardDataByIdQuery{DashboardId: dashId}
+
+				err = GetProvisionedDataByDashboardId(query)
 				So(err, ShouldBeNil)
-				So(data, ShouldBeNil)
+				So(query.Result, ShouldBeNil)
 			})
 		})
 	})

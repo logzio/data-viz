@@ -1,29 +1,23 @@
 import React, { useState, useCallback } from 'react';
 import { Icon, renderOrCallToRender, stylesFactory, useTheme } from '@grafana/ui';
 import { GrafanaTheme } from '@grafana/data';
-import { css } from '@emotion/css';
+import { css } from 'emotion';
 import { useUpdateEffect } from 'react-use';
 import { Draggable } from 'react-beautiful-dnd';
 
 interface QueryOperationRowProps {
   index: number;
   id: string;
-  title?: string;
-  headerElement?: QueryOperationRowRenderProp;
-  actions?: QueryOperationRowRenderProp;
+  title?: ((props: { isOpen: boolean }) => React.ReactNode) | React.ReactNode;
+  headerElement?: React.ReactNode;
+  actions?:
+    | ((props: { isOpen: boolean; openRow: () => void; closeRow: () => void }) => React.ReactNode)
+    | React.ReactNode;
   onOpen?: () => void;
   onClose?: () => void;
   children: React.ReactNode;
   isOpen?: boolean;
   draggable?: boolean;
-}
-
-export type QueryOperationRowRenderProp = ((props: QueryOperationRowRenderProps) => React.ReactNode) | React.ReactNode;
-
-export interface QueryOperationRowRenderProps {
-  isOpen: boolean;
-  onOpen: () => void;
-  onClose: () => void;
 }
 
 export const QueryOperationRow: React.FC<QueryOperationRowProps> = ({
@@ -57,33 +51,26 @@ export const QueryOperationRow: React.FC<QueryOperationRowProps> = ({
     }
   }, [isContentVisible]);
 
-  const renderPropArgs: QueryOperationRowRenderProps = {
-    isOpen: isContentVisible,
-    onOpen: () => {
-      setIsContentVisible(true);
-    },
-    onClose: () => {
-      setIsContentVisible(false);
-    },
-  };
-
-  const titleElement = title && renderOrCallToRender(title, renderPropArgs);
-  const actionsElement = actions && renderOrCallToRender(actions, renderPropArgs);
-  const headerElementRendered = headerElement && renderOrCallToRender(headerElement, renderPropArgs);
+  const titleElement = title && renderOrCallToRender(title, { isOpen: isContentVisible });
+  const actionsElement =
+    actions &&
+    renderOrCallToRender(actions, {
+      isOpen: isContentVisible,
+      openRow: () => {
+        setIsContentVisible(true);
+      },
+      closeRow: () => {
+        setIsContentVisible(false);
+      },
+    });
 
   const rowHeader = (
     <div className={styles.header}>
-      <Icon
-        name={isContentVisible ? 'angle-down' : 'angle-right'}
-        className={styles.collapseIcon}
-        onClick={onRowToggle}
-      />
-      {title && (
-        <div className={styles.titleWrapper} onClick={onRowToggle} aria-label="Query operation row title">
-          <div className={styles.title}>{titleElement}</div>
-        </div>
-      )}
-      {headerElementRendered}
+      <div className={styles.titleWrapper} onClick={onRowToggle} aria-label="Query operation row title">
+        <Icon name={isContentVisible ? 'angle-down' : 'angle-right'} className={styles.collapseIcon} />
+        {title && <div className={styles.title}>{titleElement}</div>}
+        {headerElement}
+      </div>
       {actions && <div>{actionsElement}</div>}
       {draggable && (
         <Icon title="Drag and drop to reorder" name="draggabledots" size="lg" className={styles.dragIcon} />
@@ -94,7 +81,7 @@ export const QueryOperationRow: React.FC<QueryOperationRowProps> = ({
   if (draggable) {
     return (
       <Draggable draggableId={id} index={index}>
-        {(provided) => {
+        {provided => {
           return (
             <>
               <div ref={provided.innerRef} className={styles.wrapper} {...provided.draggableProps}>
@@ -129,11 +116,6 @@ const getQueryOperationRowStyles = stylesFactory((theme: GrafanaTheme) => {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      white-space: nowrap;
-
-      &:focus {
-        outline: none;
-      }
     `,
     dragIcon: css`
       cursor: drag;
@@ -144,7 +126,6 @@ const getQueryOperationRowStyles = stylesFactory((theme: GrafanaTheme) => {
     `,
     collapseIcon: css`
       color: ${theme.colors.textWeak};
-      cursor: pointer;
       &:hover {
         color: ${theme.colors.text};
       }

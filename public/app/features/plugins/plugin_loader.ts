@@ -1,4 +1,3 @@
-// eslint-disable-next-line lodash/import-scope
 import _ from 'lodash';
 import * as sdk from 'app/plugins/sdk';
 import kbn from 'app/core/utils/kbn';
@@ -10,7 +9,7 @@ import jquery from 'jquery';
 import prismjs from 'prismjs';
 import slate from 'slate';
 // @ts-ignore
-import slateReact from 'slate-react';
+import slateReact from '@grafana/slate-react';
 // @ts-ignore
 import slatePlain from 'slate-plain-serializer';
 import react from 'react';
@@ -22,6 +21,17 @@ import config from 'app/core/config';
 import TimeSeries from 'app/core/time_series2';
 import TableModel from 'app/core/table_model';
 import { coreModule, appEvents, contextSrv } from 'app/core/core';
+import {
+  DataSourcePlugin,
+  AppPlugin,
+  PanelPlugin,
+  PluginMeta,
+  DataSourcePluginMeta,
+  dateMath,
+  DataSourceApi,
+  DataSourceJsonData,
+  DataQuery,
+} from '@grafana/data';
 import * as flatten from 'app/core/utils/flatten';
 import * as ticks from 'app/core/utils/ticks';
 import { BackendSrv, getBackendSrv } from 'app/core/services/backend_srv';
@@ -29,7 +39,7 @@ import { promiseToDigest } from 'app/core/utils/promiseToDigest';
 import impressionSrv from 'app/core/services/impression_srv';
 import builtInPlugins from './built_in_plugins';
 import * as d3 from 'd3';
-import * as emotion from '@emotion/css';
+import * as emotion from 'emotion';
 import * as grafanaData from '@grafana/data';
 import * as grafanaUIraw from '@grafana/ui';
 import * as grafanaRuntime from '@grafana/runtime';
@@ -46,15 +56,12 @@ grafanaUI.DataSourceApi = grafanaData.DataSourceApi;
 // rxjs
 import * as rxjs from 'rxjs';
 import * as rxjsOperators from 'rxjs/operators';
-// routing
-import * as reactRouter from 'react-router-dom';
 
 // add cache busting
 const bust = `?_cache=${Date.now()}`;
 function locate(load: { address: string }) {
   return load.address + bust;
 }
-
 grafanaRuntime.SystemJS.registry.set('plugin-loader', grafanaRuntime.SystemJS.newModule({ locate: locate }));
 
 grafanaRuntime.SystemJS.config({
@@ -94,19 +101,17 @@ exposeToPlugin('angular', angular);
 exposeToPlugin('d3', d3);
 exposeToPlugin('rxjs', rxjs);
 exposeToPlugin('rxjs/operators', rxjsOperators);
-exposeToPlugin('react-router-dom', reactRouter);
 
 // Experimental modules
 exposeToPlugin('prismjs', prismjs);
 exposeToPlugin('slate', slate);
-exposeToPlugin('slate-react', slateReact);
+exposeToPlugin('@grafana/slate-react', slateReact);
 exposeToPlugin('slate-plain-serializer', slatePlain);
 exposeToPlugin('react', react);
 exposeToPlugin('react-dom', reactDom);
 exposeToPlugin('react-redux', reactRedux);
 exposeToPlugin('redux', redux);
 exposeToPlugin('emotion', emotion);
-exposeToPlugin('@emotion/css', emotion);
 
 exposeToPlugin('app/features/dashboard/impression_store', {
   impressions: impressionSrv,
@@ -124,7 +129,7 @@ exposeToPlugin('app/core/services/backend_srv', {
 });
 
 exposeToPlugin('app/plugins/sdk', sdk);
-exposeToPlugin('app/core/utils/datemath', grafanaData.dateMath);
+exposeToPlugin('app/core/utils/datemath', dateMath);
 exposeToPlugin('app/core/utils/flatten', flatten);
 exposeToPlugin('app/core/utils/kbn', kbn);
 exposeToPlugin('app/core/utils/ticks', ticks);
@@ -186,8 +191,8 @@ export async function importPluginModule(path: string): Promise<any> {
   return grafanaRuntime.SystemJS.import(path);
 }
 
-export function importDataSourcePlugin(meta: grafanaData.DataSourcePluginMeta): Promise<GenericDataSourcePlugin> {
-  return importPluginModule(meta.module).then((pluginExports) => {
+export function importDataSourcePlugin(meta: DataSourcePluginMeta): Promise<GenericDataSourcePlugin> {
+  return importPluginModule(meta.module).then(pluginExports => {
     if (pluginExports.plugin) {
       const dsPlugin = pluginExports.plugin as GenericDataSourcePlugin;
       dsPlugin.meta = meta;
@@ -195,10 +200,10 @@ export function importDataSourcePlugin(meta: grafanaData.DataSourcePluginMeta): 
     }
 
     if (pluginExports.Datasource) {
-      const dsPlugin = new grafanaData.DataSourcePlugin<
-        grafanaData.DataSourceApi<grafanaData.DataQuery, grafanaData.DataSourceJsonData>,
-        grafanaData.DataQuery,
-        grafanaData.DataSourceJsonData
+      const dsPlugin = new DataSourcePlugin<
+        DataSourceApi<DataQuery, DataSourceJsonData>,
+        DataQuery,
+        DataSourceJsonData
       >(pluginExports.Datasource);
       dsPlugin.setComponentsFromLegacyExports(pluginExports);
       dsPlugin.meta = meta;
@@ -209,9 +214,9 @@ export function importDataSourcePlugin(meta: grafanaData.DataSourcePluginMeta): 
   });
 }
 
-export function importAppPlugin(meta: grafanaData.PluginMeta): Promise<grafanaData.AppPlugin> {
-  return importPluginModule(meta.module).then((pluginExports) => {
-    const plugin = pluginExports.plugin ? (pluginExports.plugin as grafanaData.AppPlugin) : new grafanaData.AppPlugin();
+export function importAppPlugin(meta: PluginMeta): Promise<AppPlugin> {
+  return importPluginModule(meta.module).then(pluginExports => {
+    const plugin = pluginExports.plugin ? (pluginExports.plugin as AppPlugin) : new AppPlugin();
     plugin.init(meta);
     plugin.meta = meta;
     plugin.setComponentsFromLegacyExports(pluginExports);
@@ -219,16 +224,17 @@ export function importAppPlugin(meta: grafanaData.PluginMeta): Promise<grafanaDa
   });
 }
 
-import { getPanelPluginLoadError } from '../dashboard/dashgrid/PanelPluginError';
+import { getPanelPluginNotFound, getPanelPluginLoadError } from '../dashboard/dashgrid/PanelPluginError';
 import { GenericDataSourcePlugin } from '../datasources/settings/PluginSettings';
 
 interface PanelCache {
-  [key: string]: Promise<grafanaData.PanelPlugin>;
+  [key: string]: Promise<PanelPlugin>;
 }
 const panelCache: PanelCache = {};
 
-export function importPanelPlugin(id: string): Promise<grafanaData.PanelPlugin> {
+export function importPanelPlugin(id: string): Promise<PanelPlugin> {
   const loaded = panelCache[id];
+
   if (loaded) {
     return loaded;
   }
@@ -236,37 +242,29 @@ export function importPanelPlugin(id: string): Promise<grafanaData.PanelPlugin> 
   const meta = config.panels[id];
 
   if (!meta) {
-    throw new Error(`Plugin ${id} not found`);
+    return Promise.resolve(getPanelPluginNotFound(id));
   }
 
-  panelCache[id] = getPanelPlugin(meta);
-
-  return panelCache[id];
-}
-
-export function importPanelPluginFromMeta(meta: grafanaData.PanelPluginMeta): Promise<grafanaData.PanelPlugin> {
-  return getPanelPlugin(meta);
-}
-
-function getPanelPlugin(meta: grafanaData.PanelPluginMeta): Promise<grafanaData.PanelPlugin> {
-  return importPluginModule(meta.module)
-    .then((pluginExports) => {
+  panelCache[id] = importPluginModule(meta.module)
+    .then(pluginExports => {
       if (pluginExports.plugin) {
-        return pluginExports.plugin as grafanaData.PanelPlugin;
+        return pluginExports.plugin as PanelPlugin;
       } else if (pluginExports.PanelCtrl) {
-        const plugin = new grafanaData.PanelPlugin(null);
+        const plugin = new PanelPlugin(null);
         plugin.angularPanelCtrl = pluginExports.PanelCtrl;
         return plugin;
       }
       throw new Error('missing export: plugin or PanelCtrl');
     })
-    .then((plugin) => {
+    .then(plugin => {
       plugin.meta = meta;
       return plugin;
     })
-    .catch((err) => {
+    .catch(err => {
       // TODO, maybe a different error plugin
-      console.warn('Error loading panel plugin: ' + meta.id, err);
+      console.warn('Error loading panel plugin: ' + id, err);
       return getPanelPluginLoadError(meta, err);
     });
+
+  return panelCache[id];
 }

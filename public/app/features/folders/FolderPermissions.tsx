@@ -1,10 +1,12 @@
 import React, { PureComponent } from 'react';
-import { connect, ConnectedProps } from 'react-redux';
+import { hot } from 'react-hot-loader';
+import { connect } from 'react-redux';
 import Page from 'app/core/components/Page/Page';
-import { Tooltip, Icon, Button } from '@grafana/ui';
+import { Tooltip, Icon } from '@grafana/ui';
+import { NavModel } from '@grafana/data';
 import { SlideDown } from 'app/core/components/Animations/SlideDown';
 import { getNavModel } from 'app/core/selectors/navModel';
-import { StoreState } from 'app/types';
+import { StoreState, FolderState } from 'app/types';
 import { DashboardAcl, PermissionLevel, NewDashboardAclItem } from 'app/types/acl';
 import {
   getFolderByUid,
@@ -17,30 +19,17 @@ import { getLoadingNav } from './state/navModel';
 import PermissionList from 'app/core/components/PermissionList/PermissionList';
 import AddPermission from 'app/core/components/PermissionList/AddPermission';
 import PermissionsInfo from 'app/core/components/PermissionList/PermissionsInfo';
-import { GrafanaRouteComponentProps } from 'app/core/navigation/types';
 
-export interface OwnProps extends GrafanaRouteComponentProps<{ uid: string }> {}
-
-const mapStateToProps = (state: StoreState, props: OwnProps) => {
-  const uid = props.match.params.uid;
-  return {
-    navModel: getNavModel(state.navIndex, `folder-permissions-${uid}`, getLoadingNav(1)),
-    folderUid: uid,
-    folder: state.folder,
-  };
-};
-
-const mapDispatchToProps = {
-  getFolderByUid,
-  getFolderPermissions,
-  updateFolderPermission,
-  removeFolderPermission,
-  addFolderPermission,
-};
-
-const connector = connect(mapStateToProps, mapDispatchToProps);
-
-export type Props = OwnProps & ConnectedProps<typeof connector>;
+export interface Props {
+  navModel: NavModel;
+  folderUid: string;
+  folder: FolderState;
+  getFolderByUid: typeof getFolderByUid;
+  getFolderPermissions: typeof getFolderPermissions;
+  updateFolderPermission: typeof updateFolderPermission;
+  removeFolderPermission: typeof removeFolderPermission;
+  addFolderPermission: typeof addFolderPermission;
+}
 
 export interface State {
   isAdding: boolean;
@@ -105,9 +94,9 @@ export class FolderPermissions extends PureComponent<Props, State> {
               <Icon className="icon--has-hover page-sub-heading-icon" name="question-circle" />
             </Tooltip>
             <div className="page-action-bar__spacer" />
-            <Button className="pull-right" onClick={this.onOpenAddPermissions} disabled={isAdding}>
+            <button className="btn btn-primary pull-right" onClick={this.onOpenAddPermissions} disabled={isAdding}>
               Add Permission
-            </Button>
+            </button>
           </div>
           <SlideDown in={isAdding}>
             <AddPermission onAddPermission={this.onAddPermission} onCancel={this.onCancelAddPermission} />
@@ -125,4 +114,21 @@ export class FolderPermissions extends PureComponent<Props, State> {
   }
 }
 
-export default connector(FolderPermissions);
+const mapStateToProps = (state: StoreState) => {
+  const uid = state.location.routeParams.uid;
+  return {
+    navModel: getNavModel(state.navIndex, `folder-permissions-${uid}`, getLoadingNav(1)),
+    folderUid: uid,
+    folder: state.folder,
+  };
+};
+
+const mapDispatchToProps = {
+  getFolderByUid,
+  getFolderPermissions,
+  updateFolderPermission,
+  removeFolderPermission,
+  addFolderPermission,
+};
+
+export default hot(module)(connect(mapStateToProps, mapDispatchToProps)(FolderPermissions));

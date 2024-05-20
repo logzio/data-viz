@@ -1,7 +1,6 @@
 import React from 'react';
 
-import { TableInputCSV } from './TableInputCSV';
-import { Meta } from '@storybook/react';
+import TableInputCSV from './TableInputCSV';
 import { action } from '@storybook/addon-actions';
 import { DataFrame } from '@grafana/data';
 import { withCenteredStory } from '../../utils/storybook/withCenteredStory';
@@ -10,7 +9,7 @@ export default {
   title: 'Forms/TableInputCSV',
   component: TableInputCSV,
   decorators: [withCenteredStory],
-} as Meta;
+};
 
 export const basic = () => {
   return (

@@ -1,6 +1,8 @@
-import { difference, sortBy } from 'lodash';
+// @ts-ignore
+import * as _ from 'lodash';
 import { Task } from './task';
 import GithubClient from '../utils/githubClient';
+import difference from 'lodash/difference';
 import chalk from 'chalk';
 import { useSpinner } from '../utils/useSpinner';
 
@@ -24,8 +26,8 @@ const getPackageChangelog = (packageName: string, issues: any[]) => {
   }
 
   let markdown = chalk.bold.yellow(`\n\n/*** ${packageName} changelog  ***/\n\n`);
-  const bugs = sortBy(issues.filter(filterBugs), 'title');
-  const notBugs = sortBy(difference(issues, bugs), 'title');
+  const bugs = _.sortBy(issues.filter(filterBugs), 'title');
+  const notBugs = _.sortBy(difference(issues, bugs), 'title');
 
   if (notBugs.length > 0) {
     markdown += '### Features / Enhancements\n';
@@ -87,7 +89,7 @@ const changelogTaskRunner = ({ milestone }: ChangelogOptions) =>
         mergedIssues.push(item);
       }
     }
-    const issues = sortBy(mergedIssues, 'title');
+    const issues = _.sortBy(mergedIssues, 'title');
 
     const toolkitIssues = issues.filter((item: any) =>
       item.labels.find((label: any) => label.name === 'area/grafana/toolkit')

@@ -53,7 +53,7 @@ type InputType string
 const (
 	// InputTypeText will render a text field in the frontend
 	InputTypeText = "text"
-	// InputTypePassword will render a password field in the frontend
+	// InputTypePassword will render a text field in the frontend
 	InputTypePassword = "password"
 )
 
@@ -131,11 +131,9 @@ func (n *notificationService) sendAndMarkAsComplete(evalContext *EvalContext, no
 	n.log.Debug("Sending notification", "type", notifier.GetType(), "uid", notifier.GetNotifierUID(), "isDefault", notifier.GetIsDefault())
 	metrics.MAlertingNotificationSent.WithLabelValues(notifier.GetType()).Inc()
 
-	if err := evalContext.evaluateNotificationTemplateFields(); err != nil {
-		n.log.Error("failed trying to evaluate notification template fields", "uid", notifier.GetNotifierUID(), "error", err)
-	}
+	err := notifier.Notify(evalContext)
 
-	if err := notifier.Notify(evalContext); err != nil {
+	if err != nil {
 		n.log.Error("failed to send notification", "uid", notifier.GetNotifierUID(), "error", err)
 		metrics.MAlertingNotificationFailed.WithLabelValues(notifier.GetType()).Inc()
 		return err
@@ -162,11 +160,11 @@ func (n *notificationService) sendNotification(evalContext *EvalContext, notifie
 		}
 
 		err := bus.DispatchCtx(evalContext.Ctx, setPendingCmd)
-		if err != nil {
-			if errors.Is(err, models.ErrAlertNotificationStateVersionConflict) {
-				return nil
-			}
+		if err == models.ErrAlertNotificationStateVersionConflict {
+			return nil
+		}
 
+		if err != nil {
 			return err
 		}
 
@@ -201,7 +199,7 @@ func (n *notificationService) renderAndUploadImage(evalCtx *EvalContext, timeout
 		Width:           1000,
 		Height:          500,
 		Timeout:         timeout,
-		OrgID:           evalCtx.Rule.OrgID,
+		OrgId:           evalCtx.Rule.OrgID,
 		OrgRole:         models.ROLE_ADMIN,
 		ConcurrentLimit: setting.AlertingRenderLimit,
 	}
@@ -283,7 +281,7 @@ func (n *notificationService) getNeededNotifiers(orgID int64, notificationUids [
 func InitNotifier(model *models.AlertNotification) (Notifier, error) {
 	notifierPlugin, found := notifierFactories[model.Type]
 	if !found {
-		return nil, fmt.Errorf("unsupported notification type %q", model.Type)
+		return nil, errors.New("Unsupported notification type")
 	}
 
 	return notifierPlugin.Factory(model)
@@ -294,7 +292,7 @@ type NotifierFactory func(notification *models.AlertNotification) (Notifier, err
 
 var notifierFactories = make(map[string]*NotifierPlugin)
 
-// RegisterNotifier registers a notifier.
+// RegisterNotifier register an notifier
 func RegisterNotifier(plugin *NotifierPlugin) {
 	notifierFactories[plugin.Type] = plugin
 }

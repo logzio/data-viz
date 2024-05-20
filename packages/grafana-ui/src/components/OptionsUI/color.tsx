@@ -2,21 +2,16 @@ import React from 'react';
 import { getColorForTheme, GrafanaTheme } from '@grafana/data';
 import { ColorPicker } from '../ColorPicker/ColorPicker';
 import { stylesFactory, useTheme } from '../../themes';
-import { css } from '@emotion/css';
-import { ColorSwatch } from '../ColorPicker/ColorSwatch';
+import { css } from 'emotion';
+import { ColorPickerTrigger } from '../ColorPicker/ColorPickerTrigger';
 
-/**
- * @alpha
- * */
-export interface ColorValueEditorProps {
+export interface Props {
   value?: string;
   onChange: (value?: string) => void;
 }
 
-/**
- * @alpha
- * */
-export const ColorValueEditor: React.FC<ColorValueEditorProps> = ({ value, onChange }) => {
+// Supporting FixedColor only currently
+export const ColorValueEditor: React.FC<Props> = ({ value, onChange }) => {
   const theme = useTheme();
   const styles = getStyles(theme);
 
@@ -26,13 +21,19 @@ export const ColorValueEditor: React.FC<ColorValueEditorProps> = ({ value, onCha
         return (
           <div className={styles.spot} onBlur={hideColorPicker}>
             <div className={styles.colorPicker}>
-              <ColorSwatch
+              <ColorPickerTrigger
                 ref={ref}
                 onClick={showColorPicker}
                 onMouseLeave={hideColorPicker}
                 color={value ? getColorForTheme(value, theme) : theme.colors.formInputBorder}
               />
             </div>
+            {/* <div className={styles.colorText} onClick={showColorPicker}>
+              {value ?? settings?.textWhenUndefined ?? 'Pick Color'}
+            </div>
+            {value && settings?.allowUndefined && (
+              <Icon className={styles.trashIcon} name="trash-alt" onClick={() => onChange(undefined)} />
+            )} */}
           </div>
         );
       }}

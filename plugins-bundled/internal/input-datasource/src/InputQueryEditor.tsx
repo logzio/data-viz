@@ -5,7 +5,8 @@ import React, { PureComponent } from 'react';
 import { InputDatasource, describeDataFrame } from './InputDatasource';
 import { InputQuery, InputOptions } from './types';
 
-import { Select, TableInputCSV, LinkButton, Icon, InlineField } from '@grafana/ui';
+import { InlineFormLabel, LegacyForms, TableInputCSV, Icon } from '@grafana/ui';
+const { Select } = LegacyForms;
 import { DataFrame, toCSV, SelectableValue, MutableDataFrame, QueryEditorProps } from '@grafana/data';
 
 import { dataFrameToCSV } from './utils';
@@ -61,25 +62,27 @@ export class InputQueryEditor extends PureComponent<Props, State> {
 
   render() {
     const { datasource, query } = this.props;
-    const { uid, name } = datasource;
+    const { id, name } = datasource;
     const { text } = this.state;
 
     const selected = query.data ? options[0] : options[1];
     return (
       <div>
-        <InlineField label="Data" labelWidth={8}>
-          <>
-            <Select width={20} options={options} value={selected} onChange={this.onSourceChange} />
+        <div className="gf-form">
+          <InlineFormLabel width={4}>Data</InlineFormLabel>
+          <Select width={6} options={options} value={selected} onChange={this.onSourceChange} />
+
+          <div className="btn btn-link">
             {query.data ? (
-              <div style={{ alignSelf: 'center' }}>{describeDataFrame(query.data)}</div>
+              describeDataFrame(query.data)
             ) : (
-              <LinkButton variant="link" href={`datasources/edit/${uid}/`}>
+              <a href={`datasources/edit/${id}/`}>
                 {name}: {describeDataFrame(datasource.data)} &nbsp;&nbsp;
                 <Icon name="pen" />
-              </LinkButton>
+              </a>
             )}
-          </>
-        </InlineField>
+          </div>
+        </div>
         {query.data && <TableInputCSV text={text} onSeriesParsed={this.onSeriesParsed} width={'100%'} height={200} />}
       </div>
     );

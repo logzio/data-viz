@@ -7,37 +7,28 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/grafana/grafana/pkg/api/response"
-	"github.com/grafana/grafana/pkg/api/routing"
 	"github.com/grafana/grafana/pkg/bus"
-	"github.com/grafana/grafana/pkg/infra/fs"
-	"github.com/grafana/grafana/pkg/infra/remotecache"
+	"github.com/grafana/grafana/pkg/middleware"
 	"github.com/grafana/grafana/pkg/models"
-	"github.com/grafana/grafana/pkg/registry"
 	"github.com/grafana/grafana/pkg/services/auth"
-	"github.com/grafana/grafana/pkg/services/auth/jwt"
-	"github.com/grafana/grafana/pkg/services/contexthandler"
-	"github.com/grafana/grafana/pkg/services/rendering"
-	"github.com/grafana/grafana/pkg/services/sqlstore"
-	"github.com/grafana/grafana/pkg/setting"
+	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/macaron.v1"
 )
 
-func loggedInUserScenario(t *testing.T, desc string, url string, fn scenarioFunc) {
-	loggedInUserScenarioWithRole(t, desc, "GET", url, url, models.ROLE_EDITOR, fn)
+func loggedInUserScenario(desc string, url string, fn scenarioFunc) {
+	loggedInUserScenarioWithRole(desc, "GET", url, url, models.ROLE_EDITOR, fn)
 }
 
-func loggedInUserScenarioWithRole(t *testing.T, desc string, method string, url string, routePattern string, role models.RoleType, fn scenarioFunc) {
-	t.Run(fmt.Sprintf("%s %s", desc, url), func(t *testing.T) {
-		t.Cleanup(bus.ClearBusHandlers)
+func loggedInUserScenarioWithRole(desc string, method string, url string, routePattern string, role models.RoleType, fn scenarioFunc) {
+	Convey(desc+" "+url, func() {
+		defer bus.ClearBusHandlers()
 
-		sc := setupScenarioContext(t, url)
-		sc.defaultHandler = routing.Wrap(func(c *models.ReqContext) response.Response {
+		sc := setupScenarioContext(url)
+		sc.defaultHandler = Wrap(func(c *models.ReqContext) Response {
 			sc.context = c
-			sc.context.UserId = testUserID
-			sc.context.OrgId = testOrgID
-			sc.context.Login = testUserLogin
+			sc.context.UserId = TestUserID
+			sc.context.OrgId = TestOrgID
 			sc.context.OrgRole = role
 			if sc.handlerFunc != nil {
 				return sc.handlerFunc(sc.context)
@@ -57,12 +48,12 @@ func loggedInUserScenarioWithRole(t *testing.T, desc string, method string, url 
 	})
 }
 
-func anonymousUserScenario(t *testing.T, desc string, method string, url string, routePattern string, fn scenarioFunc) {
-	t.Run(fmt.Sprintf("%s %s", desc, url), func(t *testing.T) {
+func anonymousUserScenario(desc string, method string, url string, routePattern string, fn scenarioFunc) {
+	Convey(desc+" "+url, func() {
 		defer bus.ClearBusHandlers()
 
-		sc := setupScenarioContext(t, url)
-		sc.defaultHandler = routing.Wrap(func(c *models.ReqContext) response.Response {
+		sc := setupScenarioContext(url)
+		sc.defaultHandler = Wrap(func(c *models.ReqContext) Response {
 			sc.context = c
 			if sc.handlerFunc != nil {
 				return sc.handlerFunc(sc.context)
@@ -85,7 +76,7 @@ func anonymousUserScenario(t *testing.T, desc string, method string, url string,
 func (sc *scenarioContext) fakeReq(method, url string) *scenarioContext {
 	sc.resp = httptest.NewRecorder()
 	req, err := http.NewRequest(method, url, nil)
-	require.NoError(sc.t, err)
+	So(err, ShouldBeNil)
 	sc.req = req
 
 	return sc
@@ -133,7 +124,6 @@ func (sc *scenarioContext) fakeReqNoAssertionsWithCookie(method, url string, coo
 
 type scenarioContext struct {
 	t                    *testing.T
-	cfg                  *setting.Cfg
 	m                    *macaron.Macaron
 	context              *models.ReqContext
 	resp                 *httptest.ResponseRecorder
@@ -149,83 +139,21 @@ func (sc *scenarioContext) exec() {
 }
 
 type scenarioFunc func(c *scenarioContext)
-type handlerFunc func(c *models.ReqContext) response.Response
+type handlerFunc func(c *models.ReqContext) Response
 
-func getContextHandler(t *testing.T, cfg *setting.Cfg) *contexthandler.ContextHandler {
-	t.Helper()
-
-	if cfg == nil {
-		cfg = setting.NewCfg()
-	}
-
-	sqlStore := sqlstore.InitTestDB(t)
-	remoteCacheSvc := &remotecache.RemoteCache{}
-	cfg.RemoteCacheOptions = &setting.RemoteCacheOptions{
-		Name: "database",
-	}
-	userAuthTokenSvc := auth.NewFakeUserAuthTokenService()
-	renderSvc := &fakeRenderService{}
-	authJWTSvc := models.NewFakeJWTService()
-	ctxHdlr := &contexthandler.ContextHandler{}
-
-	err := registry.BuildServiceGraph([]interface{}{cfg}, []*registry.Descriptor{
-		{
-			Name:     sqlstore.ServiceName,
-			Instance: sqlStore,
-		},
-		{
-			Name:     remotecache.ServiceName,
-			Instance: remoteCacheSvc,
-		},
-		{
-			Name:     auth.ServiceName,
-			Instance: userAuthTokenSvc,
-		},
-		{
-			Name:     rendering.ServiceName,
-			Instance: renderSvc,
-		},
-		{
-			Name:     jwt.ServiceName,
-			Instance: authJWTSvc,
-		},
-		{
-			Name:     contexthandler.ServiceName,
-			Instance: ctxHdlr,
-		},
-	})
-	require.NoError(t, err)
-
-	return ctxHdlr
-}
-
-func setupScenarioContext(t *testing.T, url string) *scenarioContext {
-	cfg := setting.NewCfg()
+func setupScenarioContext(url string) *scenarioContext {
 	sc := &scenarioContext{
 		url: url,
-		t:   t,
-		cfg: cfg,
 	}
-	viewsPath, err := filepath.Abs("../../public/views")
-	require.NoError(t, err)
-	exists, err := fs.Exists(viewsPath)
-	require.NoError(t, err)
-	require.Truef(t, exists, "Views should be in %q", viewsPath)
+	viewsPath, _ := filepath.Abs("../../public/views")
 
 	sc.m = macaron.New()
 	sc.m.Use(macaron.Renderer(macaron.RenderOptions{
 		Directory: viewsPath,
 		Delims:    macaron.Delims{Left: "[[", Right: "]]"},
 	}))
-	sc.m.Use(getContextHandler(t, cfg).Middleware)
+
+	sc.m.Use(middleware.GetContextHandler(nil, nil, nil))
 
 	return sc
-}
-
-type fakeRenderService struct {
-	rendering.Service
-}
-
-func (s *fakeRenderService) Init() error {
-	return nil
 }

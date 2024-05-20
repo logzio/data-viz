@@ -1,5 +1,5 @@
 import React, { PureComponent, ChangeEvent } from 'react';
-import { css } from '@emotion/css';
+import { css } from 'emotion';
 import {
   Threshold,
   sortThresholds,
@@ -16,6 +16,7 @@ import { stylesFactory } from '../../themes';
 import { Icon } from '../Icon/Icon';
 import { RadioButtonGroup } from '../Forms/RadioButtonGroup/RadioButtonGroup';
 import { Button } from '../Button';
+import { FullWidthButtonContainer } from '../Button/FullWidthButtonContainer';
 import { Label } from '../Forms/Label';
 import { isNumber } from 'lodash';
 
@@ -59,7 +60,7 @@ export class ThresholdsEditor extends PureComponent<Props, State> {
       nextValue = steps[steps.length - 1].value + 10;
     }
 
-    const color = colors.filter((c) => !steps.some((t) => t.color === c))[1];
+    const color = colors.filter(c => !steps.some(t => t.color === c))[1];
 
     const add = {
       value: nextValue,
@@ -90,7 +91,7 @@ export class ThresholdsEditor extends PureComponent<Props, State> {
       return;
     }
 
-    this.setState({ steps: steps.filter((t) => t.key !== threshold.key) }, this.onChange);
+    this.setState({ steps: steps.filter(t => t.key !== threshold.key) }, this.onChange);
   };
 
   onChangeThresholdValue = (event: ChangeEvent<HTMLInputElement>, threshold: ThresholdWithKey) => {
@@ -98,7 +99,7 @@ export class ThresholdsEditor extends PureComponent<Props, State> {
     const parsedValue = parseFloat(cleanValue);
     const value = isNaN(parsedValue) ? '' : parsedValue;
 
-    const steps = this.state.steps.map((t) => {
+    const steps = this.state.steps.map(t => {
       if (t.key === threshold.key) {
         t = { ...t, value: value as number };
       }
@@ -116,7 +117,7 @@ export class ThresholdsEditor extends PureComponent<Props, State> {
   onChangeThresholdColor = (threshold: ThresholdWithKey, color: string) => {
     const { steps } = this.state;
 
-    const newThresholds = steps.map((t) => {
+    const newThresholds = steps.map(t => {
       if (t.key === threshold.key) {
         t = { ...t, color: color };
       }
@@ -158,7 +159,7 @@ export class ThresholdsEditor extends PureComponent<Props, State> {
               <div className={styles.colorPicker}>
                 <ColorPicker
                   color={threshold.color}
-                  onChange={(color) => this.onChangeThresholdColor(threshold, color)}
+                  onChange={color => this.onChangeThresholdColor(threshold, color)}
                   enableNamedColors={true}
                 />
               </div>
@@ -183,7 +184,7 @@ export class ThresholdsEditor extends PureComponent<Props, State> {
               <div className={styles.colorPicker}>
                 <ColorPicker
                   color={threshold.color}
-                  onChange={(color) => this.onChangeThresholdColor(threshold, color)}
+                  onChange={color => this.onChangeThresholdColor(threshold, color)}
                   enableNamedColors={true}
                 />
               </div>
@@ -204,20 +205,15 @@ export class ThresholdsEditor extends PureComponent<Props, State> {
 
     return (
       <ThemeContext.Consumer>
-        {(theme) => {
-          const styles = getStyles(theme.v1);
+        {theme => {
+          const styles = getStyles(theme);
           return (
             <div className={styles.wrapper}>
-              <Button
-                size="sm"
-                icon="plus"
-                onClick={() => this.onAddThreshold()}
-                variant="secondary"
-                className={styles.addButton}
-                fullWidth
-              >
-                Add threshold
-              </Button>
+              <FullWidthButtonContainer className={styles.addButton}>
+                <Button size="sm" icon="plus" onClick={() => this.onAddThreshold()} variant="secondary">
+                  Add threshold
+                </Button>
+              </FullWidthButtonContainer>
               <div className={styles.thresholds}>
                 {steps
                   .slice(0)
@@ -231,7 +227,9 @@ export class ThresholdsEditor extends PureComponent<Props, State> {
 
               <div>
                 <Label description="Percentage means thresholds relative to min & max">Thresholds mode</Label>
-                <RadioButtonGroup options={modes} onChange={this.onModeChanged} value={thresholds.mode} />
+                <FullWidthButtonContainer>
+                  <RadioButtonGroup size="sm" options={modes} onChange={this.onModeChanged} value={thresholds.mode} />
+                </FullWidthButtonContainer>
               </div>
             </div>
           );
@@ -254,7 +252,7 @@ function toThresholdsWithKey(steps?: Threshold[]): ThresholdWithKey[] {
 
   return steps
     .filter((t, i) => isNumber(t.value) || i === 0)
-    .map((t) => {
+    .map(t => {
       return {
         color: t.color,
         value: t.value === null ? -Infinity : t.value,
@@ -267,7 +265,7 @@ export function thresholdsWithoutKey(thresholds: ThresholdsConfig, steps: Thresh
   const mode = thresholds.mode ?? ThresholdsMode.Absolute;
   return {
     mode,
-    steps: steps.map((t) => {
+    steps: steps.map(t => {
       const { key, ...rest } = t;
       return rest; // everything except key
     }),

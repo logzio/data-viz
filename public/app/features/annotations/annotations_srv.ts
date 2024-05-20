@@ -1,6 +1,8 @@
 // Libaries
-import { cloneDeep, flattenDeep } from 'lodash';
+import flattenDeep from 'lodash/flattenDeep';
+import cloneDeep from 'lodash/cloneDeep';
 // Components
+import './editor_ctrl';
 import coreModule from 'app/core/core_module';
 // Utils & Services
 import { dedupAnnotations } from './events_processing';
@@ -12,6 +14,7 @@ import {
   CoreApp,
   DataQueryRequest,
   DataSourceApi,
+  PanelEvents,
   rangeUtil,
   ScopedVars,
 } from '@grafana/data';
@@ -22,9 +25,7 @@ import { Observable, of } from 'rxjs';
 import { map, mergeMap } from 'rxjs/operators';
 import { AnnotationQueryOptions, AnnotationQueryResponse } from './types';
 import { standardAnnotationSupport } from './standardAnnotationSupport';
-import { runRequest } from '../query/state/runRequest';
-import { RefreshEvent } from 'app/types/events';
-import { deleteAnnotation, saveAnnotation, updateAnnotation } from './api';
+import { runRequest } from '../dashboard/state/runRequest';
 
 let counter = 100;
 function getNextRequestId() {
@@ -40,7 +41,7 @@ export class AnnotationsSrv {
     // always clearPromiseCaches when loading new dashboard
     this.clearPromiseCaches();
     // clear promises on refresh events
-    dashboard.events.subscribe(RefreshEvent, this.clearPromiseCaches.bind(this));
+    dashboard.on(PanelEvents.refresh, this.clearPromiseCaches.bind(this));
   }
 
   clearPromiseCaches() {
@@ -51,15 +52,15 @@ export class AnnotationsSrv {
 
   getAnnotations(options: AnnotationQueryOptions) {
     return Promise.all([this.getGlobalAnnotations(options), this.getAlertStates(options)])
-      .then((results) => {
+      .then(results => {
         // combine the annotations and flatten results
         let annotations: AnnotationEvent[] = flattenDeep(results[0]);
-        // when in edit mode we need to use this function to get the saved ID
+        // when in edit mode we need to use this function to get the saved id
         let panelFilterId = options.panel.getSavedId();
 
         // filter out annotations that do not belong to requesting panel
-        annotations = annotations.filter((item) => {
-          // if event has panel ID and query is of type dashboard then panel and requesting panel ID must match
+        annotations = annotations.filter(item => {
+          // if event has panel id and query is of type dashboard then panel and requesting panel id must match
           if (item.panelId && item.source.type === 'dashboard') {
             return item.panelId === panelFilterId;
           }
@@ -76,7 +77,7 @@ export class AnnotationsSrv {
           alertState: alertState,
         };
       })
-      .catch((err) => {
+      .catch(err => {
         if (err.cancelled) {
           return [];
         }
@@ -153,14 +154,14 @@ export class AnnotationsSrv {
                 dashboard: dashboard,
               });
             }
-            // Note: future annotation lifecycle will use observables directly
+            // Note: future annotatoin lifecycle will use observables directly
             return executeAnnotationQuery(options, datasource, annotation)
               .toPromise()
-              .then((res) => {
+              .then(res => {
                 return res.events ?? [];
               });
           })
-          .then((results) => {
+          .then(results => {
             // store response in annotation object if this is a snapshot call
             if (dashboard.snapshot) {
               annotation.snapshotData = cloneDeep(results);
@@ -177,17 +178,19 @@ export class AnnotationsSrv {
 
   saveAnnotationEvent(annotation: AnnotationEvent) {
     this.globalAnnotationsPromise = null;
-    return saveAnnotation(annotation);
+    return getBackendSrv().post('/api/annotations', annotation);
   }
 
   updateAnnotationEvent(annotation: AnnotationEvent) {
     this.globalAnnotationsPromise = null;
-    return updateAnnotation(annotation);
+    return getBackendSrv().put(`/api/annotations/${annotation.id}`, annotation);
   }
 
   deleteAnnotationEvent(annotation: AnnotationEvent) {
     this.globalAnnotationsPromise = null;
-    return deleteAnnotation(annotation);
+    const deleteUrl = `/api/annotations/${annotation.id}`;
+
+    return getBackendSrv().delete(deleteUrl);
   }
 
   translateQueryResult(annotation: any, results: any) {
@@ -261,12 +264,12 @@ export function executeAnnotationQuery(
   };
 
   return runRequest(datasource, queryRequest).pipe(
-    mergeMap((panelData) => {
+    mergeMap(panelData => {
       if (!panelData.series) {
         return of({ panelData, events: [] });
       }
 
-      return processor.processEvents!(annotation, panelData.series).pipe(map((events) => ({ panelData, events })));
+      return processor.processEvents!(annotation, panelData.series).pipe(map(events => ({ panelData, events })));
     })
   );
 }

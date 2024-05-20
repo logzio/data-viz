@@ -1,21 +1,19 @@
 package api
 
 import (
-	"errors"
 	"time"
 
 	"github.com/grafana/grafana/pkg/api/dtos"
-	"github.com/grafana/grafana/pkg/api/response"
 	"github.com/grafana/grafana/pkg/bus"
 	"github.com/grafana/grafana/pkg/components/apikeygen"
 	"github.com/grafana/grafana/pkg/models"
 )
 
-func GetAPIKeys(c *models.ReqContext) response.Response {
+func GetAPIKeys(c *models.ReqContext) Response {
 	query := models.GetApiKeysQuery{OrgId: c.OrgId, IncludeExpired: c.QueryBool("includeExpired")}
 
 	if err := bus.Dispatch(&query); err != nil {
-		return response.Error(500, "Failed to list api keys", err)
+		return Error(500, "Failed to list api keys", err)
 	}
 
 	result := make([]*models.ApiKeyDTO, len(query.Result))
@@ -33,58 +31,52 @@ func GetAPIKeys(c *models.ReqContext) response.Response {
 		}
 	}
 
-	return response.JSON(200, result)
+	return JSON(200, result)
 }
 
-func DeleteAPIKey(c *models.ReqContext) response.Response {
+func DeleteAPIKey(c *models.ReqContext) Response {
 	id := c.ParamsInt64(":id")
 
 	cmd := &models.DeleteApiKeyCommand{Id: id, OrgId: c.OrgId}
 
 	err := bus.Dispatch(cmd)
 	if err != nil {
-		var status int
-		if errors.Is(err, models.ErrApiKeyNotFound) {
-			status = 404
-		} else {
-			status = 500
-		}
-		return response.Error(status, "Failed to delete API key", err)
+		return Error(500, "Failed to delete API key", err)
 	}
 
-	return response.Success("API key deleted")
+	return Success("API key deleted")
 }
 
-func (hs *HTTPServer) AddAPIKey(c *models.ReqContext, cmd models.AddApiKeyCommand) response.Response {
+func (hs *HTTPServer) AddAPIKey(c *models.ReqContext, cmd models.AddApiKeyCommand) Response {
 	if !cmd.Role.IsValid() {
-		return response.Error(400, "Invalid role specified", nil)
+		return Error(400, "Invalid role specified", nil)
 	}
 
 	if hs.Cfg.ApiKeyMaxSecondsToLive != -1 {
 		if cmd.SecondsToLive == 0 {
-			return response.Error(400, "Number of seconds before expiration should be set", nil)
+			return Error(400, "Number of seconds before expiration should be set", nil)
 		}
 		if cmd.SecondsToLive > hs.Cfg.ApiKeyMaxSecondsToLive {
-			return response.Error(400, "Number of seconds before expiration is greater than the global limit", nil)
+			return Error(400, "Number of seconds before expiration is greater than the global limit", nil)
 		}
 	}
 	cmd.OrgId = c.OrgId
 
 	newKeyInfo, err := apikeygen.New(cmd.OrgId, cmd.Name)
 	if err != nil {
-		return response.Error(500, "Generating API key failed", err)
+		return Error(500, "Generating API key failed", err)
 	}
 
 	cmd.Key = newKeyInfo.HashedKey
 
 	if err := bus.Dispatch(&cmd); err != nil {
-		if errors.Is(err, models.ErrInvalidApiKeyExpiration) {
-			return response.Error(400, err.Error(), nil)
+		if err == models.ErrInvalidApiKeyExpiration {
+			return Error(400, err.Error(), nil)
 		}
-		if errors.Is(err, models.ErrDuplicateApiKey) {
-			return response.Error(409, err.Error(), nil)
+		if err == models.ErrDuplicateApiKey {
+			return Error(409, err.Error(), nil)
 		}
-		return response.Error(500, "Failed to add API Key", err)
+		return Error(500, "Failed to add API Key", err)
 	}
 
 	result := &dtos.NewApiKeyResult{
@@ -93,5 +85,5 @@ func (hs *HTTPServer) AddAPIKey(c *models.ReqContext, cmd models.AddApiKeyComman
 		Key:  newKeyInfo.ClientSecret,
 	}
 
-	return response.JSON(200, result)
+	return JSON(200, result)
 }

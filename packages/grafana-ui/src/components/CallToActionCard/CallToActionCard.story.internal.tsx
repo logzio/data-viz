@@ -1,47 +1,36 @@
 import React from 'react';
-import { CallToActionCard, CallToActionCardProps } from './CallToActionCard';
-import { Story, Meta } from '@storybook/react';
+import { renderComponentWithTheme } from '../../utils/storybook/withTheme';
+import { CallToActionCard } from './CallToActionCard';
+import { select, text } from '@storybook/addon-knobs';
 import { Button } from '../Button/Button';
 import { action } from '@storybook/addon-actions';
 
 export default {
   title: 'Layout/CallToActionCard',
   component: CallToActionCard,
-  parameters: {
-    controls: {
-      exclude: ['className', 'callToActionElement', 'theme'],
-    },
-  },
-  argTypes: {
-    Element: { control: { type: 'select', options: ['button', 'custom'] } },
-  },
-} as Meta;
+};
 
-interface StoryProps extends Partial<CallToActionCardProps> {
-  Element: string;
-  H1Text: string;
-  buttonText: string;
-}
-
-export const Basic: Story<StoryProps> = (args) => {
+export const basic = () => {
   const ctaElements: { [key: string]: JSX.Element } = {
-    custom: <h1>{args.H1Text}</h1>,
+    custom: <h1>This is just H1 tag, you can any component as CTA element</h1>,
     button: (
       <Button size="lg" icon="plus" onClick={action('cta button clicked')}>
-        {args.buttonText}
+        Add datasource
       </Button>
     ),
   };
-
-  return (
-    <CallToActionCard message={args.message} callToActionElement={ctaElements[args.Element]} footer={args.footer} />
+  const ctaElement = select(
+    'Call to action element',
+    {
+      Custom: 'custom',
+      Button: 'button',
+    },
+    'custom'
   );
-};
 
-Basic.args = {
-  Element: 'custom',
-  message: 'Renders message prop content',
-  footer: 'Renders footer prop content',
-  H1Text: 'This is just H1 tag, you can any component as CTA element',
-  buttonText: 'Add datasource',
+  return renderComponentWithTheme(CallToActionCard, {
+    message: text('Call to action message', 'Renders message prop content'),
+    callToActionElement: ctaElements[ctaElement],
+    footer: text('Call to action footer', 'Renders footer prop content'),
+  });
 };

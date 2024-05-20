@@ -2,6 +2,8 @@
 title = "Troubleshoot dashboards"
 description = "Guide to troubleshooting Grafana dashboards"
 keywords = ["grafana", "troubleshooting", "documentation", "dashboards"]
+type = "docs"
+[menu.docs]
 weight = 100
 +++
 
@@ -35,8 +37,8 @@ In the picture below we have enabled:
 - Points and 3-point radius to highlight where data points are actually present.
 - **Null value** is set to **connected**.
 
-{{< figure src="/static/img/docs/troubleshooting/grafana_null_connected.png" max-width="1200px" >}}
+{{< docs-imagebox img="/img/docs/troubleshooting/grafana_null_connected.png" max-width="1200px" >}}
 
 In this graph, we set graph to show bars instead of lines and set the **Null value** to graph **null as zero**. There is a very big different in the visuals.
 
-{{< figure src="/static/img/docs/troubleshooting/grafana_null_zero.png" max-width="1200px" >}}
+{{< docs-imagebox img="/img/docs/troubleshooting/grafana_null_zero.png" max-width="1200px" >}}

@@ -12,19 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import cx from 'classnames';
-import { css } from '@emotion/css';
-import { groupBy as _groupBy } from 'lodash';
 import React from 'react';
-import { compose, onlyUpdateForKeys, withProps, withState } from 'recompose';
-import { autoColor, createStyle, Theme } from '../Theme';
-import { TraceSpan } from '../types/trace';
-import { TNil } from '../types';
-import { UIPopover } from '../uiElementsContext';
-import AccordianLogs from './SpanDetail/AccordianLogs';
-import { ViewedBoundsFunctionType } from './utils';
+import _groupBy from 'lodash/groupBy';
+import { onlyUpdateForKeys, compose, withState, withProps } from 'recompose';
+import { css } from 'emotion';
+import cx from 'classnames';
 
-const getStyles = createStyle((theme: Theme) => {
+import AccordianLogs from './SpanDetail/AccordianLogs';
+
+import { ViewedBoundsFunctionType } from './utils';
+import { TNil } from '../types';
+import { TraceSpan } from '@grafana/data';
+import { UIPopover } from '../uiElementsContext';
+import { createStyle } from '../Theme';
+
+const getStyles = createStyle(() => {
   return {
     wrapper: css`
       label: wrapper;
@@ -63,14 +65,14 @@ const getStyles = createStyle((theme: Theme) => {
     `,
     logMarker: css`
       label: logMarker;
-      background-color: ${autoColor(theme, '#2c3235')};
+      background-color: rgba(0, 0, 0, 0.5);
       cursor: pointer;
       height: 60%;
       min-width: 1px;
       position: absolute;
       top: 20%;
       &:hover {
-        background-color: ${autoColor(theme, '#464c54')};
+        background-color: #000;
       }
       &::before,
       &::after {
@@ -85,11 +87,20 @@ const getStyles = createStyle((theme: Theme) => {
         left: 0;
       }
     `,
+    logHint: css`
+      label: logHint;
+      pointer-events: none;
+      // TODO won't work with different UI elements injected
+      & .ant-popover-inner-content {
+        padding: 0.25rem;
+      }
+    `,
   };
 });
 
 type TCommonProps = {
   color: string;
+  // onClick: (evt: React.MouseEvent<any>) => void;
   onClick?: (evt: React.MouseEvent<any>) => void;
   viewEnd: number;
   viewStart: number;
@@ -105,7 +116,6 @@ type TCommonProps = {
   span: TraceSpan;
   className?: string;
   labelClassName?: string;
-  theme: Theme;
 };
 
 type TInnerProps = {
@@ -136,23 +146,22 @@ function SpanBar(props: TInnerProps) {
     rpc,
     traceStartTime,
     span,
-    theme,
     className,
     labelClassName,
   } = props;
   // group logs based on timestamps
-  const logGroups = _groupBy(span.logs, (log) => {
+  const logGroups = _groupBy(span.logs, log => {
     const posPercent = getViewedBounds(log.timestamp, log.timestamp).start;
     // round to the nearest 0.2%
     return toPercent(Math.round(posPercent * 500) / 500);
   });
-  const styles = getStyles(theme);
+  const styles = getStyles();
 
   return (
     <div
       className={cx(styles.wrapper, className)}
       onClick={onClick}
-      onMouseLeave={setShortLabel}
+      onMouseOut={setShortLabel}
       onMouseOver={setLongLabel}
       aria-hidden
       data-test-id="SpanBar--wrapper"
@@ -171,9 +180,11 @@ function SpanBar(props: TInnerProps) {
         </div>
       </div>
       <div>
-        {Object.keys(logGroups).map((positionKey) => (
+        {Object.keys(logGroups).map(positionKey => (
           <UIPopover
             key={positionKey}
+            arrowPointAtCenter
+            overlayClassName={styles.logHint}
             placement="topLeft"
             content={
               <AccordianLogs interactive={false} isOpen logs={logGroups[positionKey]} timestamp={traceStartTime} />

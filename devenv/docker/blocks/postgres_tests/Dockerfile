@@ -1,4 +1,3 @@
-ARG postgres_version=9.3
-FROM postgres:${postgres_version}
+FROM postgres:9.3
 ADD setup.sql /docker-entrypoint-initdb.d
 CMD ["postgres"]

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -13,104 +12,67 @@ import (
 
 	"net/http"
 
-	"github.com/grafana/grafana-plugin-sdk-go/data"
-	"github.com/grafana/grafana/pkg/infra/httpclient"
+	"github.com/grafana/grafana/pkg/components/null"
 	"github.com/grafana/grafana/pkg/infra/log"
 	"github.com/grafana/grafana/pkg/models"
-	"github.com/grafana/grafana/pkg/plugins"
-	"github.com/grafana/grafana/pkg/tsdb/interval"
+	"github.com/grafana/grafana/pkg/tsdb"
 	"github.com/prometheus/client_golang/api"
 	apiv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
 )
 
 type PrometheusExecutor struct {
-	baseRoundTripperFactory func(dsInfo *models.DataSource) (http.RoundTripper, error)
-	intervalCalculator      interval.Calculator
-	Transport               http.RoundTripper
+	Transport http.RoundTripper
 }
 
-type prometheusTransport struct {
+type basicAuthTransport struct {
 	Transport http.RoundTripper
 
-	hasBasicAuth bool
-	username     string
-	password     string
-
-	customQueryParameters string
+	username string
+	password string
 }
 
-func (transport *prometheusTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	if transport.hasBasicAuth {
-		req.SetBasicAuth(transport.username, transport.password)
-	}
-
-	if transport.customQueryParameters != "" {
-		params := url.Values{}
-		for _, param := range strings.Split(transport.customQueryParameters, "&") {
-			parts := strings.Split(param, "=")
-			if len(parts) == 1 {
-				// This is probably a mistake on the users part in defining the params but we don't want to crash.
-				params.Add(parts[0], "")
-			} else {
-				params.Add(parts[0], parts[1])
-			}
-		}
-		if req.URL.RawQuery != "" {
-			req.URL.RawQuery = fmt.Sprintf("%s&%s", req.URL.RawQuery, params.Encode())
-		} else {
-			req.URL.RawQuery = params.Encode()
-		}
-	}
-
-	return transport.Transport.RoundTrip(req)
+func (bat basicAuthTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	req.SetBasicAuth(bat.username, bat.password)
+	return bat.Transport.RoundTrip(req)
 }
 
-//nolint: staticcheck // plugins.DataPlugin deprecated
-func New(provider httpclient.Provider) func(*models.DataSource) (plugins.DataPlugin, error) {
-	return func(dsInfo *models.DataSource) (plugins.DataPlugin, error) {
-		transport, err := dsInfo.GetHTTPTransport(provider)
-		if err != nil {
-			return nil, err
-		}
-
-		return &PrometheusExecutor{
-			intervalCalculator: interval.NewCalculator(interval.CalculatorOptions{MinInterval: time.Second * 1}),
-			baseRoundTripperFactory: func(ds *models.DataSource) (http.RoundTripper, error) {
-				return transport, nil
-			},
-			Transport: transport,
-		}, nil
-	}
-}
-
-var (
-	plog         log.Logger
-	legendFormat *regexp.Regexp = regexp.MustCompile(`\{\{\s*(.+?)\s*\}\}`)
-)
-
-func init() {
-	plog = log.New("tsdb.prometheus")
-}
-
-func (e *PrometheusExecutor) getClient(dsInfo *models.DataSource) (apiv1.API, error) {
-	// Would make sense to cache this but executor is recreated on every alert request anyway.
-	transport, err := e.baseRoundTripperFactory(dsInfo)
+func NewPrometheusExecutor(dsInfo *models.DataSource) (tsdb.TsdbQueryEndpoint, error) {
+	transport, err := dsInfo.GetHttpTransport()
 	if err != nil {
 		return nil, err
 	}
 
-	promTransport := &prometheusTransport{
-		Transport:             transport,
-		hasBasicAuth:          dsInfo.BasicAuth,
-		username:              dsInfo.BasicAuthUser,
-		password:              dsInfo.DecryptedBasicAuthPassword(),
-		customQueryParameters: dsInfo.JsonData.Get("customQueryParameters").MustString(""),
-	}
+	return &PrometheusExecutor{
+		Transport: transport,
+	}, nil
+}
 
+var (
+	plog               log.Logger
+	legendFormat       *regexp.Regexp
+	intervalCalculator tsdb.IntervalCalculator
+)
+
+func init() {
+	plog = log.New("tsdb.prometheus")
+	tsdb.RegisterTsdbQueryEndpoint("prometheus", NewPrometheusExecutor)
+	legendFormat = regexp.MustCompile(`\{\{\s*(.+?)\s*\}\}`)
+	intervalCalculator = tsdb.NewIntervalCalculator(&tsdb.IntervalOptions{MinInterval: time.Second * 1})
+}
+
+func (e *PrometheusExecutor) getClient(dsInfo *models.DataSource) (apiv1.API, error) {
 	cfg := api.Config{
 		Address:      dsInfo.Url,
-		RoundTripper: promTransport,
+		RoundTripper: e.Transport,
+	}
+
+	if dsInfo.BasicAuth {
+		cfg.RoundTripper = basicAuthTransport{
+			Transport: e.Transport,
+			username:  dsInfo.BasicAuthUser,
+			password:  dsInfo.DecryptedBasicAuthPassword(),
+		}
 	}
 
 	client, err := api.NewClient(cfg)
@@ -121,21 +83,19 @@ func (e *PrometheusExecutor) getClient(dsInfo *models.DataSource) (apiv1.API, er
 	return apiv1.NewAPI(client), nil
 }
 
-//nolint: staticcheck // plugins.DataResponse deprecated
-func (e *PrometheusExecutor) DataQuery(ctx context.Context, dsInfo *models.DataSource,
-	tsdbQuery plugins.DataQuery) (plugins.DataResponse, error) {
-	result := plugins.DataResponse{
-		Results: map[string]plugins.DataQueryResult{},
+func (e *PrometheusExecutor) Query(ctx context.Context, dsInfo *models.DataSource, tsdbQuery *tsdb.TsdbQuery) (*tsdb.Response, error) {
+	result := &tsdb.Response{
+		Results: map[string]*tsdb.QueryResult{},
 	}
 
-	client, err := e.getLogzioAuthClient(dsInfo, &tsdbQuery) // LOGZ.IO GRAFANA CHANGE :: (ALERTS) DEV-16492 Support external alert evaluation
+	client, err := e.getLogzioAuthClient(dsInfo, tsdbQuery) // LOGZ.IO GRAFANA CHANGE :: (ALERTS) DEV-16492 Support external alert evaluation
 	if err != nil {
-		return result, err
+		return nil, err
 	}
 
-	queries, err := e.parseQuery(dsInfo, tsdbQuery)
+	queries, err := parseQuery(dsInfo, tsdbQuery.Queries, tsdbQuery)
 	if err != nil {
-		return result, err
+		return nil, err
 	}
 
 	for _, query := range queries {
@@ -156,12 +116,12 @@ func (e *PrometheusExecutor) DataQuery(ctx context.Context, dsInfo *models.DataS
 		value, _, err := client.QueryRange(ctx, query.Expr, timeRange)
 
 		if err != nil {
-			return result, err
+			return nil, err
 		}
 
 		queryResult, err := parseResponse(value, query)
 		if err != nil {
-			return result, err
+			return nil, err
 		}
 		result.Results[query.RefId] = queryResult
 	}
@@ -187,10 +147,9 @@ func formatLegend(metric model.Metric, query *PrometheusQuery) string {
 	return string(result)
 }
 
-func (e *PrometheusExecutor) parseQuery(dsInfo *models.DataSource, query plugins.DataQuery) (
-	[]*PrometheusQuery, error) {
+func parseQuery(dsInfo *models.DataSource, queries []*tsdb.Query, queryContext *tsdb.TsdbQuery) ([]*PrometheusQuery, error) {
 	qs := []*PrometheusQuery{}
-	for _, queryModel := range query.Queries {
+	for _, queryModel := range queries {
 		expr, err := queryModel.Model.Get("expr").String()
 		if err != nil {
 			return nil, err
@@ -198,23 +157,23 @@ func (e *PrometheusExecutor) parseQuery(dsInfo *models.DataSource, query plugins
 
 		format := queryModel.Model.Get("legendFormat").MustString("")
 
-		start, err := query.TimeRange.ParseFrom()
+		start, err := queryContext.TimeRange.ParseFrom()
 		if err != nil {
 			return nil, err
 		}
 
-		end, err := query.TimeRange.ParseTo()
+		end, err := queryContext.TimeRange.ParseTo()
 		if err != nil {
 			return nil, err
 		}
 
-		dsInterval, err := interval.GetIntervalFrom(dsInfo, queryModel.Model, time.Second*15)
+		dsInterval, err := tsdb.GetIntervalFrom(dsInfo, queryModel.Model, time.Second*15)
 		if err != nil {
 			return nil, err
 		}
 
 		intervalFactor := queryModel.Model.Get("intervalFactor").MustInt64(1)
-		interval := e.intervalCalculator.Calculate(*query.TimeRange, dsInterval)
+		interval := intervalCalculator.Calculate(queryContext.TimeRange, dsInterval)
 		step := time.Duration(int64(interval.Value) * intervalFactor)
 
 		qs = append(qs, &PrometheusQuery{
@@ -223,49 +182,45 @@ func (e *PrometheusExecutor) parseQuery(dsInfo *models.DataSource, query plugins
 			LegendFormat: format,
 			Start:        start,
 			End:          end,
-			RefId:        queryModel.RefID,
+			RefId:        queryModel.RefId,
 		})
 	}
 
 	return qs, nil
 }
 
-//nolint: staticcheck // plugins.DataQueryResult deprecated
-func parseResponse(value model.Value, query *PrometheusQuery) (plugins.DataQueryResult, error) {
-	var queryRes plugins.DataQueryResult
-	frames := data.Frames{}
+func parseResponse(value model.Value, query *PrometheusQuery) (*tsdb.QueryResult, error) {
+	queryRes := tsdb.NewQueryResult()
 
-	matrix, ok := value.(model.Matrix)
+	data, ok := value.(model.Matrix)
 	if !ok {
-		return queryRes, fmt.Errorf("unsupported result format: %q", value.Type().String())
+		return queryRes, fmt.Errorf("Unsupported result format: %s", value.Type().String())
 	}
 
-	for _, v := range matrix {
-		name := formatLegend(v.Metric, query)
-		tags := make(map[string]string, len(v.Metric))
-		timeVector := make([]time.Time, 0, len(v.Values))
-		values := make([]float64, 0, len(v.Values))
+	for _, v := range data {
+		series := tsdb.TimeSeries{
+			Name:   formatLegend(v.Metric, query),
+			Tags:   make(map[string]string, len(v.Metric)),
+			Points: make([]tsdb.TimePoint, 0, len(v.Values)),
+		}
 
 		for k, v := range v.Metric {
-			tags[string(k)] = string(v)
+			series.Tags[string(k)] = string(v)
 		}
 
 		for _, k := range v.Values {
-			timeVector = append(timeVector, time.Unix(k.Timestamp.Unix(), 0).UTC())
-			values = append(values, float64(k.Value))
+			series.Points = append(series.Points, tsdb.NewTimePoint(null.FloatFrom(float64(k.Value)), float64(k.Timestamp.Unix()*1000)))
 		}
-		frames = append(frames, data.NewFrame(name,
-			data.NewField("time", nil, timeVector),
-			data.NewField("value", tags, values).SetConfig(&data.FieldConfig{DisplayNameFromDS: name})))
+
+		queryRes.Series = append(queryRes.Series, &series)
 	}
-	queryRes.Dataframes = plugins.NewDecodedDataFrames(frames)
 
 	return queryRes, nil
 }
 
-// IsAPIError returns whether err is or wraps a Prometheus error.
 func IsAPIError(err error) bool {
-	// Check if the right error type is in err's chain.
+	// Have to use errors.As to compare Prometheus errors, since errors.Is won't work due to Prometheus
+	// errors being pointers and errors.Is ends up comparing them by pointer address
 	var e *apiv1.Error
 	return errors.As(err, &e)
 }

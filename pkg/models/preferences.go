@@ -1,7 +1,13 @@
 package models
 
 import (
+	"errors"
 	"time"
+)
+
+// Typed errors
+var (
+	ErrPreferencesNotFound = errors.New("Preferences not found")
 )
 
 type Preferences struct {

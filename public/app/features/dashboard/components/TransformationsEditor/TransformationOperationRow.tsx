@@ -1,12 +1,9 @@
 import React, { useState } from 'react';
-import { DataFrame, DataTransformerConfig, TransformerRegistryItem } from '@grafana/data';
+import { DataFrame, DataTransformerConfig, TransformerRegistyItem } from '@grafana/data';
 import { HorizontalGroup } from '@grafana/ui';
 
 import { TransformationEditor } from './TransformationEditor';
-import {
-  QueryOperationRow,
-  QueryOperationRowRenderProps,
-} from 'app/core/components/QueryOperationRow/QueryOperationRow';
+import { QueryOperationRow } from 'app/core/components/QueryOperationRow/QueryOperationRow';
 import { QueryOperationAction } from 'app/core/components/QueryOperationRow/QueryOperationAction';
 import { TransformationsEditorTransformation } from './types';
 
@@ -14,7 +11,7 @@ interface TransformationOperationRowProps {
   id: string;
   index: number;
   data: DataFrame[];
-  uiConfig: TransformerRegistryItem<any>;
+  uiConfig: TransformerRegistyItem<any>;
   configs: TransformationsEditorTransformation[];
   onRemove: (index: number) => void;
   onChange: (index: number, config: DataTransformerConfig) => void;
@@ -31,7 +28,7 @@ export const TransformationOperationRow: React.FC<TransformationOperationRowProp
 }) => {
   const [showDebug, setShowDebug] = useState(false);
 
-  const renderActions = ({ isOpen }: QueryOperationRowRenderProps) => {
+  const renderActions = ({ isOpen }: { isOpen: boolean }) => {
     return (
       <HorizontalGroup align="center" width="auto">
         <QueryOperationAction

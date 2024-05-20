@@ -1,15 +1,13 @@
-import { defaultsDeep } from 'lodash';
+import _ from 'lodash';
 import { AnnotationQuery } from './types';
 
 export class CloudWatchAnnotationsQueryCtrl {
   static templateUrl = 'partials/annotations.editor.html';
-  declare annotation: any;
+  annotation: any;
 
   /** @ngInject */
-  constructor($scope: any) {
-    this.annotation = $scope.ctrl.annotation;
-
-    defaultsDeep(this.annotation, {
+  constructor() {
+    _.defaultsDeep(this.annotation, {
       namespace: '',
       metricName: '',
       expression: '',

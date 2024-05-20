@@ -13,9 +13,11 @@
 // limitations under the License.
 
 import * as React from 'react';
-import { get as _get, maxBy as _maxBy, values as _values } from 'lodash';
+import _get from 'lodash/get';
+import _maxBy from 'lodash/maxBy';
+import _values from 'lodash/values';
 import MdKeyboardArrowRight from 'react-icons/lib/md/keyboard-arrow-right';
-import { css } from '@emotion/css';
+import { css } from 'emotion';
 import cx from 'classnames';
 
 import SpanGraph from './SpanGraph';
@@ -25,15 +27,20 @@ import LabeledList from '../common/LabeledList';
 import TraceName from '../common/TraceName';
 import { getTraceName } from '../model/trace-viewer';
 import { TNil } from '../types';
-import { Trace } from '../types/trace';
+import { Trace } from '@grafana/data';
 import { formatDatetime, formatDuration } from '../utils/date';
 import { getTraceLinks } from '../model/link-patterns';
 
 import ExternalLinks from '../common/ExternalLinks';
 import { createStyle } from '../Theme';
 import { uTxMuted } from '../uberUtilityStyles';
+import { useMemo } from 'react';
 
 const getStyles = createStyle((theme: Theme) => {
+  const TracePageHeaderOverviewItemValueDetail = css`
+    label: TracePageHeaderOverviewItemValueDetail;
+    color: #aaa;
+  `;
   return {
     TracePageHeader: css`
       label: TracePageHeader;
@@ -100,7 +107,7 @@ const getStyles = createStyle((theme: Theme) => {
       font-size: 1.7em;
       line-height: 1em;
       margin: 0 0 0 0.5em;
-      padding-bottom: 0.5em;
+      padding: 0.5em 0;
     `,
     TracePageHeaderTitleCollapsible: css`
       label: TracePageHeaderTitleCollapsible;
@@ -111,16 +118,10 @@ const getStyles = createStyle((theme: Theme) => {
       border-bottom: 1px solid #e4e4e4;
       padding: 0.25rem 0.5rem !important;
     `,
-    TracePageHeaderOverviewItemValueDetail: cx(
-      css`
-        label: TracePageHeaderOverviewItemValueDetail;
-        color: #aaa;
-      `,
-      'trace-item-value-detail'
-    ),
+    TracePageHeaderOverviewItemValueDetail,
     TracePageHeaderOverviewItemValue: css`
       label: TracePageHeaderOverviewItemValue;
-      &:hover > .trace-item-value-detail {
+      &:hover > .${TracePageHeaderOverviewItemValueDetail} {
         color: unset;
       }
     `,
@@ -163,13 +164,13 @@ export const HEADER_ITEMS = [
   {
     key: 'timestamp',
     label: 'Trace Start',
-    renderer(trace: Trace, styles: ReturnType<typeof getStyles>) {
+    renderer: (trace: Trace, styles?: ReturnType<typeof getStyles>) => {
       const dateStr = formatDatetime(trace.startTime);
       const match = dateStr.match(/^(.+)(:\d\d\.\d+)$/);
       return match ? (
-        <span className={styles.TracePageHeaderOverviewItemValue}>
+        <span className={styles?.TracePageHeaderOverviewItemValue}>
           {match[1]}
-          <span className={styles.TracePageHeaderOverviewItemValueDetail}>{match[2]}</span>
+          <span className={styles?.TracePageHeaderOverviewItemValueDetail}>{match[2]}</span>
         </span>
       ) : (
         dateStr
@@ -184,7 +185,7 @@ export const HEADER_ITEMS = [
   {
     key: 'service-count',
     label: 'Services',
-    renderer: (trace: Trace) => new Set(_values(trace.processes).map((p) => p.serviceName)).size,
+    renderer: (trace: Trace) => new Set(_values(trace.processes).map(p => p.serviceName)).size,
   },
   {
     key: 'depth',
@@ -222,7 +223,7 @@ export default function TracePageHeader(props: TracePageHeaderEmbedProps) {
   } = props;
 
   const styles = getStyles(useTheme());
-  const links = React.useMemo(() => {
+  const links = useMemo(() => {
     if (!trace) {
       return [];
     }
@@ -236,7 +237,7 @@ export default function TracePageHeader(props: TracePageHeaderEmbedProps) {
   const summaryItems =
     !hideSummary &&
     !slimView &&
-    HEADER_ITEMS.map((item) => {
+    HEADER_ITEMS.map(item => {
       const { renderer, ...rest } = item;
       return { ...rest, value: renderer(trace, styles) };
     });

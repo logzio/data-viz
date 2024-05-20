@@ -5,7 +5,7 @@ package prometheus
 import (
 	"github.com/grafana/grafana/pkg/infra/log"
 	"github.com/grafana/grafana/pkg/models"
-	"github.com/grafana/grafana/pkg/plugins"
+	"github.com/grafana/grafana/pkg/tsdb"
 	"github.com/prometheus/client_golang/api"
 	apiv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"net/http"
@@ -40,7 +40,7 @@ func (lat logzIoAuthTransport) RoundTrip(req *http.Request) (*http.Response, err
 	return resp, err
 }
 
-func (e *PrometheusExecutor) getLogzioAuthClient(dsInfo *models.DataSource, tsdbQuery *plugins.DataQuery) (apiv1.API, error) {
+func (e *PrometheusExecutor) getLogzioAuthClient(dsInfo *models.DataSource, tsdbQuery *tsdb.TsdbQuery) (apiv1.API, error) {
 	cfg := api.Config{
 		Address:      dsInfo.Url,
 		RoundTripper: e.Transport,

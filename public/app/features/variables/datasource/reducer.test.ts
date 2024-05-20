@@ -1,20 +1,24 @@
-import { DataSourceInstanceSettings } from '@grafana/data';
-
 import { reducerTester } from '../../../../test/core/redux/reducerTester';
+import { VariablesState } from '../state/variablesReducer';
 import { createDataSourceOptions, dataSourceVariableReducer } from './reducer';
 import { DataSourceVariableModel } from '../types';
 import { getVariableTestContext } from '../state/helpers';
-import { cloneDeep } from 'lodash';
+import cloneDeep from 'lodash/cloneDeep';
 import { createDataSourceVariableAdapter } from './adapter';
-import { toVariablePayload, VariablesState } from '../state/types';
+import { DataSourceSelectItem } from '@grafana/data';
+import { toVariablePayload } from '../state/types';
 import { getMockPlugins } from '../../plugins/__mocks__/pluginMocks';
-import { getDataSourceInstanceSetting } from '../shared/testing/helpers';
 
 describe('dataSourceVariableReducer', () => {
   const adapter = createDataSourceVariableAdapter();
   describe('when createDataSourceOptions is dispatched', () => {
     const plugins = getMockPlugins(3);
-    const sources: DataSourceInstanceSettings[] = plugins.map((p) => getDataSourceInstanceSetting(p.name, p));
+    const sources: DataSourceSelectItem[] = plugins.map(p => ({
+      name: p.name,
+      value: `${p.name} value`,
+      meta: p,
+      sort: '',
+    }));
 
     it.each`
       query                 | regex                           | includeAll | expected
@@ -22,10 +26,22 @@ describe('dataSourceVariableReducer', () => {
       ${'not-found-plugin'} | ${undefined}                    | ${false}   | ${[{ text: 'No data sources found', value: '', selected: false }]}
       ${sources[1].meta.id} | ${/.*(pretty cool plugin-1).*/} | ${false}   | ${[{ text: 'pretty cool plugin-1', value: 'pretty cool plugin-1', selected: false }]}
       ${sources[1].meta.id} | ${/.*(pretty cool plugin-2).*/} | ${false}   | ${[{ text: 'No data sources found', value: '', selected: false }]}
-      ${sources[1].meta.id} | ${undefined}                    | ${true}    | ${[{ text: 'All', value: '$__all', selected: false }, { text: 'pretty cool plugin-1', value: 'pretty cool plugin-1', selected: false }]}
-      ${'not-found-plugin'} | ${undefined}                    | ${true}    | ${[{ text: 'All', value: '$__all', selected: false }, { text: 'No data sources found', value: '', selected: false }]}
-      ${sources[1].meta.id} | ${/.*(pretty cool plugin-1).*/} | ${true}    | ${[{ text: 'All', value: '$__all', selected: false }, { text: 'pretty cool plugin-1', value: 'pretty cool plugin-1', selected: false }]}
-      ${sources[1].meta.id} | ${/.*(pretty cool plugin-2).*/} | ${true}    | ${[{ text: 'All', value: '$__all', selected: false }, { text: 'No data sources found', value: '', selected: false }]}
+      ${sources[1].meta.id} | ${undefined} | ${true} | ${[
+  { text: 'All', value: '$__all', selected: false },
+  { text: 'pretty cool plugin-1', value: 'pretty cool plugin-1', selected: false },
+]}
+      ${'not-found-plugin'} | ${undefined} | ${true} | ${[
+  { text: 'All', value: '$__all', selected: false },
+  { text: 'No data sources found', value: '', selected: false },
+]}
+      ${sources[1].meta.id} | ${/.*(pretty cool plugin-1).*/} | ${true} | ${[
+  { text: 'All', value: '$__all', selected: false },
+  { text: 'pretty cool plugin-1', value: 'pretty cool plugin-1', selected: false },
+]}
+      ${sources[1].meta.id} | ${/.*(pretty cool plugin-2).*/} | ${true} | ${[
+  { text: 'All', value: '$__all', selected: false },
+  { text: 'No data sources found', value: '', selected: false },
+]}
     `(
       "when called with query: '$query' and regex: '$regex' and includeAll: '$includeAll' then state should be correct",
       ({ query, regex, includeAll, expected }) => {
@@ -44,111 +60,5 @@ describe('dataSourceVariableReducer', () => {
           });
       }
     );
-  });
-
-  describe('when createDataSourceOptions is dispatched and item is default data source', () => {
-    it('then the state should include an extra default option', () => {
-      const plugins = getMockPlugins(3);
-      const sources: DataSourceInstanceSettings[] = plugins.map((p) => getDataSourceInstanceSetting(p.name, p));
-      sources[1].isDefault = true;
-
-      const { initialState } = getVariableTestContext<DataSourceVariableModel>(adapter, {
-        query: sources[1].meta.id,
-        includeAll: false,
-      });
-      const payload = toVariablePayload({ id: '0', type: 'datasource' }, { sources, regex: undefined });
-
-      reducerTester<VariablesState>()
-        .givenReducer(dataSourceVariableReducer, cloneDeep(initialState))
-        .whenActionIsDispatched(createDataSourceOptions(payload))
-        .thenStateShouldEqual({
-          ...initialState,
-          ['0']: ({
-            ...initialState['0'],
-            options: [
-              { text: 'pretty cool plugin-1', value: 'pretty cool plugin-1', selected: false },
-              { text: 'default', value: 'default', selected: false },
-            ],
-          } as unknown) as DataSourceVariableModel,
-        });
-    });
-  });
-
-  describe('when createDataSourceOptions is dispatched with default in the regex and item is default data source', () => {
-    it('then the state should include an extra default option', () => {
-      const plugins = getMockPlugins(3);
-      const sources: DataSourceInstanceSettings[] = plugins.map((p) => getDataSourceInstanceSetting(p.name, p));
-      sources[1].isDefault = true;
-
-      const { initialState } = getVariableTestContext<DataSourceVariableModel>(adapter, {
-        query: sources[1].meta.id,
-        includeAll: false,
-      });
-      const payload = toVariablePayload({ id: '0', type: 'datasource' }, { sources, regex: /default/ });
-
-      reducerTester<VariablesState>()
-        .givenReducer(dataSourceVariableReducer, cloneDeep(initialState))
-        .whenActionIsDispatched(createDataSourceOptions(payload))
-        .thenStateShouldEqual({
-          ...initialState,
-          ['0']: ({
-            ...initialState['0'],
-            options: [{ text: 'default', value: 'default', selected: false }],
-          } as unknown) as DataSourceVariableModel,
-        });
-    });
-  });
-
-  describe('when createDataSourceOptions is dispatched without default in the regex and item is default data source', () => {
-    it('then the state not should include an extra default option', () => {
-      const plugins = getMockPlugins(3);
-      const sources: DataSourceInstanceSettings[] = plugins.map((p) => getDataSourceInstanceSetting(p.name, p));
-      sources[1].isDefault = true;
-
-      const { initialState } = getVariableTestContext<DataSourceVariableModel>(adapter, {
-        query: sources[1].meta.id,
-        includeAll: false,
-      });
-      const payload = toVariablePayload({ id: '0', type: 'datasource' }, { sources, regex: /pretty/ });
-
-      reducerTester<VariablesState>()
-        .givenReducer(dataSourceVariableReducer, cloneDeep(initialState))
-        .whenActionIsDispatched(createDataSourceOptions(payload))
-        .thenStateShouldEqual({
-          ...initialState,
-          ['0']: ({
-            ...initialState['0'],
-            options: [{ text: 'pretty cool plugin-1', value: 'pretty cool plugin-1', selected: false }],
-          } as unknown) as DataSourceVariableModel,
-        });
-    });
-  });
-
-  describe('when createDataSourceOptions is dispatched without the regex and item is default data source', () => {
-    it('then the state should include an extra default option', () => {
-      const plugins = getMockPlugins(3);
-      const sources: DataSourceInstanceSettings[] = plugins.map((p) => getDataSourceInstanceSetting(p.name, p));
-      sources[1].isDefault = true;
-
-      const { initialState } = getVariableTestContext<DataSourceVariableModel>(adapter, {
-        query: sources[1].meta.id,
-        includeAll: false,
-      });
-      const payload = toVariablePayload({ id: '0', type: 'datasource' }, { sources, regex: undefined });
-
-      reducerTester<VariablesState>()
-        .givenReducer(dataSourceVariableReducer, cloneDeep(initialState))
-        .whenActionIsDispatched(createDataSourceOptions(payload))
-        .thenStateShouldEqual({
-          ...initialState,
-          ['0']: ({
-            ...initialState['0'],
-            options: [
-              { text: 'pretty cool plugin-1', value: 'pretty cool plugin-1', selected: false },
-              { text: 'default', value: 'default', selected: false },
-            ],
-          } as unknown) as DataSourceVariableModel,
-        });
-    });
   });
 });

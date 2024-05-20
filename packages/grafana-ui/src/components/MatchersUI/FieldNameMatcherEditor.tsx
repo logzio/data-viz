@@ -3,25 +3,24 @@ import { MatcherUIProps, FieldMatcherUIRegistryItem } from './types';
 import { FieldMatcherID, fieldMatchers, getFieldDisplayName, SelectableValue, DataFrame } from '@grafana/data';
 import { Select } from '../Select/Select';
 
-export const FieldNameMatcherEditor = memo<MatcherUIProps<string>>((props) => {
-  const { data, options, onChange: onChangeFromProps } = props;
+export const FieldNameMatcherEditor = memo<MatcherUIProps<string>>(props => {
+  const { data, options } = props;
   const names = useFieldDisplayNames(data);
-  const selectOptions = useSelectOptions(names, options);
+  const selectOptions = useSelectOptions(names);
 
   const onChange = useCallback(
     (selection: SelectableValue<string>) => {
       if (!selection.value || !names.has(selection.value)) {
         return;
       }
-      return onChangeFromProps(selection.value);
+      return props.onChange(selection.value);
     },
-    [names, onChangeFromProps]
+    [names, props.onChange]
   );
 
-  const selectedOption = selectOptions.find((v) => v.value === options);
+  const selectedOption = selectOptions.find(v => v.value === options);
   return <Select value={selectedOption} options={selectOptions} onChange={onChange} />;
 });
-FieldNameMatcherEditor.displayName = 'FieldNameMatcherEditor';
 
 export const fieldNameMatcherItem: FieldMatcherUIRegistryItem<string> = {
   id: FieldMatcherID.byName,
@@ -29,7 +28,7 @@ export const fieldNameMatcherItem: FieldMatcherUIRegistryItem<string> = {
   matcher: fieldMatchers.get(FieldMatcherID.byName),
   name: 'Fields with name',
   description: 'Set properties for a specific field',
-  optionsToLabel: (options) => options,
+  optionsToLabel: options => options,
 };
 
 const useFieldDisplayNames = (data: DataFrame[]): Set<string> => {
@@ -46,18 +45,11 @@ const useFieldDisplayNames = (data: DataFrame[]): Set<string> => {
   }, [data]);
 };
 
-const useSelectOptions = (displayNames: Set<string>, currentName: string): Array<SelectableValue<string>> => {
+const useSelectOptions = (displayNames: Set<string>): Array<SelectableValue<string>> => {
   return useMemo(() => {
-    const vals = Array.from(displayNames).map((n) => ({
+    return Array.from(displayNames).map(n => ({
       value: n,
       label: n,
     }));
-    if (currentName && !displayNames.has(currentName)) {
-      vals.push({
-        value: currentName,
-        label: `${currentName} (not found)`,
-      });
-    }
-    return vals;
-  }, [displayNames, currentName]);
+  }, [displayNames]);
 };

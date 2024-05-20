@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -10,7 +9,6 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
-	"runtime/debug"
 	"runtime/trace"
 	"strconv"
 	"syscall"
@@ -29,19 +27,17 @@ import (
 	_ "github.com/grafana/grafana/pkg/tsdb/elasticsearch"
 	_ "github.com/grafana/grafana/pkg/tsdb/graphite"
 	_ "github.com/grafana/grafana/pkg/tsdb/influxdb"
-	_ "github.com/grafana/grafana/pkg/tsdb/loki"
 	_ "github.com/grafana/grafana/pkg/tsdb/mysql"
 	_ "github.com/grafana/grafana/pkg/tsdb/opentsdb"
 	_ "github.com/grafana/grafana/pkg/tsdb/postgres"
 	_ "github.com/grafana/grafana/pkg/tsdb/prometheus"
-	_ "github.com/grafana/grafana/pkg/tsdb/tempo"
 	_ "github.com/grafana/grafana/pkg/tsdb/testdatasource"
 )
 
 // The following variables cannot be constants, since they can be overridden through the -X link flag
-var version = "7.5.0"
+var version = "5.0.0"
 var commit = "NA"
-var buildBranch = "main"
+var buildBranch = "master"
 var buildstamp string
 
 type exitWithCode struct {
@@ -61,25 +57,16 @@ func main() {
 		packaging  = flag.String("packaging", "unknown", "describes the way Grafana was installed")
 
 		v           = flag.Bool("v", false, "prints current version and exits")
-		vv          = flag.Bool("vv", false, "prints current version, all dependencies and exits")
 		profile     = flag.Bool("profile", false, "Turn on pprof profiling")
-		profilePort = flag.Uint64("profile-port", 6060, "Define custom port for profiling")
+		profilePort = flag.Uint("profile-port", 6060, "Define custom port for profiling")
 		tracing     = flag.Bool("tracing", false, "Turn on tracing")
 		tracingFile = flag.String("tracing-file", "trace.out", "Define tracing output file")
 	)
 
 	flag.Parse()
 
-	if *v || *vv {
+	if *v {
 		fmt.Printf("Version %s (commit: %s, branch: %s)\n", version, commit, buildBranch)
-		if *vv {
-			fmt.Println("Dependencies:")
-			if info, ok := debug.ReadBuildInfo(); ok {
-				for _, dep := range info.Deps {
-					fmt.Println(dep.Path, dep.Version)
-				}
-			}
-		}
 		os.Exit(0)
 	}
 
@@ -121,11 +108,7 @@ func main() {
 }
 
 func executeServer(configFile, homePath, pidFile, packaging string, traceDiagnostics *tracingDiagnostics) error {
-	defer func() {
-		if err := log.Close(); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to close log: %s\n", err)
-		}
-	}()
+	defer log.Close()
 
 	if traceDiagnostics.enabled {
 		fmt.Println("diagnostics: tracing enabled", "file", traceDiagnostics.file)
@@ -133,11 +116,7 @@ func executeServer(configFile, homePath, pidFile, packaging string, traceDiagnos
 		if err != nil {
 			panic(err)
 		}
-		defer func() {
-			if err := f.Close(); err != nil {
-				log.Error("Failed to write trace diagnostics", "path", traceDiagnostics.file, "err", err)
-			}
-		}()
+		defer f.Close()
 
 		if err := trace.Start(f); err != nil {
 			panic(err)
@@ -167,9 +146,7 @@ func executeServer(configFile, homePath, pidFile, packaging string, traceDiagnos
 		return err
 	}
 
-	ctx := context.Background()
-
-	go listenToSystemSignals(ctx, s)
+	go listenToSystemSignals(s)
 
 	if err := s.Run(); err != nil {
 		code := s.ExitCode(err)
@@ -192,7 +169,7 @@ func validPackaging(packaging string) string {
 	return "unknown"
 }
 
-func listenToSystemSignals(ctx context.Context, s *server.Server) {
+func listenToSystemSignals(s *server.Server) {
 	signalChan := make(chan os.Signal, 1)
 	sighupChan := make(chan os.Signal, 1)
 
@@ -202,16 +179,9 @@ func listenToSystemSignals(ctx context.Context, s *server.Server) {
 	for {
 		select {
 		case <-sighupChan:
-			if err := log.Reload(); err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to reload loggers: %s\n", err)
-			}
+			log.Reload()
 		case sig := <-signalChan:
-			ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-			defer cancel()
-			if err := s.Shutdown(ctx, fmt.Sprintf("System signal: %s", sig)); err != nil {
-				fmt.Fprintf(os.Stderr, "Timed out waiting for server to shut down\n")
-			}
-			return
+			s.Shutdown(fmt.Sprintf("System signal: %s", sig))
 		}
 	}
 }

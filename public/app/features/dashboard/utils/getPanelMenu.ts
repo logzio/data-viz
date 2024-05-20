@@ -1,19 +1,13 @@
+import { updateLocation } from 'app/core/actions';
 import { store } from 'app/store/store';
-import { AngularComponent, getDataSourceSrv, locationService } from '@grafana/runtime';
+import { AngularComponent, getDataSourceSrv, getLocationSrv } from '@grafana/runtime';
 import { PanelMenuItem } from '@grafana/data';
 // LOGZ.IO GRAFANA CHANGE :: hide share for now (remove import of sharePanel)
-import {
-  addLibraryPanel,
-  copyPanel,
-  duplicatePanel,
-  removePanel,
-  unlinkLibraryPanel,
-} from 'app/features/dashboard/utils/panel';
-import { isPanelModelLibraryPanel } from 'app/features/library-panels/guard';
+import { copyPanel, duplicatePanel, removePanel } from 'app/features/dashboard/utils/panel';
 import { PanelModel } from 'app/features/dashboard/state/PanelModel';
 import { DashboardModel } from 'app/features/dashboard/state/DashboardModel';
 import { contextSrv } from '../../../core/services/context_srv';
-import { navigateToExplore } from '../../explore/state/main';
+import { navigateToExplore } from '../../explore/state/actions';
 import { getExploreUrl } from '../../../core/utils/explore';
 import { getTimeSrv } from '../services/TimeSrv';
 import { PanelCtrl } from '../../panel/panel_ctrl';
@@ -26,16 +20,26 @@ export function getPanelMenu(
 ): PanelMenuItem[] {
   const onViewPanel = (event: React.MouseEvent<any>) => {
     event.preventDefault();
-    locationService.partial({
-      viewPanel: panel.id,
-    });
+    store.dispatch(
+      updateLocation({
+        query: {
+          viewPanel: panel.id,
+        },
+        partial: true,
+      })
+    );
   };
 
   const onEditPanel = (event: React.MouseEvent<any>) => {
     event.preventDefault();
-    locationService.partial({
-      editPanel: panel.id,
-    });
+    store.dispatch(
+      updateLocation({
+        query: {
+          editPanel: panel.id,
+        },
+        partial: true,
+      })
+    );
   };
 
   // LOGZ.IO GRAFANA CHANGE :: hide share for now
@@ -44,20 +48,13 @@ export function getPanelMenu(
   //   sharePanel(dashboard, panel);
   // };
 
-  const onAddLibraryPanel = (event: React.MouseEvent<any>) => {
-    event.preventDefault();
-    addLibraryPanel(dashboard, panel);
-  };
-
-  const onUnlinkLibraryPanel = (event: React.MouseEvent<any>) => {
-    event.preventDefault();
-    unlinkLibraryPanel(panel);
-  };
-
   const onInspectPanel = (tab?: string) => {
-    locationService.partial({
-      inspect: panel.id,
-      inspectTab: tab,
+    getLocationSrv().update({
+      partial: true,
+      query: {
+        inspect: panel.id,
+        inspectTab: tab,
+      },
     });
   };
 
@@ -168,18 +165,6 @@ export function getPanelMenu(
       text: 'Copy',
       onClick: onCopyPanel,
     });
-
-    if (isPanelModelLibraryPanel(panel)) {
-      subMenu.push({
-        text: 'Unlink library panel',
-        onClick: onUnlinkLibraryPanel,
-      });
-    } else {
-      subMenu.push({
-        text: 'Create library panel',
-        onClick: onAddLibraryPanel,
-      });
-    }
   }
 
   // add old angular panel options
@@ -215,7 +200,7 @@ export function getPanelMenu(
     });
   }
 
-  if (dashboard.canEditPanel(panel) && !panel.isEditing && !panel.isViewing) {
+  if (dashboard.canEditPanel(panel) && !panel.isEditing) {
     menu.push({ type: 'divider', text: '' });
 
     menu.push({

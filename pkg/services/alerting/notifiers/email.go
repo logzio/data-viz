@@ -117,7 +117,9 @@ func (en *EmailNotifier) Notify(evalContext *alerting.EvalContext) error {
 		}
 	}
 
-	if err := bus.DispatchCtx(evalContext.Ctx, cmd); err != nil {
+	err = bus.DispatchCtx(evalContext.Ctx, cmd)
+
+	if err != nil {
 		en.log.Error("Failed to send alert notification email", "error", err)
 		return err
 	}

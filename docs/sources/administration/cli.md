@@ -2,22 +2,33 @@
 title = "Grafana CLI"
 description = "Guide to using grafana-cli"
 keywords = ["grafana", "cli", "grafana-cli", "command line interface"]
-weight = 400
+type = "docs"
+[menu.docs]
+parent = "admin"
+weight = 8
 +++
 
 # Grafana CLI
 
-Grafana CLI is a small executable that is bundled with Grafana server. It can be executed on the same machine Grafana server is running on. Grafana CLI has `plugins` and `admin` commands, as well as global options.
+Grafana CLI is a small executable that is bundled with Grafana server and is supposed to be executed on the same machine Grafana server is running on.
+
+Grafana CLI has `plugins` and `admin` commands, as well as global options.
 
 To list all commands and options:
 ```
 grafana-cli -h
 ```
-## Invoking Grafana CLI
 
-To invoke Grafana CLI, add the path to the grafana binaries in your `PATH` environment variable. Alternately, if your current directory is the `bin` directory, use `./grafana-cli`. Otherwise, you can specify full path to the CLI. For example, on Linux `/usr/share/grafana/bin/grafana-cli` and on Windows `C:\Program Files\GrafanaLabs\grafana\bin\grafana-cli.exe`.
+**Linux users**
+Some commands, such as installing or removing plugins, require `sudo` in order to run.
 
->**Note:** Some commands, such as installing or removing plugins, require `sudo` on Linux. If you are on Windows, run Windows PowerShell as Administrator. 
+**Windows users**
+Some commands, such as installing or removing plugins, require you to run Windows PowerShell as Administrator.
+
+Before you enter commands, `cd` into the Grafana bin directory. The default path is:
+```
+cd "C:\Program Files\GrafanaLabs\grafana\bin"
+```
 
 ## Grafana CLI command syntax
 
@@ -101,7 +112,7 @@ grafana-cli --debug plugins install <plugin-id>
 
 `--configOverrides` is a command line argument that acts like an environmental variable override.
 
-For example, you can use it to redirect logging to another file (maybe to log plugin installations in Grafana Cloud) or when resetting the admin password and you have non-default values for some important configuration value (like where the database is located).
+For example, you can use it to redirect logging to another file (maybe to log plugin installations in Grafana Cloud) or when resetting the admin password and you have non-default values for some important config value (like where the database is located).
 
 **Example:**
 ```bash
@@ -114,7 +125,7 @@ Sets the path for the Grafana install/home path, defaults to working directory. 
 
 **Example:**
 ```bash
-grafana-cli --homepath "/usr/share/grafana" admin reset-admin-password <new password>
+grafana-cli --homepath "c:\Program Files\grafana" admin reset-admin-password mynewpassword
 ```
 
 ### Override config file
@@ -194,7 +205,7 @@ If there are two flags being used to set the homepath and the config file path, 
 To correct this, use the `--homepath` global option to specify the Grafana default homepath for this command:
 
 ```bash
-grafana-cli --homepath "/usr/share/grafana" admin reset-admin-password <new password>
+grafana-cli admin reset-admin-password --homepath "/usr/share/grafana" <new password>
 ```
 
 If you have not lost the admin password, we recommend that you change the user password either in the User Preferences or in the Server Admin > User tab.

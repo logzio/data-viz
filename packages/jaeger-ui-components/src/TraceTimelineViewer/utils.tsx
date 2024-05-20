@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { TraceSpan } from '../types/trace';
+import { TraceSpan } from '@grafana/data';
 
 export type ViewedBoundsFunctionType = (start: number, end: number) => { start: number; end: number };
 /**
@@ -40,7 +40,7 @@ export function createViewedBoundsFunc(viewRange: { min: number; max: number; vi
    * View bounds function
    * @param  {number} start     The start of the sub-range.
    * @param  {number} end       The end of the sub-range.
-   * @returns {Object}           The resultant range.
+   * @return {Object}           The resultant range.
    */
   return (start: number, end: number) => ({
     start: (start - viewMin) / viewWindow,
@@ -55,13 +55,13 @@ export function createViewedBoundsFunc(viewRange: { min: number; max: number; vi
  * @param  {any}    value The tag value to match.
  * @param  {{tags}} span  An object with a `tags` property of { key, value }
  *                        items.
- * @returns {boolean}      True if a match was found.
+ * @return {boolean}      True if a match was found.
  */
 export function spanHasTag(key: string, value: any, span: TraceSpan) {
   if (!Array.isArray(span.tags) || !span.tags.length) {
     return false;
   }
-  return span.tags.some((tag) => tag.key === key && tag.value === value);
+  return span.tags.some(tag => tag.key === key && tag.value === value);
 }
 
 export const isClientSpan = spanHasTag.bind(null, 'span.kind', 'client');
@@ -80,7 +80,7 @@ export const isErrorSpan = (span: TraceSpan) => isErrorBool(span) || isErrorStr(
  * @param      {number}   parentSpanIndex  The index of the parent span - only
  *                                         subsequent spans with depth less than
  *                                         the parent span will be checked.
- * @returns     {boolean}  Returns `true` if a descendant contains an error tag.
+ * @return     {boolean}  Returns `true` if a descendant contains an error tag.
  */
 export function spanContainsErredSpan(spans: TraceSpan[], parentSpanIndex: number) {
   const { depth } = spans[parentSpanIndex];

@@ -1,11 +1,14 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { cloneDeep, defaults as lodashDefaults } from 'lodash';
+import cloneDeep from 'lodash/cloneDeep';
+import { default as lodashDefaults } from 'lodash/defaults';
+
 import { LoadingState, VariableType } from '@grafana/data';
 import { VariableModel, VariableOption, VariableWithOptions } from '../types';
-import { AddVariable, getInstanceState, initialVariablesState, VariablePayload, VariablesState } from './types';
+import { AddVariable, getInstanceState, NEW_VARIABLE_ID, VariablePayload } from './types';
 import { variableAdapters } from '../adapters';
 import { changeVariableNameSucceeded } from '../editor/reducer';
-import { ensureStringValues } from '../utils';
+import { initialVariablesState, VariablesState } from './variablesReducer';
+import { isQuery } from '../guard';
 
 const sharedReducerSlice = createSlice({
   name: 'templating/shared',
@@ -13,11 +16,8 @@ const sharedReducerSlice = createSlice({
   reducers: {
     addVariable: (state: VariablesState, action: PayloadAction<VariablePayload<AddVariable>>) => {
       const id = action.payload.id ?? action.payload.data.model.name; // for testing purposes we can call this with an id
-      const adapter = variableAdapters.get(action.payload.type);
-      const initialState = cloneDeep(adapter.initialState);
-      const model = adapter.beforeAdding
-        ? adapter.beforeAdding(action.payload.data.model)
-        : cloneDeep(action.payload.data.model);
+      const initialState = cloneDeep(variableAdapters.get(action.payload.type).initialState);
+      const model = cloneDeep(action.payload.data.model);
 
       const variable = {
         ...lodashDefaults({}, model, initialState),
@@ -84,9 +84,9 @@ const sharedReducerSlice = createSlice({
       state: VariablesState,
       action: PayloadAction<VariablePayload<{ fromIndex: number; toIndex: number }>>
     ) => {
-      const variables = Object.values(state).map((s) => s);
-      const fromVariable = variables.find((v) => v.index === action.payload.data.fromIndex);
-      const toVariable = variables.find((v) => v.index === action.payload.data.toIndex);
+      const variables = Object.values(state).map(s => s);
+      const fromVariable = variables.find(v => v.index === action.payload.data.fromIndex);
+      const toVariable = variables.find(v => v.index === action.payload.data.toIndex);
 
       if (fromVariable) {
         state[fromVariable.id].index = action.payload.data.toIndex;
@@ -96,9 +96,19 @@ const sharedReducerSlice = createSlice({
         state[toVariable.id].index = action.payload.data.fromIndex;
       }
     },
+    storeNewVariable: (state: VariablesState, action: PayloadAction<VariablePayload>) => {
+      const id = action.payload.id;
+      const emptyVariable = cloneDeep<VariableModel>(state[NEW_VARIABLE_ID]);
+      state[id] = {
+        ...cloneDeep(variableAdapters.get(action.payload.type).initialState),
+        ...emptyVariable,
+        id,
+        index: emptyVariable.index,
+      };
+    },
     changeVariableType: (state: VariablesState, action: PayloadAction<VariablePayload<{ newType: VariableType }>>) => {
       const { id } = action.payload;
-      const { label, name, index, description } = state[id];
+      const { label, name, index } = state[id];
 
       state[id] = {
         ...cloneDeep(variableAdapters.get(action.payload.data.newType).initialState),
@@ -106,7 +116,6 @@ const sharedReducerSlice = createSlice({
         label,
         name,
         index,
-        description,
       };
     },
     setCurrentVariableValue: (
@@ -118,12 +127,10 @@ const sharedReducerSlice = createSlice({
       }
 
       const instanceState = getInstanceState<VariableWithOptions>(state, action.payload.id);
-      const { option } = action.payload.data;
-      const current = { ...option, text: ensureStringValues(option?.text), value: ensureStringValues(option?.value) };
+      const current = { ...action.payload.data.option };
 
       instanceState.current = current;
-      instanceState.options = instanceState.options.map((option) => {
-        option.value = ensureStringValues(option.value);
+      instanceState.options = instanceState.options.map(option => {
         let selected = false;
         if (Array.isArray(current.value)) {
           for (let index = 0; index < current.value.length; index++) {
@@ -139,6 +146,19 @@ const sharedReducerSlice = createSlice({
         option.selected = selected;
         return option;
       });
+
+      if (hasTags(current) && isQuery(instanceState)) {
+        const selected = current!.tags!.reduce((all: Record<string, boolean>, tag) => {
+          all[tag.text.toString()] = tag.selected;
+          return all;
+        }, {});
+
+        instanceState.tags = instanceState.tags.map(t => {
+          const text = t.text.toString();
+          t.selected = selected[text];
+          return t;
+        });
+      }
     },
     changeVariableProp: (
       state: VariablesState,
@@ -148,7 +168,7 @@ const sharedReducerSlice = createSlice({
       (instanceState as Record<string, any>)[action.payload.data.propName] = action.payload.data.propValue;
     },
   },
-  extraReducers: (builder) =>
+  extraReducers: builder =>
     builder.addCase(changeVariableNameSucceeded, (state, action) => {
       const instanceState = getInstanceState(state, action.payload.id);
       instanceState.name = action.payload.data.newName;
@@ -162,6 +182,7 @@ export const {
   addVariable,
   changeVariableProp,
   changeVariableOrder,
+  storeNewVariable,
   duplicateVariable,
   setCurrentVariableValue,
   changeVariableType,
@@ -170,3 +191,7 @@ export const {
   variableStateCompleted,
   variableStateFailed,
 } = sharedReducerSlice.actions;
+
+const hasTags = (option: VariableOption): boolean => {
+  return Array.isArray(option.tags);
+};

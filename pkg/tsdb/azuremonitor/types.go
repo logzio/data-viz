@@ -54,18 +54,25 @@ type AzureMonitorResponse struct {
 	Resourceregion string `json:"resourceregion"`
 }
 
+// ApplicationInsightsQueryResponse is the json response from the Application Insights API
+type ApplicationInsightsQueryResponse struct {
+	Tables []struct {
+		Name    string `json:"name"`
+		Columns []struct {
+			Name string `json:"name"`
+			Type string `json:"type"`
+		} `json:"columns"`
+		Rows [][]interface{} `json:"rows"`
+	} `json:"tables"`
+}
+
 // AzureLogAnalyticsResponse is the json response object from the Azure Log Analytics API.
 type AzureLogAnalyticsResponse struct {
-	Tables []AzureResponseTable `json:"tables"`
+	Tables []AzureLogAnalyticsTable `json:"tables"`
 }
 
-// AzureResourceGraphResponse is the json response object from the Azure Resource Graph Analytics API.
-type AzureResourceGraphResponse struct {
-	Data AzureResponseTable `json:"data"`
-}
-
-// AzureResponseTable is the table format for Azure responses
-type AzureResponseTable struct {
+// AzureLogAnalyticsTable is the table format for Log Analytics responses
+type AzureLogAnalyticsTable struct {
 	Name    string `json:"name"`
 	Columns []struct {
 		Name string `json:"name"`
@@ -138,18 +145,8 @@ type logJSONQuery struct {
 	AzureLogAnalytics struct {
 		Query        string `json:"query"`
 		ResultFormat string `json:"resultFormat"`
-		Resource     string `json:"resource"`
-
-		// Deprecated: Queries should be migrated to use Resource instead
-		Workspace string `json:"workspace"`
+		Workspace    string `json:"workspace"`
 	} `json:"azureLogAnalytics"`
-}
-
-type argJSONQuery struct {
-	AzureResourceGraph struct {
-		Query        string `json:"query"`
-		ResultFormat string `json:"resultFormat"`
-	} `json:"azureResourceGraph"`
 }
 
 // InsightsDimensions will unmarshal from a JSON string, or an array of strings,

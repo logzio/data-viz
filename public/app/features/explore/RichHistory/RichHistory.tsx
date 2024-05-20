@@ -3,11 +3,12 @@ import React, { PureComponent } from 'react';
 //Services & Utils
 import { RICH_HISTORY_SETTING_KEYS, SortOrder } from 'app/core/utils/richHistory';
 import store from 'app/core/store';
-import { Themeable, withTheme, TabbedContainer, TabConfig } from '@grafana/ui';
+import { withTheme, TabbedContainer, TabConfig } from '@grafana/ui';
 
 //Types
 import { RichHistoryQuery, ExploreId } from 'app/types/explore';
 import { SelectableValue } from '@grafana/data';
+import { Themeable } from '@grafana/ui';
 
 //Components
 import { RichHistorySettings } from './RichHistorySettings';

@@ -18,13 +18,11 @@ export interface Props {
   dashboardId?: any;
   initialTitle?: string;
   initialFolderId?: number;
-  permissionLevel?: 'View' | 'Edit';
-  allowEmpty?: boolean;
-  showRoot?: boolean;
+  useNewForms?: boolean;
 }
 
 interface State {
-  folder: SelectableValue<number> | null;
+  folder: SelectableValue<number>;
 }
 
 export class FolderPicker extends PureComponent<Props, State> {
@@ -34,7 +32,7 @@ export class FolderPicker extends PureComponent<Props, State> {
     super(props);
 
     this.state = {
-      folder: null,
+      folder: {},
     };
 
     this.debouncedSearch = debounce(this.getOptions, 300, {
@@ -43,14 +41,12 @@ export class FolderPicker extends PureComponent<Props, State> {
     });
   }
 
-  static defaultProps: Partial<Props> = {
+  static defaultProps = {
     rootName: 'General',
     enableReset: false,
     initialTitle: '',
     enableCreateNew: false,
-    permissionLevel: 'Edit',
-    allowEmpty: false,
-    showRoot: true,
+    useNewForms: false,
   };
 
   componentDidMount = async () => {
@@ -58,19 +54,18 @@ export class FolderPicker extends PureComponent<Props, State> {
   };
 
   getOptions = async (query: string) => {
-    const { rootName, enableReset, initialTitle, permissionLevel, showRoot } = this.props;
+    const { rootName, enableReset, initialTitle } = this.props;
     const params = {
       query,
       type: 'dash-folder',
-      permission: permissionLevel,
+      permission: 'Edit',
     };
 
     // TODO: move search to BackendSrv interface
     // @ts-ignore
     const searchHits = (await getBackendSrv().search(params)) as DashboardSearchHit[];
-
-    const options: Array<SelectableValue<number>> = searchHits.map((hit) => ({ label: hit.title, value: hit.id }));
-    if (contextSrv.isEditor && rootName?.toLowerCase().startsWith(query.toLowerCase()) && showRoot) {
+    const options: Array<SelectableValue<number>> = searchHits.map(hit => ({ label: hit.title, value: hit.id }));
+    if (contextSrv.isEditor && rootName?.toLowerCase().startsWith(query.toLowerCase())) {
       options.unshift({ label: rootName, value: 0 });
     }
 
@@ -116,18 +111,15 @@ export class FolderPicker extends PureComponent<Props, State> {
 
     const options = await this.getOptions('');
 
-    let folder: SelectableValue<number> | null = null;
+    let folder: SelectableValue<number> = { value: -1 };
 
     if (initialFolderId !== undefined && initialFolderId !== null && initialFolderId > -1) {
-      folder = options.find((option) => option.value === initialFolderId) || null;
+      folder = options.find(option => option.value === initialFolderId) || { value: -1 };
     } else if (enableReset && initialTitle) {
       folder = resetFolder;
-    } else if (initialTitle && initialFolderId === -1) {
-      // @TODO temporary, we don't know the id for alerting rule folder in some cases
-      folder = options.find((option) => option.label === initialTitle) || null;
     }
 
-    if (!folder && !this.props.allowEmpty) {
+    if (folder.value === -1) {
       if (contextSrv.isEditor) {
         folder = rootFolder;
       } else {
@@ -147,8 +139,8 @@ export class FolderPicker extends PureComponent<Props, State> {
       },
       () => {
         // if this is not the same as our initial value notify parent
-        if (folder && folder.value !== initialFolderId) {
-          this.props.onChange({ id: folder.value!, title: folder.label! });
+        if (folder.value !== initialFolderId) {
+          this.props.onChange({ id: folder.value!, title: folder.text });
         }
       }
     );
@@ -156,20 +148,41 @@ export class FolderPicker extends PureComponent<Props, State> {
 
   render() {
     const { folder } = this.state;
-    const { enableCreateNew } = this.props;
+    const { enableCreateNew, useNewForms } = this.props;
 
     return (
       <div aria-label={selectors.components.FolderPicker.container}>
-        <AsyncSelect
-          loadingMessage="Loading folders..."
-          defaultOptions
-          defaultValue={folder}
-          value={folder}
-          allowCustomValue={enableCreateNew}
-          loadOptions={this.debouncedSearch}
-          onChange={this.onFolderChange}
-          onCreateOption={this.createNewFolder}
-        />
+        {useNewForms && (
+          <AsyncSelect
+            loadingMessage="Loading folders..."
+            defaultOptions
+            defaultValue={folder}
+            value={folder}
+            allowCustomValue={enableCreateNew}
+            loadOptions={this.debouncedSearch}
+            onChange={this.onFolderChange}
+            onCreateOption={this.createNewFolder}
+            menuPosition="fixed"
+          />
+        )}
+        {!useNewForms && (
+          <div className="gf-form-inline">
+            <div className="gf-form">
+              <label className="gf-form-label width-7">Folder</label>
+              <AsyncSelect
+                loadingMessage="Loading folders..."
+                defaultOptions
+                defaultValue={folder}
+                value={folder}
+                className={'width-20'}
+                allowCustomValue={enableCreateNew}
+                loadOptions={this.debouncedSearch}
+                onChange={this.onFolderChange}
+                onCreateOption={this.createNewFolder}
+              />
+            </div>
+          </div>
+        )}
       </div>
     );
   }

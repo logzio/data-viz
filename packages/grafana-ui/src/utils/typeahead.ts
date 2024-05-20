@@ -4,14 +4,12 @@ import { GrafanaTheme } from '@grafana/data';
 
 export const flattenGroupItems = (groupedItems: CompletionItemGroup[]): CompletionItem[] => {
   return groupedItems.reduce((all: CompletionItem[], { items, label }) => {
-    all.push({
+    const titleItem: CompletionItem = {
       label,
       kind: CompletionItemKind.GroupTitle,
-    });
-    return items.reduce((all, item) => {
-      all.push(item);
-      return all;
-    }, all);
+    };
+    all.push(titleItem, ...items);
+    return all;
   }, []);
 };
 

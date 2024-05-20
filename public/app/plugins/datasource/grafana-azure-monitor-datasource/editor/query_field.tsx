@@ -1,13 +1,14 @@
 import PluginPrism from 'app/features/explore/slate-plugins/prism';
 import { BracesPlugin, ClearPlugin, RunnerPlugin, NewlinePlugin } from '@grafana/ui';
 import Typeahead from './typeahead';
-import { keybindingSrv } from 'app/core/services/keybindingSrv';
+import { getKeybindingSrv, KeybindingSrv } from 'app/core/services/keybindingSrv';
 
-import { Block, Document, Text, Value } from 'slate';
-import { Editor } from 'slate-react';
+import { Block, Document, Text, Value, Editor as CoreEditor } from 'slate';
+import { Editor } from '@grafana/slate-react';
 import Plain from 'slate-plain-serializer';
 import ReactDOM from 'react-dom';
 import React from 'react';
+import _ from 'lodash';
 
 function flattenSuggestions(s: any) {
   return s ? s.reduce((acc: any, g: any) => acc.concat(g.items), []) : [];
@@ -53,6 +54,7 @@ class QueryField extends React.Component<any, any> {
   menuEl: any;
   plugins: any;
   resetTimer: any;
+  keybindingSrv: KeybindingSrv = getKeybindingSrv();
 
   constructor(props: any, context: any) {
     super(props, context);
@@ -109,7 +111,7 @@ class QueryField extends React.Component<any, any> {
     }
   };
 
-  onKeyDown = (event: any, editor: Editor, next: Function) => {
+  onKeyDown = (event: Event, editor: CoreEditor, next: Function) => {
     const { typeaheadIndex, suggestions } = this.state;
     const keyboardEvent = event as KeyboardEvent;
 
@@ -184,7 +186,7 @@ class QueryField extends React.Component<any, any> {
   };
 
   applyTypeahead = (
-    editor?: Editor,
+    editor?: CoreEditor,
     suggestion?: { text: any; type: string; deleteBackwards: any }
   ): { value: Value } => {
     return { value: new Value() };
@@ -202,7 +204,7 @@ class QueryField extends React.Component<any, any> {
     );
   };
 
-  handleBlur = (event: any, editor: Editor, next: Function) => {
+  handleBlur = (event: Event, editor: CoreEditor, next: Function) => {
     const { onBlur } = this.props;
     // If we dont wait here, menu clicks wont work because the menu
     // will be gone.
@@ -214,7 +216,7 @@ class QueryField extends React.Component<any, any> {
     return next();
   };
 
-  handleFocus = (event: any, editor: Editor, next: Function) => {
+  handleFocus = (event: Event, editor: CoreEditor, next: Function) => {
     const { onFocus } = this.props;
     if (onFocus) {
       onFocus();
@@ -225,11 +227,11 @@ class QueryField extends React.Component<any, any> {
   };
 
   removeEscapeKeyBinding() {
-    keybindingSrv.unbind('esc', 'keydown');
+    this.keybindingSrv.unbind('esc', 'keydown');
   }
 
   restoreEscapeKeyBinding() {
-    keybindingSrv.initGlobals();
+    this.keybindingSrv.setupGlobal();
   }
 
   onClickItem = (item: any) => {
@@ -303,7 +305,7 @@ class QueryField extends React.Component<any, any> {
     const selectedKeys = (typeaheadIndex !== null && flattenedSuggestions.length > 0
       ? [flattenedSuggestions[selectedIndex]]
       : []
-    ).map((i) => (typeof i === 'object' ? i.text : i));
+    ).map(i => (typeof i === 'object' ? i.text : i));
 
     // Create typeahead in DOM root so we can later position it absolutely
     return (

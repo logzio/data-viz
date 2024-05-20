@@ -1,12 +1,9 @@
 package migrations
 
-import (
-	"github.com/grafana/grafana/pkg/services/sqlstore/migrations/ualert"
-	. "github.com/grafana/grafana/pkg/services/sqlstore/migrator"
-)
+import . "github.com/grafana/grafana/pkg/services/sqlstore/migrator"
 
 // --- Migration Guide line ---
-// 1. Never change a migration that is committed and pushed to main
+// 1. Never change a migration that is committed and pushed to master
 // 2. Always add new migrations (to change or undo previous migrations)
 // 3. Some migrations are not yet written (rename column, table, drop table, index etc)
 
@@ -16,7 +13,7 @@ func AddMigrations(mg *Migrator) {
 	addTempUserMigrations(mg)
 	addStarMigrations(mg)
 	addOrgMigrations(mg)
-	addDashboardMigration(mg) // Do NOT add more migrations to this function.
+	addDashboardMigration(mg)
 	addDataSourceMigration(mg)
 	addApiKeyMigrations(mg)
 	addDashboardSnapshotMigrations(mg)
@@ -30,7 +27,7 @@ func AddMigrations(mg *Migrator) {
 	addTestDataMigrations(mg)
 	addDashboardVersionMigration(mg)
 	addTeamMigrations(mg)
-	addDashboardAclMigrations(mg) // Do NOT add more migrations to this function.
+	addDashboardAclMigrations(mg)
 	addTagMigration(mg)
 	addLoginAttemptMigrations(mg)
 	addUserAuthMigrations(mg)
@@ -38,11 +35,6 @@ func AddMigrations(mg *Migrator) {
 	addUserAuthTokenMigrations(mg)
 	addCacheMigration(mg)
 	addShortURLMigrations(mg)
-	ualert.AddTablesMigrations(mg)
-	// LOGZ.IO GRAFANA CHANGE :: DEV-30711 - Remove unified alerting db migration
-	//ualert.AddDashAlertMigration(mg)
-	// LOGZ.IO GRAFANA CHANGE :: end
-	addLibraryElementsMigrations(mg)
 }
 
 func addMigrationLogMigrations(mg *Migrator) {

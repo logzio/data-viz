@@ -7,22 +7,17 @@ import { FullWidthButtonContainer } from '../Button/FullWidthButtonContainer';
 import { ComponentSize } from '../../types/size';
 import { selectors } from '@grafana/e2e-selectors';
 
-export interface ValuePickerProps<T> {
+interface ValuePickerProps<T> {
   /** Label to display on the picker button */
   label: string;
   /** Icon to display on the picker button */
   icon?: IconName;
   /** ValuePicker options  */
   options: Array<SelectableValue<T>>;
-  /** Callback to handle selected option */
   onChange: (value: SelectableValue<T>) => void;
-  /** Which ButtonVariant to render */
   variant?: ButtonVariant;
-  /** Size of button  */
   size?: ComponentSize;
-  /** Should the picker cover the full width of its parent */
   isFullWidth?: boolean;
-  /** Control where the menu is rendered */
   menuPlacement?: 'auto' | 'bottom' | 'top';
 }
 
@@ -39,13 +34,7 @@ export function ValuePicker<T>({
   const [isPicking, setIsPicking] = useState(false);
 
   const buttonEl = (
-    <Button
-      size={size || 'sm'}
-      icon={icon || 'plus'}
-      onClick={() => setIsPicking(true)}
-      variant={variant}
-      aria-label={selectors.components.ValuePicker.button(label)}
-    >
+    <Button size={size || 'sm'} icon={icon || 'plus'} onClick={() => setIsPicking(true)} variant={variant}>
       {label}
     </Button>
   );
@@ -54,15 +43,14 @@ export function ValuePicker<T>({
       {!isPicking && (isFullWidth ? <FullWidthButtonContainer>{buttonEl}</FullWidthButtonContainer> : buttonEl)}
 
       {isPicking && (
-        <span>
+        <span aria-label={selectors.components.ValuePicker.select(label)}>
           <Select
             placeholder={label}
             options={options}
-            aria-label={selectors.components.ValuePicker.select(label)}
             isOpen
             onCloseMenu={() => setIsPicking(false)}
             autoFocus={true}
-            onChange={(value) => {
+            onChange={value => {
               setIsPicking(false);
               onChange(value);
             }}

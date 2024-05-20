@@ -1,13 +1,13 @@
 // Libraries
 import React from 'react';
 import { Resizable, ResizeCallback } from 're-resizable';
-import { css, cx, keyframes } from '@emotion/css';
+import { css, cx, keyframes } from 'emotion';
 
 // Services & Utils
-import { stylesFactory, useTheme2 } from '@grafana/ui';
+import { stylesFactory, useTheme } from '@grafana/ui';
 
 // Types
-import { GrafanaTheme2 } from '@grafana/data';
+import { GrafanaTheme } from '@grafana/data';
 
 const drawerSlide = keyframes`
   0% {
@@ -19,15 +19,19 @@ const drawerSlide = keyframes`
   }
 `;
 
-const getStyles = stylesFactory((theme: GrafanaTheme2) => {
+const getStyles = stylesFactory((theme: GrafanaTheme) => {
+  const shadowColor = theme.isLight ? theme.palette.gray4 : theme.palette.black;
+
   return {
     container: css`
       position: fixed !important;
       bottom: 0;
-      background: ${theme.colors.background.primary};
-      border-top: 1px solid ${theme.colors.border.weak};
-      margin: ${theme.spacing(0, -2, 0, -2)};
-      box-shadow: ${theme.shadows.z3};
+      background: ${theme.colors.pageHeaderBg};
+      border-top: 1px solid ${theme.colors.formInputBorder};
+      margin: 0px;
+      margin-right: -${theme.spacing.md};
+      margin-left: -${theme.spacing.md};
+      box-shadow: 0 0 4px ${shadowColor};
       z-index: ${theme.zIndex.sidemenu};
     `,
     drawerActive: css`
@@ -35,7 +39,7 @@ const getStyles = stylesFactory((theme: GrafanaTheme2) => {
       animation: 0.5s ease-out ${drawerSlide};
     `,
     rzHandle: css`
-      background: ${theme.colors.secondary.main};
+      background: ${theme.colors.formInputBorder};
       transition: 0.3s background ease-in-out;
       position: relative;
       width: 200px !important;
@@ -45,7 +49,7 @@ const getStyles = stylesFactory((theme: GrafanaTheme2) => {
       cursor: grab;
       border-radius: 4px;
       &:hover {
-        background: ${theme.colors.secondary.shade};
+        background: ${theme.colors.formInputBorderHover};
       }
     `,
   };
@@ -59,7 +63,7 @@ export interface Props {
 
 export function ExploreDrawer(props: Props) {
   const { width, children, onResize } = props;
-  const theme = useTheme2();
+  const theme = useTheme();
   const styles = getStyles(theme);
   const drawerWidth = `${width + 31.5}px`;
 

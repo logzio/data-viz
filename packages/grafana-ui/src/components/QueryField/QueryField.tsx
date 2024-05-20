@@ -1,8 +1,8 @@
-import { debounce } from 'lodash';
+import _ from 'lodash';
 import React, { Context } from 'react';
 
-import { Value } from 'slate';
-import { Editor, Plugin } from 'slate-react';
+import { Value, Editor as CoreEditor } from 'slate';
+import { Editor, Plugin } from '@grafana/slate-react';
 import Plain from 'slate-plain-serializer';
 import classnames from 'classnames';
 
@@ -31,7 +31,7 @@ export interface QueryFieldProps {
   onBlur?: () => void;
   onChange?: (value: string) => void;
   onRichValueChange?: (value: Value) => void;
-  onClick?: (event: Event | React.MouseEvent, editor: Editor, next: () => any) => any;
+  onClick?: (event: Event, editor: CoreEditor, next: () => any) => any;
   onTypeahead?: (typeahead: TypeaheadInput) => Promise<TypeaheadOutput>;
   onWillApplySuggestion?: (suggestion: string, state: SuggestionsState) => string;
   placeholder?: string;
@@ -55,7 +55,7 @@ export interface QueryFieldState {
  * Implement props.onTypeahead to use suggestions, see PromQueryField.tsx as an example.
  */
 export class QueryField extends React.PureComponent<QueryFieldProps, QueryFieldState> {
-  plugins: Array<Plugin<Editor>>;
+  plugins: Plugin[];
   runOnChangeDebounced: Function;
   lastExecutedValue: Value | null = null;
   mounted = false;
@@ -64,7 +64,7 @@ export class QueryField extends React.PureComponent<QueryFieldProps, QueryFieldS
   constructor(props: QueryFieldProps, context: Context<any>) {
     super(props, context);
 
-    this.runOnChangeDebounced = debounce(this.runOnChange, 500);
+    this.runOnChangeDebounced = _.debounce(this.runOnChange, 500);
 
     const { onTypeahead, cleanText, portalOrigin, onWillApplySuggestion } = props;
 
@@ -80,7 +80,7 @@ export class QueryField extends React.PureComponent<QueryFieldProps, QueryFieldS
       IndentationPlugin(),
       ClipboardPlugin(),
       ...(props.additionalPlugins || []),
-    ].filter((p) => p);
+    ].filter(p => p);
 
     this.state = {
       suggestions: [],
@@ -148,9 +148,9 @@ export class QueryField extends React.PureComponent<QueryFieldProps, QueryFieldS
 
   runOnChange = () => {
     const { onChange } = this.props;
-    const value = Plain.serialize(this.state.value);
+
     if (onChange) {
-      onChange(this.cleanText(value));
+      onChange(Plain.serialize(this.state.value));
     }
   };
 
@@ -173,7 +173,7 @@ export class QueryField extends React.PureComponent<QueryFieldProps, QueryFieldS
   /**
    * We need to handle blur events here mainly because of dashboard panels which expect to have query executed on blur.
    */
-  handleBlur = (event: any, editor: Editor, next: () => any) => {
+  handleBlur = (event: Event, editor: CoreEditor, next: Function) => {
     const { onBlur } = this.props;
 
     if (onBlur) {
@@ -190,12 +190,6 @@ export class QueryField extends React.PureComponent<QueryFieldProps, QueryFieldS
     return next();
   };
 
-  cleanText(text: string) {
-    // RegExp with invisible characters we want to remove - currently only carriage return (newlines are visible)
-    const newText = text.replace(/[\r]/g, '');
-    return newText;
-  }
-
   render() {
     const { disabled } = this.props;
     const wrapperClassName = classnames('slate-query-field__wrapper', {
@@ -206,7 +200,7 @@ export class QueryField extends React.PureComponent<QueryFieldProps, QueryFieldS
       <div className={wrapperClassName}>
         <div className="slate-query-field" aria-label={selectors.components.QueryField.container}>
           <Editor
-            ref={(editor) => (this.editor = editor!)}
+            ref={editor => (this.editor = editor!)}
             schema={SCHEMA}
             autoCorrect={false}
             readOnly={this.props.disabled}

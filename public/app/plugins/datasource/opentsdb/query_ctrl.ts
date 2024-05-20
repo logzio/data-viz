@@ -1,4 +1,4 @@
-import { map, size, has } from 'lodash';
+import _ from 'lodash';
 import { QueryCtrl } from 'app/plugins/sdk';
 import { auto } from 'angular';
 import { textUtil, rangeUtil } from '@grafana/data';
@@ -17,8 +17,8 @@ export class OpenTsQueryCtrl extends QueryCtrl {
   suggestMetrics: any;
   suggestTagKeys: any;
   suggestTagValues: any;
-  addTagMode = false;
-  addFilterMode = false;
+  addTagMode: boolean;
+  addFilterMode: boolean;
 
   /** @ngInject */
   constructor($scope: any, $injector: auto.IInjectorService) {
@@ -89,7 +89,7 @@ export class OpenTsQueryCtrl extends QueryCtrl {
   }
 
   getTextValues(metricFindResult: any) {
-    return map(metricFindResult, (value) => {
+    return _.map(metricFindResult, value => {
       return textUtil.escapeHtml(value.text);
     });
   }
@@ -138,7 +138,7 @@ export class OpenTsQueryCtrl extends QueryCtrl {
   }
 
   addFilter() {
-    if (this.target.tags && size(this.target.tags) > 0) {
+    if (this.target.tags && _.size(this.target.tags) > 0) {
       this.errors.filters = 'Please remove tags to use filters, tags and filters are mutually exclusive.';
     }
 
@@ -213,7 +213,7 @@ export class OpenTsQueryCtrl extends QueryCtrl {
       }
     }
 
-    if (this.target.tags && has(this.target.tags, this.target.currentTagKey)) {
+    if (this.target.tags && _.has(this.target.tags, this.target.currentTagKey)) {
       errs.tags = "Duplicate tag key '" + this.target.currentTagKey + "'.";
     }
 

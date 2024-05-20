@@ -1,4 +1,4 @@
-import { without, each } from 'lodash';
+import _ from 'lodash';
 import coreModule from 'app/core/core_module';
 import { ITimeoutService } from 'angular';
 
@@ -16,12 +16,12 @@ export class Timer {
   }
 
   cancel(promise: angular.IPromise<any>) {
-    this.timers = without(this.timers, promise);
+    this.timers = _.without(this.timers, promise);
     this.$timeout.cancel(promise);
   }
 
   cancelAll() {
-    each(this.timers, (t) => {
+    _.each(this.timers, t => {
       this.$timeout.cancel(t);
     });
     this.timers = [];

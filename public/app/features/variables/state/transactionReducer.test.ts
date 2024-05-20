@@ -2,7 +2,6 @@ import { reducerTester } from '../../../../test/core/redux/reducerTester';
 import {
   initialTransactionState,
   transactionReducer,
-  TransactionState,
   TransactionStatus,
   variablesClearTransaction,
   variablesCompleteTransaction,
@@ -12,7 +11,7 @@ import {
 describe('transactionReducer', () => {
   describe('when variablesInitTransaction is dispatched', () => {
     it('then state should be correct', () => {
-      reducerTester<TransactionState>()
+      reducerTester()
         .givenReducer(transactionReducer, { ...initialTransactionState })
         .whenActionIsDispatched(variablesInitTransaction({ uid: 'a uid' }))
         .thenStateShouldEqual({ ...initialTransactionState, uid: 'a uid', status: TransactionStatus.Fetching });
@@ -22,7 +21,7 @@ describe('transactionReducer', () => {
   describe('when variablesCompleteTransaction is dispatched', () => {
     describe('and transaction uid is the same', () => {
       it('then state should be correct', () => {
-        reducerTester<TransactionState>()
+        reducerTester()
           .givenReducer(transactionReducer, {
             ...initialTransactionState,
             uid: 'before',
@@ -35,7 +34,7 @@ describe('transactionReducer', () => {
 
     describe('and transaction uid is not the same', () => {
       it('then state should be correct', () => {
-        reducerTester<TransactionState>()
+        reducerTester()
           .givenReducer(transactionReducer, {
             ...initialTransactionState,
             uid: 'before',
@@ -49,7 +48,7 @@ describe('transactionReducer', () => {
 
   describe('when variablesClearTransaction is dispatched', () => {
     it('then state should be correct', () => {
-      reducerTester<TransactionState>()
+      reducerTester()
         .givenReducer(transactionReducer, {
           ...initialTransactionState,
           uid: 'before',

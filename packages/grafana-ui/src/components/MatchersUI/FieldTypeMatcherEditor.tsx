@@ -3,22 +3,21 @@ import { MatcherUIProps, FieldMatcherUIRegistryItem } from './types';
 import { FieldMatcherID, fieldMatchers, SelectableValue, FieldType, DataFrame } from '@grafana/data';
 import { Select } from '../Select/Select';
 
-export const FieldTypeMatcherEditor = memo<MatcherUIProps<string>>((props) => {
-  const { data, options, onChange: onChangeFromProps } = props;
+export const FieldTypeMatcherEditor = memo<MatcherUIProps<string>>(props => {
+  const { data, options } = props;
   const counts = useFieldCounts(data);
   const selectOptions = useSelectOptions(counts, options);
 
   const onChange = useCallback(
     (selection: SelectableValue<string>) => {
-      return onChangeFromProps(selection.value!);
+      return props.onChange(selection.value!);
     },
-    [onChangeFromProps]
+    [counts, props.onChange]
   );
 
-  const selectedOption = selectOptions.find((v) => v.value === options);
+  const selectedOption = selectOptions.find(v => v.value === options);
   return <Select value={selectedOption} options={selectOptions} onChange={onChange} />;
 });
-FieldTypeMatcherEditor.displayName = 'FieldTypeMatcherEditor';
 
 const allTypes: Array<SelectableValue<FieldType>> = [
   { value: FieldType.number, label: 'Numeric' },
@@ -82,5 +81,5 @@ export const fieldTypeMatcherItem: FieldMatcherUIRegistryItem<string> = {
   matcher: fieldMatchers.get(FieldMatcherID.byType),
   name: 'Fields with type',
   description: 'Set properties for fields of a specific type (number, string, boolean)',
-  optionsToLabel: (options) => options,
+  optionsToLabel: options => options,
 };

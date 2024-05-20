@@ -3,15 +3,21 @@ title = "HTTP API"
 description = "Grafana HTTP API"
 keywords = ["grafana", "http", "documentation", "api", "overview"]
 aliases = ["/docs/grafana/latest/overview"]
-weight = 170
+type = "docs"
+[menu.docs]
+name = "HTTP API"
+identifier = "http_api"
+weight = 9
 +++
+
 
 # HTTP API Reference
 
 The Grafana backend exposes an HTTP API, the same API is used by the frontend to do everything from saving
 dashboards, creating users and updating data sources.
 
-## HTTP APIs
+## Supported HTTP APIs
+
 
 - [Authentication API]({{< relref "auth.md" >}})
 - [Dashboard API]({{< relref "dashboard.md" >}})
@@ -33,13 +39,8 @@ dashboards, creating users and updating data sources.
 - [Preferences API]({{< relref "preferences.md" >}})
 - [Other API]({{< relref "other.md" >}})
 
-## Grafana Enterprise HTTP APIs
+### Grafana Enterprise HTTP APIs
 
-Grafana Enterprise includes all of the Grafana OSS APIs as well as those that follow:
-
-- [Fine-Grained Access Control API]({{< relref "access_control.md" >}})
 - [Data Source Permissions API]({{< relref "datasource_permissions.md" >}})
 - [External Group Sync API]({{< relref "external_group_sync.md" >}})
-- [License API]({{< relref "licensing.md" >}})
 - [Reporting API]({{< relref "reporting.md" >}})
-

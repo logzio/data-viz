@@ -1,27 +1,40 @@
 import React, { memo } from 'react';
-import { css, cx } from '@emotion/css';
-import { GrafanaTheme2, TimeOption } from '@grafana/data';
-import { useStyles2 } from '../../../themes/ThemeContext';
+import { css } from 'emotion';
+import { GrafanaTheme, TimeOption } from '@grafana/data';
+import { useTheme, stylesFactory, selectThemeVariant } from '../../../themes';
+import { Icon } from '../../Icon/Icon';
 
-const getStyles = (theme: GrafanaTheme2) => {
+const getStyles = stylesFactory((theme: GrafanaTheme) => {
+  const background = selectThemeVariant(
+    {
+      light: theme.palette.gray7,
+      dark: theme.palette.dark3,
+    },
+    theme.type
+  );
+
   return {
     container: css`
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 7px 9px 7px 9px;
+      border-left: 2px solid rgba(255, 255, 255, 0);
 
       &:hover {
-        background: ${theme.colors.action.hover};
+        background: ${background};
+        border-image: linear-gradient(#f05a28 30%, #fbca0a 99%);
+        border-image-slice: 1;
+        border-style: solid;
+        border-top: 0;
+        border-right: 0;
+        border-bottom: 0;
+        border-left-width: 2px;
         cursor: pointer;
       }
     `,
-    selected: css`    
-      background: ${theme.colors.action.selected};    
-    }
-  `,
   };
-};
+});
 
 interface Props {
   value: TimeOption;
@@ -30,13 +43,13 @@ interface Props {
 }
 
 export const TimeRangeOption = memo<Props>(({ value, onSelect, selected = false }) => {
-  const styles = useStyles2(getStyles);
+  const theme = useTheme();
+  const styles = getStyles(theme);
 
   return (
-    <div className={cx(styles.container, selected && styles.selected)} onClick={() => onSelect(value)} tabIndex={-1}>
+    <div className={styles.container} onClick={() => onSelect(value)} tabIndex={-1}>
       <span>{value.display}</span>
+      {selected ? <Icon name="check" /> : null}
     </div>
   );
 });
-
-TimeRangeOption.displayName = 'TimeRangeOption';

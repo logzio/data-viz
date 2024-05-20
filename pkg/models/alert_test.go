@@ -4,59 +4,61 @@ import (
 	"testing"
 
 	"github.com/grafana/grafana/pkg/components/simplejson"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestAlert_ContainsUpdates(t *testing.T) {
-	settings, err := simplejson.NewJson([]byte(`{ "field": "value" }`))
-	require.NoError(t, err)
+func TestAlertingModelTest(t *testing.T) {
+	Convey("Testing Alerting model", t, func() {
+		json1, err := simplejson.NewJson([]byte(`{ "field": "value" }`))
+		So(err, ShouldBeNil)
+		json2, err := simplejson.NewJson([]byte(`{ "field": "value" }`))
+		So(err, ShouldBeNil)
 
-	alert1 := &Alert{
-		Settings: settings,
-		Name:     "Name",
-		Message:  "Message",
-	}
-
-	alert2 := &Alert{
-		Settings: settings,
-		Name:     "Name",
-		Message:  "Message",
-	}
-
-	assert.False(t, alert1.ContainsUpdates(alert2))
-
-	settingsUpdated, err := simplejson.NewJson([]byte(`{ "field": "newValue" }`))
-	require.NoError(t, err)
-
-	alert2.Settings = settingsUpdated
-
-	assert.True(t, alert1.ContainsUpdates(alert2))
-}
-
-func TestAlert_GetTagsFromSettings(t *testing.T) {
-	settings, err := simplejson.NewJson([]byte(`{
-		"field": "value",
-		"alertRuleTags": {
-			"foo": "bar",
-			"waldo": "fred",
-			"tagMap": { "mapValue": "value" }
+		rule1 := &Alert{
+			Settings: json1,
+			Name:     "Namn",
+			Message:  "Message",
 		}
-	}`))
-	require.NoError(t, err)
 
-	alert := &Alert{
-		Settings: settings,
-		Name:     "Name",
-		Message:  "Message",
-	}
+		rule2 := &Alert{
+			Settings: json2,
+			Name:     "Namn",
+			Message:  "Message",
+		}
 
-	expectedTags := []*Tag{
-		{Id: 0, Key: "foo", Value: "bar"},
-		{Id: 0, Key: "waldo", Value: "fred"},
-		{Id: 0, Key: "tagMap", Value: ""},
-	}
-	actualTags := alert.GetTagsFromSettings()
+		Convey("Testing AlertRule equals", func() {
+			So(rule1.ContainsUpdates(rule2), ShouldBeFalse)
+		})
 
-	assert.ElementsMatch(t, actualTags, expectedTags)
+		Convey("Changing the expression should contain update", func() {
+			json2, err := simplejson.NewJson([]byte(`{ "field": "newValue" }`))
+			So(err, ShouldBeNil)
+			rule1.Settings = json2
+			So(rule1.ContainsUpdates(rule2), ShouldBeTrue)
+		})
+
+		Convey("Should parse alertRule tags correctly", func() {
+			json2, err := simplejson.NewJson([]byte(`{
+				"field": "value",
+				"alertRuleTags": {
+					"foo": "bar",
+					"waldo": "fred",
+					"tagMap": { "mapValue": "value" }
+				}
+			}`))
+			So(err, ShouldBeNil)
+			rule1.Settings = json2
+			expectedTags := []*Tag{
+				{Id: 0, Key: "foo", Value: "bar"},
+				{Id: 0, Key: "waldo", Value: "fred"},
+				{Id: 0, Key: "tagMap", Value: ""},
+			}
+			actualTags := rule1.GetTagsFromSettings()
+
+			So(len(actualTags), ShouldEqual, len(expectedTags))
+			for _, tag := range expectedTags {
+				So(ContainsTag(actualTags, tag), ShouldBeTrue)
+			}
+		})
+	})
 }

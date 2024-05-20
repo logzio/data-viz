@@ -1,71 +1,139 @@
-import { AnnotationEvent, DataFrame, MetricFindValue } from '@grafana/data';
-import { BackendDataSourceResponse, toDataQueryResponse, FetchResponse } from '@grafana/runtime';
+import _ from 'lodash';
 
 export default class ResponseParser {
-  transformMetricFindResponse(raw: FetchResponse<BackendDataSourceResponse>): MetricFindValue[] {
-    const frames = toDataQueryResponse(raw).data as DataFrame[];
+  processQueryResult(res: any) {
+    const data: any[] = [];
 
-    if (!frames || !frames.length) {
-      return [];
+    if (!res.data.results) {
+      return { data };
     }
 
-    const frame = frames[0];
+    for (const key in res.data.results) {
+      const queryRes = res.data.results[key];
 
-    const values: MetricFindValue[] = [];
-    const textField = frame.fields.find((f) => f.name === '__text');
-    const valueField = frame.fields.find((f) => f.name === '__value');
-
-    if (textField && valueField) {
-      for (let i = 0; i < textField.values.length; i++) {
-        values.push({ text: '' + textField.values.get(i), value: '' + valueField.values.get(i) });
+      if (queryRes.series) {
+        for (const series of queryRes.series) {
+          data.push({
+            target: series.name,
+            datapoints: series.points,
+            refId: queryRes.refId,
+            meta: queryRes.meta,
+          });
+        }
       }
-    } else {
-      values.push(
-        ...frame.fields
-          .flatMap((f) => f.values.toArray())
-          .map((v) => ({
-            text: v,
-          }))
-      );
+
+      if (queryRes.tables) {
+        for (const table of queryRes.tables) {
+          table.type = 'table';
+          table.refId = queryRes.refId;
+          table.meta = queryRes.meta;
+          data.push(table);
+        }
+      }
     }
 
-    return Array.from(new Set(values.map((v) => v.text))).map((text) => ({
-      text,
-      value: values.find((v) => v.text === text)?.value,
-    }));
+    return { data: data };
   }
 
-  async transformAnnotationResponse(options: any, data: BackendDataSourceResponse): Promise<AnnotationEvent[]> {
-    const frames = toDataQueryResponse({ data: data }).data as DataFrame[];
-    if (!frames || !frames.length) {
+  parseMetricFindQueryResult(refId: string, results: any) {
+    if (!results || results.data.length === 0 || results.data.results[refId].meta.rowCount === 0) {
       return [];
     }
-    const frame = frames[0];
-    const timeField = frame.fields.find((f) => f.name === 'time');
 
-    if (!timeField) {
+    const columns = results.data.results[refId].tables[0].columns;
+    const rows = results.data.results[refId].tables[0].rows;
+    const textColIndex = this.findColIndex(columns, '__text');
+    const valueColIndex = this.findColIndex(columns, '__value');
+
+    if (columns.length === 2 && textColIndex !== -1 && valueColIndex !== -1) {
+      return this.transformToKeyValueList(rows, textColIndex, valueColIndex);
+    }
+
+    return this.transformToSimpleList(rows);
+  }
+
+  transformToKeyValueList(rows: any, textColIndex: number, valueColIndex: number) {
+    const res = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      if (!this.containsKey(res, rows[i][textColIndex])) {
+        res.push({ text: rows[i][textColIndex], value: rows[i][valueColIndex] });
+      }
+    }
+
+    return res;
+  }
+
+  transformToSimpleList(rows: any) {
+    const res = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      for (let j = 0; j < rows[i].length; j++) {
+        res.push(rows[i][j]);
+      }
+    }
+
+    const unique = Array.from(new Set(res));
+
+    return _.map(unique, value => {
+      return { text: value };
+    });
+  }
+
+  findColIndex(columns: any[], colName: string) {
+    for (let i = 0; i < columns.length; i++) {
+      if (columns[i].text === colName) {
+        return i;
+      }
+    }
+
+    return -1;
+  }
+
+  containsKey(res: any[], key: any) {
+    for (let i = 0; i < res.length; i++) {
+      if (res[i].text === key) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  transformAnnotationResponse(options: any, data: any) {
+    const table = data.data.results[options.annotation.name].tables[0];
+
+    let timeColumnIndex = -1;
+    let timeEndColumnIndex = -1;
+    let textColumnIndex = -1;
+    let tagsColumnIndex = -1;
+
+    for (let i = 0; i < table.columns.length; i++) {
+      if (table.columns[i].text === 'time') {
+        timeColumnIndex = i;
+      } else if (table.columns[i].text === 'timeend') {
+        timeEndColumnIndex = i;
+      } else if (table.columns[i].text === 'text') {
+        textColumnIndex = i;
+      } else if (table.columns[i].text === 'tags') {
+        tagsColumnIndex = i;
+      }
+    }
+
+    if (timeColumnIndex === -1) {
       return Promise.reject({ message: 'Missing mandatory time column (with time column alias) in annotation query.' });
     }
 
-    const timeEndField = frame.fields.find((f) => f.name === 'timeend');
-    const textField = frame.fields.find((f) => f.name === 'text');
-    const tagsField = frame.fields.find((f) => f.name === 'tags');
-
-    const list: AnnotationEvent[] = [];
-    for (let i = 0; i < frame.length; i++) {
-      const timeEnd = timeEndField && timeEndField.values.get(i) ? Math.floor(timeEndField.values.get(i)) : undefined;
+    const list = [];
+    for (let i = 0; i < table.rows.length; i++) {
+      const row = table.rows[i];
+      const timeEnd =
+        timeEndColumnIndex !== -1 && row[timeEndColumnIndex] ? Math.floor(row[timeEndColumnIndex]) : undefined;
       list.push({
         annotation: options.annotation,
-        time: Math.floor(timeField.values.get(i)),
+        time: Math.floor(row[timeColumnIndex]),
         timeEnd,
-        text: textField && textField.values.get(i) ? textField.values.get(i) : '',
-        tags:
-          tagsField && tagsField.values.get(i)
-            ? tagsField.values
-                .get(i)
-                .trim()
-                .split(/\s*,\s*/)
-            : [],
+        text: row[textColumnIndex],
+        tags: row[tagsColumnIndex] ? row[tagsColumnIndex].trim().split(/\s*,\s*/) : [],
       });
     }
 

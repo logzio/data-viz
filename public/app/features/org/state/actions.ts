@@ -8,7 +8,7 @@ type OrganizationDependencies = { getBackendSrv: typeof getBackendSrv };
 export function loadOrganization(
   dependencies: OrganizationDependencies = { getBackendSrv: getBackendSrv }
 ): ThunkResult<any> {
-  return async (dispatch) => {
+  return async dispatch => {
     // LOGZ.IO GRAFANA CHANGE :: DEV-20609 Enable change home dashboard
     const organizationResponse = { id: -1, name: '' };
     dispatch(organizationLoaded(organizationResponse));

@@ -1,10 +1,11 @@
-import { Plugin, Editor as CoreEditor } from 'slate-react';
+import { Plugin } from '@grafana/slate-react';
+import { Editor as CoreEditor } from 'slate';
 
 // Clears the rest of the line after the caret
 export function ClearPlugin(): Plugin {
   return {
-    onKeyDown(event, editor: CoreEditor, next: Function) {
-      const keyEvent = event;
+    onKeyDown(event: Event, editor: CoreEditor, next: Function) {
+      const keyEvent = event as KeyboardEvent;
       const value = editor.value;
 
       if (value.selection.isExpanded) {

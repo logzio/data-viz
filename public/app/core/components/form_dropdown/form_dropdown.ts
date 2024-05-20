@@ -1,4 +1,4 @@
-import { debounce, find, indexOf, map, isObject, escape, unescape } from 'lodash';
+import _ from 'lodash';
 import coreModule from '../../core_module';
 import { ISCEService } from 'angular';
 import { promiseToDigest } from 'app/core/utils/promiseToDigest';
@@ -36,7 +36,7 @@ export class FormDropdownCtrl {
   lookupText: boolean;
   placeholder: any;
   startOpen: any;
-  debounce: boolean;
+  debounce: number;
 
   /** @ngInject */
   constructor(private $scope: any, $element: JQLite, private $sce: ISCEService, private templateSrv: any) {
@@ -44,15 +44,10 @@ export class FormDropdownCtrl {
     this.linkElement = $element.find('a').first();
     this.linkMode = true;
     this.cancelBlur = null;
-    this.labelMode = false;
-    this.lookupText = false;
-    this.debounce = false;
 
     // listen to model changes
     $scope.$watch('ctrl.model', this.modelChanged.bind(this));
-  }
 
-  $onInit() {
     if (this.labelMode) {
       this.cssClasses = 'gf-form-label ' + this.cssClass;
     } else {
@@ -77,16 +72,16 @@ export class FormDropdownCtrl {
     // modify typeahead lookup
     // this = typeahead
     const typeahead = this.inputElement.data('typeahead');
-    typeahead.lookup = function () {
+    typeahead.lookup = function() {
       this.query = this.$element.val() || '';
       this.source(this.query, this.process.bind(this));
     };
 
     if (this.debounce) {
-      typeahead.lookup = debounce(typeahead.lookup, 500, { leading: true });
+      typeahead.lookup = _.debounce(typeahead.lookup, 500, { leading: true });
     }
 
-    this.linkElement.keydown((evt) => {
+    this.linkElement.keydown(evt => {
       // trigger typeahead on down arrow or enter key
       if (evt.keyCode === 40 || evt.keyCode === 13) {
         this.linkElement.click();
@@ -95,18 +90,18 @@ export class FormDropdownCtrl {
 
     // LOGZ.IO GRAFANA CHANGE :: Select all field for copy full field name
     // And add tooltip
-    this.linkElement.contextmenu((evt) => {
+    this.linkElement.contextmenu(evt => {
       // Select full field name
       window.getSelection()?.selectAllChildren(evt.target);
     });
 
-    this.linkElement.mouseover((evt) => {
+    this.linkElement.mouseover(evt => {
       const button = evt.target as HTMLElement;
       this.linkElement.attr('title', button.innerText);
     });
     // LOGZ.IO GRAFANA CHANGE :: end
 
-    this.inputElement.keydown((evt) => {
+    this.inputElement.keydown(evt => {
       if (evt.keyCode === 13) {
         setTimeout(() => {
           this.inputElement.blur();
@@ -130,13 +125,13 @@ export class FormDropdownCtrl {
   }
 
   modelChanged() {
-    if (isObject(this.model)) {
+    if (_.isObject(this.model)) {
       this.updateDisplay((this.model as any).text);
     } else {
       // if we have text use it
       if (this.lookupText) {
         this.getOptionsInternal('').then((options: any) => {
-          const item: any = find(options, { value: this.model });
+          const item: any = _.find(options, { value: this.model });
           this.updateDisplay(item ? item.text : this.model);
         });
       } else {
@@ -150,13 +145,13 @@ export class FormDropdownCtrl {
       this.optionCache = options;
 
       // extract texts
-      const optionTexts = map(options, (op: any) => {
-        return escape(op.text);
+      const optionTexts = _.map(options, (op: any) => {
+        return _.escape(op.text);
       });
 
       // add custom values
       if (this.allowCustom && this.text !== '') {
-        if (indexOf(optionTexts, this.text) === -1) {
+        if (_.indexOf(optionTexts, this.text) === -1) {
           optionTexts.unshift(this.text);
         }
       }
@@ -187,7 +182,7 @@ export class FormDropdownCtrl {
     this.linkMode = true;
     this.inputElement.hide();
     this.linkElement.show();
-    this.updateValue(this.inputElement.val() as string);
+    this.updateValue(this.inputElement.val());
   }
 
   inputBlur() {
@@ -197,24 +192,24 @@ export class FormDropdownCtrl {
   }
 
   updateValue(text: string) {
-    text = unescape(text);
+    text = _.unescape(text);
 
     if (text === '' || this.text === text) {
       return;
     }
 
     this.$scope.$apply(() => {
-      const option: any = find(this.optionCache, { text: text });
+      const option: any = _.find(this.optionCache, { text: text });
 
       if (option) {
-        if (isObject(this.model)) {
+        if (_.isObject(this.model)) {
           this.model = option;
         } else {
           this.model = option.value;
         }
         this.text = option.text;
       } else if (this.allowCustom) {
-        if (isObject(this.model)) {
+        if (_.isObject(this.model)) {
           (this.model as any).text = (this.model as any).value = text;
         } else {
           this.model = text;

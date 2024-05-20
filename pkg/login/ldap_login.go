@@ -1,8 +1,6 @@
 package login
 
 import (
-	"errors"
-
 	"github.com/grafana/grafana/pkg/bus"
 	"github.com/grafana/grafana/pkg/infra/log"
 	"github.com/grafana/grafana/pkg/models"
@@ -33,14 +31,14 @@ var loginUsingLDAP = func(query *models.LoginUserQuery) (bool, error) {
 		return false, nil
 	}
 
-	config, err := getLDAPConfig(query.Cfg)
+	config, err := getLDAPConfig()
 	if err != nil {
 		return true, errutil.Wrap("Failed to get LDAP config", err)
 	}
 
 	externalUser, err := newLDAP(config.Servers).Login(query)
 	if err != nil {
-		if errors.Is(err, ldap.ErrCouldNotFindUser) {
+		if err == ldap.ErrCouldNotFindUser {
 			// Ignore the error since user might not be present anyway
 			if err := DisableExternalUser(query.Username); err != nil {
 				ldapLogger.Debug("Failed to disable external user", "err", err)

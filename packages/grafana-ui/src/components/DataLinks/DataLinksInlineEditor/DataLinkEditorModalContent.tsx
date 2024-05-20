@@ -1,14 +1,14 @@
 import { DataFrame, DataLink, VariableSuggestion } from '@grafana/data';
 import React, { FC, useState } from 'react';
 import { DataLinkEditor } from '../DataLinkEditor';
+import { HorizontalGroup } from '../../Layout/Layout';
 import { Button } from '../../Button';
-import { Modal } from '../../Modal/Modal';
 
 interface DataLinkEditorModalContentProps {
   link: DataLink;
   index: number;
   data: DataFrame[];
-  getSuggestions: () => VariableSuggestion[];
+  suggestions: VariableSuggestion[];
   onSave: (index: number, ink: DataLink) => void;
   onCancel: (index: number) => void;
 }
@@ -16,7 +16,7 @@ interface DataLinkEditorModalContentProps {
 export const DataLinkEditorModalContent: FC<DataLinkEditorModalContentProps> = ({
   link,
   index,
-  getSuggestions,
+  suggestions,
   onSave,
   onCancel,
 }) => {
@@ -27,15 +27,12 @@ export const DataLinkEditorModalContent: FC<DataLinkEditorModalContentProps> = (
         value={dirtyLink}
         index={index}
         isLast={false}
-        suggestions={getSuggestions()}
+        suggestions={suggestions}
         onChange={(index, link) => {
           setDirtyLink(link);
         }}
       />
-      <Modal.ButtonRow>
-        <Button variant="secondary" onClick={() => onCancel(index)} fill="outline">
-          Cancel
-        </Button>
+      <HorizontalGroup>
         <Button
           onClick={() => {
             onSave(index, dirtyLink);
@@ -43,7 +40,10 @@ export const DataLinkEditorModalContent: FC<DataLinkEditorModalContentProps> = (
         >
           Save
         </Button>
-      </Modal.ButtonRow>
+        <Button variant="secondary" onClick={() => onCancel(index)}>
+          Cancel
+        </Button>
+      </HorizontalGroup>
     </>
   );
 };

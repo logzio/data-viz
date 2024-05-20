@@ -1,4 +1,4 @@
-import { isArray } from 'lodash';
+import _ from 'lodash';
 import { PanelCtrl } from 'app/features/panel/panel_ctrl';
 import { applyPanelTimeOverrides } from 'app/features/dashboard/utils/panel';
 import { ContextSrv } from 'app/core/services/context_srv';
@@ -16,10 +16,12 @@ import {
 } from '@grafana/data';
 import { Unsubscribable } from 'rxjs';
 import { PanelModel } from 'app/features/dashboard/state';
-import { PanelQueryRunner } from '../query/state/PanelQueryRunner';
+import { PanelQueryRunner } from '../dashboard/state/PanelQueryRunner';
 
 class MetricsPanelCtrl extends PanelCtrl {
+  scope: any;
   datasource: DataSourceApi;
+  $timeout: any;
   contextSrv: ContextSrv;
   datasourceSrv: any;
   timeSrv: any;
@@ -29,8 +31,8 @@ class MetricsPanelCtrl extends PanelCtrl {
   intervalMs: any;
   resolution: any;
   timeInfo?: string;
-  skipDataOnInit = false;
-  dataList: LegacyResponseData[] = [];
+  skipDataOnInit: boolean;
+  dataList: LegacyResponseData[];
   querySubscription?: Unsubscribable | null;
   useDataFrames = false;
   panelData?: PanelData;
@@ -42,6 +44,7 @@ class MetricsPanelCtrl extends PanelCtrl {
     this.datasourceSrv = $injector.get('datasourceSrv');
     this.timeSrv = $injector.get('timeSrv');
     this.templateSrv = $injector.get('templateSrv');
+    this.scope = $scope;
     this.panel.datasource = this.panel.datasource || null;
 
     this.events.on(PanelEvents.refresh, this.onMetricsPanelRefresh.bind(this));
@@ -74,7 +77,7 @@ class MetricsPanelCtrl extends PanelCtrl {
       this.updateTimeRange();
       let data = this.panel.snapshotData;
       // backward compatibility
-      if (!isArray(data)) {
+      if (!_.isArray(data)) {
         data = data.data;
       }
 
@@ -163,7 +166,7 @@ class MetricsPanelCtrl extends PanelCtrl {
         this.handleDataFrames(data.series);
       } else {
         // Make the results look as if they came directly from a <6.2 datasource request
-        const legacy = data.series.map((v) => toLegacyResponseData(v));
+        const legacy = data.series.map(v => toLegacyResponseData(v));
         this.handleQueryResult({ data: legacy });
       }
 
@@ -208,7 +211,7 @@ class MetricsPanelCtrl extends PanelCtrl {
     this.loading = false;
 
     if (this.dashboard && this.dashboard.snapshot) {
-      this.panel.snapshotData = data.map((frame) => toDataFrameDTO(frame));
+      this.panel.snapshotData = data.map(frame => toDataFrameDTO(frame));
     }
 
     try {

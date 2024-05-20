@@ -2,7 +2,6 @@ import React, { FC } from 'react';
 import { selectors } from '@grafana/e2e-selectors';
 
 import config from 'app/core/config';
-import { Button, LinkButton } from '@grafana/ui';
 
 export interface Props {
   isReadOnly: boolean;
@@ -14,34 +13,34 @@ export interface Props {
 const ButtonRow: FC<Props> = ({ isReadOnly, onDelete, onSubmit, onTest }) => {
   return (
     <div className="gf-form-button-row">
-      <LinkButton variant="secondary" fill="outline" href={`${config.appSubUrl}/datasources`}>
-        Back
-      </LinkButton>
-      <Button
+      {!isReadOnly && (
+        <button
+          type="submit"
+          className="btn btn-primary"
+          disabled={isReadOnly}
+          onClick={event => onSubmit(event)}
+          aria-label={selectors.pages.DataSource.saveAndTest}
+        >
+          Save &amp; Test
+        </button>
+      )}
+      {isReadOnly && (
+        <button type="submit" className="btn btn-success" onClick={onTest}>
+          Test
+        </button>
+      )}
+      <button
         type="button"
-        variant="destructive"
+        className="btn btn-danger"
         disabled={isReadOnly}
         onClick={onDelete}
         aria-label={selectors.pages.DataSource.delete}
       >
         Delete
-      </Button>
-      {!isReadOnly && (
-        <Button
-          type="submit"
-          variant="primary"
-          disabled={isReadOnly}
-          onClick={(event) => onSubmit(event)}
-          aria-label={selectors.pages.DataSource.saveAndTest}
-        >
-          Save &amp; test
-        </Button>
-      )}
-      {isReadOnly && (
-        <Button type="submit" variant="primary" onClick={onTest}>
-          Test
-        </Button>
-      )}
+      </button>
+      <a className="btn btn-inverse" href={`${config.appSubUrl}/datasources`}>
+        Back
+      </a>
     </div>
   );
 };

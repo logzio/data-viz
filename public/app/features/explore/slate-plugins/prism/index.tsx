@@ -1,7 +1,7 @@
 import React from 'react';
 import Prism from 'prismjs';
 import { Decoration } from 'slate';
-import { Editor } from 'slate-react';
+import { Editor } from '@grafana/slate-react';
 
 const TOKEN_MARK = 'prism-token';
 
@@ -30,7 +30,7 @@ export default function PrismPlugin({ definition, language }: { definition: any;
      * Render a Slate mark with appropriate CSS class names
      *
      * @param {Object} props
-     * @returns {Element}
+     * @return {Element}
      */
 
     renderDecoration(props: any, editor: Editor, next: () => any): JSX.Element {
@@ -47,7 +47,7 @@ export default function PrismPlugin({ definition, language }: { definition: any;
      * Decorate code blocks with Prism.js highlighting.
      *
      * @param {Node} node
-     * @returns {Array}
+     * @return {Array}
      */
 
     decorateNode(node: any, editor: Editor, next: () => any): any[] {

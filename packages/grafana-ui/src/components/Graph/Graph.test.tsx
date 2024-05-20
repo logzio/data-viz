@@ -1,10 +1,8 @@
 import React from 'react';
 import { mount } from 'enzyme';
 import Graph from './Graph';
-import { VizTooltip, TooltipDisplayMode } from '../VizTooltip';
-import { GraphSeriesXY, FieldType, ArrayVector, dateTime, FieldColorModeId, DisplayProcessor } from '@grafana/data';
-
-const display: DisplayProcessor = (v) => ({ numeric: v, text: String(v), color: 'red' });
+import Chart from '../Chart';
+import { GraphSeriesXY, FieldType, ArrayVector, dateTime, FieldColorModeId } from '@grafana/data';
 
 const series: GraphSeriesXY[] = [
   {
@@ -28,7 +26,6 @@ const series: GraphSeriesXY[] = [
       name: 'a-series',
       values: new ArrayVector([10, 20, 10]),
       config: { color: { mode: FieldColorModeId.Fixed, fixedColor: 'red' } },
-      display,
     },
     timeStep: 3600000,
     yAxis: {
@@ -56,7 +53,6 @@ const series: GraphSeriesXY[] = [
       name: 'b-series',
       values: new ArrayVector([20, 30, 40]),
       config: { color: { mode: FieldColorModeId.Fixed, fixedColor: 'blue' } },
-      display,
     },
     timeStep: 3600000,
     yAxis: {
@@ -83,20 +79,13 @@ const mockGraphProps = (multiSeries = false) => {
     timeZone: 'browser',
   };
 };
-
-(window as any).ResizeObserver = class ResizeObserver {
-  constructor() {}
-  observe() {}
-  disconnect() {}
-};
-
 describe('Graph', () => {
   describe('with tooltip', () => {
     describe('in single mode', () => {
       it("doesn't render tooltip when not hovering over a datapoint", () => {
         const graphWithTooltip = (
           <Graph {...mockGraphProps()}>
-            <VizTooltip mode={TooltipDisplayMode.Single} />
+            <Chart.Tooltip mode="single" />
           </Graph>
         );
 
@@ -109,7 +98,7 @@ describe('Graph', () => {
         // Given
         const graphWithTooltip = (
           <Graph {...mockGraphProps()}>
-            <VizTooltip mode={TooltipDisplayMode.Single} />
+            <Chart.Tooltip mode="single" />
           </Graph>
         );
         const container = mount(graphWithTooltip);
@@ -149,7 +138,7 @@ describe('Graph', () => {
         // Given
         const graphWithTooltip = (
           <Graph {...mockGraphProps(true)}>
-            <VizTooltip mode={TooltipDisplayMode.Multi} />
+            <Chart.Tooltip mode="multi" />
           </Graph>
         );
         const container = mount(graphWithTooltip);

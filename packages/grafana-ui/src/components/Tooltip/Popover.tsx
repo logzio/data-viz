@@ -1,14 +1,12 @@
 ﻿import React, { PureComponent } from 'react';
-import { Placement, VirtualElement } from '@popperjs/core';
+import * as PopperJS from 'popper.js';
 import { Manager, Popper as ReactPopper, PopperArrowProps } from 'react-popper';
 import { Portal } from '../Portal/Portal';
 import Transition from 'react-transition-group/Transition';
 import { PopoverContent } from './Tooltip';
 
 const defaultTransitionStyles = {
-  transitionProperty: 'opacity',
-  transitionDuration: '200ms',
-  transitionTimingFunction: 'linear',
+  transition: 'opacity 200ms linear',
   opacity: 0,
 };
 
@@ -23,14 +21,19 @@ export type RenderPopperArrowFn = (props: { arrowProps: PopperArrowProps; placem
 
 interface Props extends React.HTMLAttributes<HTMLDivElement> {
   show: boolean;
-  placement?: Placement;
+  placement?: PopperJS.Placement;
   content: PopoverContent;
-  referenceElement: HTMLElement | VirtualElement;
+  referenceElement: PopperJS.ReferenceObject;
   wrapperClassName?: string;
   renderArrow?: RenderPopperArrowFn;
+  eventsEnabled?: boolean;
 }
 
 class Popover extends PureComponent<Props> {
+  static defaultProps: Partial<Props> = {
+    eventsEnabled: true,
+  };
+
   render() {
     const {
       content,
@@ -42,26 +45,23 @@ class Popover extends PureComponent<Props> {
       wrapperClassName,
       renderArrow,
       referenceElement,
+      eventsEnabled,
     } = this.props;
 
     return (
       <Manager>
         <Transition in={show} timeout={100} mountOnEnter={true} unmountOnExit={true}>
-          {(transitionState) => {
+          {transitionState => {
             return (
               <Portal>
                 <ReactPopper
                   placement={placement}
                   referenceElement={referenceElement}
-                  modifiers={[
-                    { name: 'preventOverflow', enabled: true, options: { rootBoundary: 'viewport' } },
-                    {
-                      name: 'eventListeners',
-                      options: { scroll: true, resize: true },
-                    },
-                  ]}
+                  eventsEnabled={eventsEnabled}
+                  // TODO: move modifiers config to popper controller
+                  modifiers={{ preventOverflow: { enabled: true, boundariesElement: 'window' } }}
                 >
-                  {({ ref, style, placement, arrowProps, update }) => {
+                  {({ ref, style, placement, arrowProps, scheduleUpdate }) => {
                     return (
                       <div
                         onMouseEnter={onMouseEnter}
@@ -80,7 +80,7 @@ class Popover extends PureComponent<Props> {
                           {React.isValidElement(content) && React.cloneElement(content)}
                           {typeof content === 'function' &&
                             content({
-                              updatePopperPosition: update,
+                              updatePopperPosition: scheduleUpdate,
                             })}
                           {renderArrow &&
                             renderArrow({

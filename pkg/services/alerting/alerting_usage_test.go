@@ -19,13 +19,10 @@ func TestAlertingUsageStats(t *testing.T) {
 
 	ae.Bus.AddHandler(func(query *models.GetAllAlertsQuery) error {
 		var createFake = func(file string) *simplejson.Json {
-			// Ignore gosec warning G304 since it's a test
-			// nolint:gosec
 			content, err := ioutil.ReadFile(file)
 			require.NoError(t, err, "expected to be able to read file")
 
-			j, err := simplejson.NewJson(content)
-			require.NoError(t, err)
+			j, _ := simplejson.NewJson(content)
 			return j
 		}
 
@@ -38,7 +35,7 @@ func TestAlertingUsageStats(t *testing.T) {
 		return nil
 	})
 
-	ae.Bus.AddHandler(func(query *models.GetDataSourceQuery) error {
+	ae.Bus.AddHandler(func(query *models.GetDataSourceByIdQuery) error {
 		ds := map[int64]*models.DataSource{
 			1: {Type: "influxdb"},
 			2: {Type: "graphite"},

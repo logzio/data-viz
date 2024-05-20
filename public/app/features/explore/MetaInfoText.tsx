@@ -1,20 +1,18 @@
-import React, { memo } from 'react';
-import { css } from '@emotion/css';
+import React, { memo, useContext } from 'react';
+import { css } from 'emotion';
 import { GrafanaTheme } from '@grafana/data';
-import { useStyles } from '@grafana/ui';
+import { stylesFactory, ThemeContext } from '@grafana/ui';
 
-const getStyles = (theme: GrafanaTheme) => ({
+const getStyles = stylesFactory((theme: GrafanaTheme) => ({
   metaContainer: css`
     flex: 1;
     color: ${theme.colors.textWeak};
     margin-bottom: ${theme.spacing.d};
     min-width: 30%;
     display: flex;
-    flex-wrap: wrap;
   `,
   metaItem: css`
     margin-right: ${theme.spacing.d};
-    margin-top: ${theme.spacing.xs};
     display: flex;
     align-items: baseline;
 
@@ -29,17 +27,17 @@ const getStyles = (theme: GrafanaTheme) => ({
   `,
   metaValue: css`
     font-family: ${theme.typography.fontFamily.monospace};
-    font-size: ${theme.typography.size.sm};
   `,
-});
+}));
 
 export interface MetaItemProps {
   label?: string;
-  value: string | JSX.Element;
+  value: string;
 }
 
 export const MetaInfoItem = memo(function MetaInfoItem(props: MetaItemProps) {
-  const style = useStyles(getStyles);
+  const theme = useContext(ThemeContext);
+  const style = getStyles(theme);
   const { label, value } = props;
 
   return (
@@ -55,7 +53,8 @@ export interface MetaInfoTextProps {
 }
 
 export const MetaInfoText = memo(function MetaInfoText(props: MetaInfoTextProps) {
-  const style = useStyles(getStyles);
+  const theme = useContext(ThemeContext);
+  const style = getStyles(theme);
   const { metaItems } = props;
 
   return (

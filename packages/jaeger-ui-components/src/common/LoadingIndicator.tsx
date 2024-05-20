@@ -14,7 +14,7 @@
 
 import React from 'react';
 import cx from 'classnames';
-import { css, keyframes } from '@emotion/css';
+import { css, keyframes } from 'emotion';
 
 import { createStyle } from '../Theme';
 import { UIIcon } from '../uiElementsContext';

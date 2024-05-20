@@ -11,9 +11,8 @@ import {
   FieldOverrideContext,
   getFieldDisplayName,
   escapeStringForRegex,
-  VizOrientation,
-  PanelOptionsEditorBuilder,
 } from '@grafana/data';
+import { PanelOptionsEditorBuilder } from '@grafana/data';
 
 // Structure copied from angular
 export interface StatPanelOptions extends SingleStatBaseOptions {
@@ -23,12 +22,11 @@ export interface StatPanelOptions extends SingleStatBaseOptions {
   textMode: BigValueTextMode;
 }
 
-export function addStandardDataReduceOptions<T extends SingleStatBaseOptions>(
-  builder: PanelOptionsEditorBuilder<T>,
+export function addStandardDataReduceOptions(
+  builder: PanelOptionsEditorBuilder<SingleStatBaseOptions>,
+  includeOrientation = true,
   includeFieldMatcher = true
 ) {
-  const valueOptionsCategory = ['Value options'];
-
   builder.addRadio({
     path: 'reduceOptions.values',
     name: 'Show',
@@ -39,7 +37,6 @@ export function addStandardDataReduceOptions<T extends SingleStatBaseOptions>(
         { value: true, label: 'All values' },
       ],
     },
-    category: valueOptionsCategory,
     defaultValue: false,
   });
 
@@ -47,14 +44,13 @@ export function addStandardDataReduceOptions<T extends SingleStatBaseOptions>(
     path: 'reduceOptions.limit',
     name: 'Limit',
     description: 'Max number of rows to display',
-    category: valueOptionsCategory,
     settings: {
       placeholder: '5000',
       integer: true,
       min: 1,
       max: 5000,
     },
-    showIf: (options) => options.reduceOptions.values === true,
+    showIf: options => options.reduceOptions.values === true,
   });
 
   builder.addCustomEditor({
@@ -62,11 +58,10 @@ export function addStandardDataReduceOptions<T extends SingleStatBaseOptions>(
     path: 'reduceOptions.calcs',
     name: 'Calculation',
     description: 'Choose a reducer function / calculation',
-    category: valueOptionsCategory,
     editor: standardEditorsRegistry.get('stats-picker').editor as any,
-    defaultValue: [ReducerID.lastNotNull],
+    defaultValue: [ReducerID.mean],
     // Hides it when all values mode is on
-    showIf: (currentConfig) => currentConfig.reduceOptions.values === false,
+    showIf: currentConfig => currentConfig.reduceOptions.values === false,
   });
 
   if (includeFieldMatcher) {
@@ -74,7 +69,6 @@ export function addStandardDataReduceOptions<T extends SingleStatBaseOptions>(
       path: 'reduceOptions.fields',
       name: 'Fields',
       description: 'Select the fields that should be included in the panel',
-      category: valueOptionsCategory,
       settings: {
         allowCustomValue: true,
         options: [],
@@ -98,24 +92,20 @@ export function addStandardDataReduceOptions<T extends SingleStatBaseOptions>(
       defaultValue: '',
     });
   }
-}
 
-export function addOrientationOption<T extends SingleStatBaseOptions>(
-  builder: PanelOptionsEditorBuilder<T>,
-  category?: string[]
-) {
-  builder.addRadio({
-    path: 'orientation',
-    name: 'Orientation',
-    description: 'Layout orientation',
-    category,
-    settings: {
-      options: [
-        { value: VizOrientation.Auto, label: 'Auto' },
-        { value: VizOrientation.Horizontal, label: 'Horizontal' },
-        { value: VizOrientation.Vertical, label: 'Vertical' },
-      ],
-    },
-    defaultValue: VizOrientation.Auto,
-  });
+  if (includeOrientation) {
+    builder.addRadio({
+      path: 'orientation',
+      name: 'Orientation',
+      description: 'Stacking direction in case of multiple series or fields',
+      settings: {
+        options: [
+          { value: 'auto', label: 'Auto' },
+          { value: 'horizontal', label: 'Horizontal' },
+          { value: 'vertical', label: 'Vertical' },
+        ],
+      },
+      defaultValue: 'auto',
+    });
+  }
 }

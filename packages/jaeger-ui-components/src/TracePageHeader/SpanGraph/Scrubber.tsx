@@ -16,59 +16,53 @@ import React from 'react';
 import cx from 'classnames';
 
 import { createStyle } from '../../Theme';
-import { css } from '@emotion/css';
+import { css } from 'emotion';
 
 export const getStyles = createStyle(() => {
+  const ScrubberHandleExpansion = css`
+    label: ScrubberHandleExpansion;
+    cursor: col-resize;
+    fill-opacity: 0;
+    fill: #44f;
+  `;
+  const ScrubberHandle = css`
+    label: ScrubberHandle;
+    cursor: col-resize;
+    fill: #555;
+  `;
+  const ScrubberLine = css`
+    label: ScrubberLine;
+    pointer-events: none;
+    stroke: #555;
+  `;
   return {
-    ScrubberHandleExpansion: cx(
-      css`
-        label: ScrubberHandleExpansion;
-        cursor: col-resize;
-        fill-opacity: 0;
-        fill: #44f;
-      `,
-      'scrubber-handle-expansion'
-    ),
-    ScrubberHandle: cx(
-      css`
-        label: ScrubberHandle;
-        cursor: col-resize;
-        fill: #555;
-      `,
-      'scrubber-handle'
-    ),
-    ScrubberLine: cx(
-      css`
-        label: ScrubberLine;
-        pointer-events: none;
-        stroke: #555;
-      `,
-      'scrubber-line'
-    ),
     ScrubberDragging: css`
       label: ScrubberDragging;
-      & .scrubber-handle-expansion {
+      & .${ScrubberHandleExpansion} {
         fill-opacity: 1;
       }
-      & .scrubber-handle {
+      & .${ScrubberHandle} {
         fill: #44f;
       }
-      & > .scrubber-line {
+      & > .${ScrubberLine} {
         stroke: #44f;
       }
     `,
     ScrubberHandles: css`
       label: ScrubberHandles;
-      &:hover > .scrubber-handle-expansion {
+      &:hover > .${ScrubberHandleExpansion} {
         fill-opacity: 1;
       }
-      &:hover > .scrubber-handle {
+      &:hover > .${ScrubberHandle} {
         fill: #44f;
       }
-      &:hover + .scrubber.line {
+      &:hover + .${ScrubberLine} {
         stroke: #44f;
       }
     `,
+    ScrubberHandleExpansion,
+    ScrubberHandle,
+    ScrubberLine,
   };
 });
 

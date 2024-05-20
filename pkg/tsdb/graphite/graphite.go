@@ -10,51 +10,36 @@ import (
 	"net/url"
 	"path"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"golang.org/x/net/context/ctxhttp"
 
-	"github.com/grafana/grafana/pkg/infra/httpclient"
 	"github.com/grafana/grafana/pkg/infra/log"
 	"github.com/grafana/grafana/pkg/models"
-	"github.com/grafana/grafana/pkg/plugins"
 	"github.com/grafana/grafana/pkg/setting"
+	"github.com/grafana/grafana/pkg/tsdb"
 	"github.com/opentracing/opentracing-go"
 )
 
 type GraphiteExecutor struct {
-	httpClientProvider httpclient.Provider
+	HttpClient *http.Client
 }
 
-// nolint:staticcheck // plugins.DataPlugin deprecated
-func New(httpClientProvider httpclient.Provider) func(*models.DataSource) (plugins.DataPlugin, error) {
-	// nolint:staticcheck // plugins.DataPlugin deprecated
-	return func(dsInfo *models.DataSource) (plugins.DataPlugin, error) {
-		return &GraphiteExecutor{
-			httpClientProvider: httpClientProvider,
-		}, nil
-	}
+func NewGraphiteExecutor(datasource *models.DataSource) (tsdb.TsdbQueryEndpoint, error) {
+	return &GraphiteExecutor{}, nil
 }
 
 var glog = log.New("tsdb.graphite")
 
-//nolint: staticcheck // plugins.DataQuery deprecated
-func (e *GraphiteExecutor) DataQuery(ctx context.Context, dsInfo *models.DataSource, tsdbQuery plugins.DataQuery) (
-	plugins.DataResponse, error) {
-	// This logic is used when called from Dashboard Alerting.
+func init() {
+	tsdb.RegisterTsdbQueryEndpoint("graphite", NewGraphiteExecutor)
+}
+
+func (e *GraphiteExecutor) Query(ctx context.Context, dsInfo *models.DataSource, tsdbQuery *tsdb.TsdbQuery) (*tsdb.Response, error) {
+	result := &tsdb.Response{}
+
 	from := "-" + formatTimeRange(tsdbQuery.TimeRange.From)
 	until := formatTimeRange(tsdbQuery.TimeRange.To)
-
-	// This logic is used when called through server side expressions.
-	if isTimeRangeNumeric(*tsdbQuery.TimeRange) {
-		var err error
-		from, until, err = epochMStoGraphiteTime(*tsdbQuery.TimeRange)
-		if err != nil {
-			return plugins.DataResponse{}, err
-		}
-	}
-
 	var target string
 
 	formData := url.Values{
@@ -83,7 +68,7 @@ func (e *GraphiteExecutor) DataQuery(ctx context.Context, dsInfo *models.DataSou
 
 	if target == "" {
 		glog.Error("No targets in query model", "models without targets", strings.Join(emptyQueries, "\n"))
-		return plugins.DataResponse{}, errors.New("no query target found for the alert rule")
+		return nil, errors.New("No query target found for the alert rule")
 	}
 
 	formData["target"] = []string{target}
@@ -94,12 +79,12 @@ func (e *GraphiteExecutor) DataQuery(ctx context.Context, dsInfo *models.DataSou
 
 	req, err := e.createRequest(dsInfo, formData)
 	if err != nil {
-		return plugins.DataResponse{}, err
+		return nil, err
 	}
 
-	httpClient, err := dsInfo.GetHTTPClient(e.httpClientProvider)
+	httpClient, err := dsInfo.GetHttpClient()
 	if err != nil {
-		return plugins.DataResponse{}, err
+		return nil, err
 	}
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "graphite query")
@@ -115,25 +100,24 @@ func (e *GraphiteExecutor) DataQuery(ctx context.Context, dsInfo *models.DataSou
 		span.Context(),
 		opentracing.HTTPHeaders,
 		opentracing.HTTPHeadersCarrier(req.Header)); err != nil {
-		return plugins.DataResponse{}, err
+		return nil, err
 	}
 
 	res, err := ctxhttp.Do(ctx, httpClient, req)
 	if err != nil {
-		return plugins.DataResponse{}, err
+		return nil, err
 	}
 
 	data, err := e.parseResponse(res)
 	if err != nil {
-		return plugins.DataResponse{}, err
+		return nil, err
 	}
 
-	result := plugins.DataResponse{
-		Results: make(map[string]plugins.DataQueryResult),
-	}
-	queryRes := plugins.DataQueryResult{}
+	result.Results = make(map[string]*tsdb.QueryResult)
+	queryRes := tsdb.NewQueryResult()
+
 	for _, series := range data {
-		queryRes.Series = append(queryRes.Series, plugins.DataTimeSeries{
+		queryRes.Series = append(queryRes.Series, &tsdb.TimeSeries{
 			Name:   series.Target,
 			Points: series.DataPoints,
 		})
@@ -149,18 +133,14 @@ func (e *GraphiteExecutor) DataQuery(ctx context.Context, dsInfo *models.DataSou
 
 func (e *GraphiteExecutor) parseResponse(res *http.Response) ([]TargetResponseDTO, error) {
 	body, err := ioutil.ReadAll(res.Body)
+	defer res.Body.Close()
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if err := res.Body.Close(); err != nil {
-			glog.Warn("Failed to close response body", "err", err)
-		}
-	}()
 
 	if res.StatusCode/100 != 2 {
 		glog.Info("Request failed", "status", res.Status, "body", string(body))
-		return nil, fmt.Errorf("request failed, status: %s", res.Status)
+		return nil, fmt.Errorf("Request failed status: %v", res.Status)
 	}
 
 	var data []TargetResponseDTO
@@ -170,12 +150,6 @@ func (e *GraphiteExecutor) parseResponse(res *http.Response) ([]TargetResponseDT
 		return nil, err
 	}
 
-	for si := range data {
-		// Convert Response to timestamps MS
-		for pi, point := range data[si].DataPoints {
-			data[si].DataPoints[pi][1].Float64 = point[1].Float64 * 1000
-		}
-	}
 	return data, nil
 }
 
@@ -189,7 +163,7 @@ func (e *GraphiteExecutor) createRequest(dsInfo *models.DataSource, data url.Val
 	req, err := http.NewRequest(http.MethodPost, u.String(), strings.NewReader(data.Encode()))
 	if err != nil {
 		glog.Info("Failed to create request", "error", err)
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return nil, fmt.Errorf("Failed to create request. error: %v", err)
 	}
 
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -217,28 +191,4 @@ func fixIntervalFormat(target string) string {
 		return strings.ReplaceAll(M, "M", "mon")
 	})
 	return target
-}
-
-func isTimeRangeNumeric(tr plugins.DataTimeRange) bool {
-	if _, err := strconv.ParseInt(tr.From, 10, 64); err != nil {
-		return false
-	}
-	if _, err := strconv.ParseInt(tr.To, 10, 64); err != nil {
-		return false
-	}
-	return true
-}
-
-func epochMStoGraphiteTime(tr plugins.DataTimeRange) (string, string, error) {
-	from, err := strconv.ParseInt(tr.From, 10, 64)
-	if err != nil {
-		return "", "", err
-	}
-
-	to, err := strconv.ParseInt(tr.To, 10, 64)
-	if err != nil {
-		return "", "", err
-	}
-
-	return fmt.Sprintf("%d", from/1000), fmt.Sprintf("%d", to/1000), nil
 }

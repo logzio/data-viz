@@ -13,12 +13,13 @@ export const OptionElement: FC<Props> = ({ control, option, register, invalid })
     case 'input':
       return (
         <Input
-          {...register(`${modelValue}`, {
-            required: option.required ? 'Required' : false,
-            validate: (v) => (option.validationRule !== '' ? validateOption(v, option.validationRule) : true),
-          })}
           invalid={invalid}
           type={option.inputType}
+          name={`${modelValue}`}
+          ref={register({
+            required: option.required ? 'Required' : false,
+            validate: v => (option.validationRule !== '' ? validateOption(v, option.validationRule) : true),
+          })}
           placeholder={option.placeholder}
         />
       );
@@ -26,11 +27,11 @@ export const OptionElement: FC<Props> = ({ control, option, register, invalid })
     case 'select':
       return (
         <InputControl
+          as={Select}
+          options={option.selectOptions}
           control={control}
           name={`${modelValue}`}
-          render={({ field: { ref, ...field } }) => (
-            <Select {...field} options={option.selectOptions ?? undefined} invalid={invalid} />
-          )}
+          invalid={invalid}
         />
       );
 
@@ -38,9 +39,10 @@ export const OptionElement: FC<Props> = ({ control, option, register, invalid })
       return (
         <TextArea
           invalid={invalid}
-          {...register(`${modelValue}`, {
+          name={`${modelValue}`}
+          ref={register({
             required: option.required ? 'Required' : false,
-            validate: (v) => (option.validationRule !== '' ? validateOption(v, option.validationRule) : true),
+            validate: v => (option.validationRule !== '' ? validateOption(v, option.validationRule) : true),
           })}
         />
       );

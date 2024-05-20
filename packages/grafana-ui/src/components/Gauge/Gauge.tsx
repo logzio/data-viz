@@ -10,7 +10,6 @@ import {
   getColorForTheme,
   FieldColorModeId,
   FALLBACK_COLOR,
-  TextDisplayOptions,
 } from '@grafana/data';
 import { Themeable } from '../../types';
 import { calculateFontSize } from '../../utils/measureText';
@@ -22,7 +21,6 @@ export interface Props extends Themeable {
   showThresholdLabels: boolean;
   width: number;
   value: DisplayValue;
-  text?: TextDisplayOptions;
   onClick?: React.MouseEventHandler<HTMLElement>;
   className?: string;
 }
@@ -64,9 +62,8 @@ export class Gauge extends PureComponent<Props> {
     const thresholds = field.thresholds ?? Gauge.defaultProps.field?.thresholds!;
     const isPercent = thresholds.mode === ThresholdsMode.Percentage;
     const steps = thresholds.steps;
-
-    let min = field.min ?? 0;
-    let max = field.max ?? 100;
+    let min = field.min!;
+    let max = field.max!;
 
     if (isPercent) {
       min = 0;
@@ -111,13 +108,12 @@ export class Gauge extends PureComponent<Props> {
     // remove gauge & marker width (on left and right side)
     // and 10px is some padding that flot adds to the outer canvas
     const valueWidth = valueWidthBase - ((gaugeWidth + (showThresholdMarkers ? thresholdMarkersWidth : 0)) * 2 + 10);
-    const fontSize = this.props.text?.valueSize ?? calculateFontSize(text, valueWidth, dimension, 1, gaugeWidth * 1.7);
+    const fontSize = calculateFontSize(text, valueWidth, dimension, 1, 48);
     const thresholdLabelFontSize = fontSize / 2.5;
 
-    let min = field.min ?? 0;
-    let max = field.max ?? 100;
+    let min = field.min!;
+    let max = field.max!;
     let numeric = value.numeric;
-
     if (field.thresholds?.mode === ThresholdsMode.Percentage) {
       min = 0;
       max = 100;
@@ -129,7 +125,6 @@ export class Gauge extends PureComponent<Props> {
     }
 
     const decimals = field.decimals === undefined ? 2 : field.decimals!;
-
     if (showThresholdMarkers) {
       min = +min.toFixed(decimals);
       max = +max.toFixed(decimals);
@@ -185,21 +180,21 @@ export class Gauge extends PureComponent<Props> {
   }
 
   renderVisualization = () => {
-    const { width, value, height, onClick, text } = this.props;
+    const { width, value, height, onClick } = this.props;
     const autoProps = calculateGaugeAutoProps(width, height, value.title);
 
     return (
       <>
         <div
           style={{ height: `${autoProps.gaugeHeight}px`, width: '100%' }}
-          ref={(element) => (this.canvasElement = element)}
+          ref={element => (this.canvasElement = element)}
           onClick={onClick}
         />
         {autoProps.showLabel && (
           <div
             style={{
               textAlign: 'center',
-              fontSize: text?.titleSize ?? autoProps.titleFontSize,
+              fontSize: autoProps.titleFontSize,
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',

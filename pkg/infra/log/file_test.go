@@ -23,17 +23,16 @@ func TestLogFile(t *testing.T) {
 	require.NotNil(t, fileLogWrite)
 
 	t.Cleanup(func() {
-		err := fileLogWrite.Close()
-		assert.NoError(t, err)
-		err = os.Remove(fileLogWrite.Filename)
-		assert.NoError(t, err)
+		fileLogWrite.Close()
+		err := os.Remove(fileLogWrite.Filename)
+		require.NoError(t, err)
 	})
 
 	fileLogWrite.Filename = "grafana_test.log"
 	err := fileLogWrite.Init()
 	require.NoError(t, err)
 
-	assert.Zero(t, fileLogWrite.maxlinesCurlines)
+	assert.Zero(t, fileLogWrite.maxlines_curlines)
 
 	t.Run("adding lines", func(t *testing.T) {
 		err := fileLogWrite.WriteLine("test1\n")
@@ -43,6 +42,6 @@ func TestLogFile(t *testing.T) {
 		err = fileLogWrite.WriteLine("test3\n")
 		require.NoError(t, err)
 
-		assert.Equal(t, 3, fileLogWrite.maxlinesCurlines)
+		assert.Equal(t, 3, fileLogWrite.maxlines_curlines)
 	})
 }

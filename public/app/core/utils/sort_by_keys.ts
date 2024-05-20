@@ -1,13 +1,13 @@
-import { isArray, isPlainObject, keys } from 'lodash';
+import _ from 'lodash';
 
 export default function sortByKeys(input: any): any {
-  if (isArray(input)) {
+  if (_.isArray(input)) {
     return input.map(sortByKeys);
   }
 
-  if (isPlainObject(input)) {
+  if (_.isPlainObject(input)) {
     const sortedObject: any = {};
-    for (const key of keys(input).sort()) {
+    for (const key of _.keys(input).sort()) {
       sortedObject[key] = sortByKeys(input[key]);
     }
     return sortedObject;

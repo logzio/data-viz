@@ -26,7 +26,7 @@ const getBackendSrvMock = () =>
         message: '',
       }),
     }),
-    withNoBackendCache: jest.fn().mockImplementationOnce((cb) => cb()),
+    withNoBackendCache: jest.fn().mockImplementationOnce(cb => cb()),
   } as any);
 
 describe('Name exists', () => {
@@ -72,21 +72,23 @@ describe('Find new name', () => {
 });
 
 describe('initDataSourceSettings', () => {
-  describe('when pageId is missing', () => {
+  describe('when pageId is not a number', () => {
     it('then initDataSourceSettingsFailed should be dispatched', async () => {
-      const dispatchedActions = await thunkTester({}).givenThunk(initDataSourceSettings).whenThunkIsDispatched('');
+      const dispatchedActions = await thunkTester({})
+        .givenThunk(initDataSourceSettings)
+        .whenThunkIsDispatched('some page');
 
       expect(dispatchedActions).toEqual([initDataSourceSettingsFailed(new Error('Invalid ID'))]);
     });
   });
 
-  describe('when pageId is a valid', () => {
+  describe('when pageId is a number', () => {
     it('then initDataSourceSettingsSucceeded should be dispatched', async () => {
       const thunkMock = (): ThunkResult<void> => (dispatch: ThunkDispatch, getState) => {};
       const dataSource = { type: 'app' };
       const dataSourceMeta = { id: 'some id' };
       const dependencies: InitDataSourceSettingDependencies = {
-        loadDataSource: jest.fn(thunkMock) as any,
+        loadDataSource: jest.fn(thunkMock),
         getDataSource: jest.fn().mockReturnValue(dataSource),
         getDataSourceMeta: jest.fn().mockReturnValue(dataSourceMeta),
         importDataSourcePlugin: jest.fn().mockReturnValue({} as GenericDataSourcePlugin),

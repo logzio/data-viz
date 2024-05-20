@@ -1,6 +1,7 @@
 package migrations
 
 import (
+	"github.com/grafana/grafana/pkg/services/sqlstore/migrator"
 	. "github.com/grafana/grafana/pkg/services/sqlstore/migrator"
 )
 
@@ -16,12 +17,12 @@ func addShortURLMigrations(mg *Migrator) {
 			{Name: "created_at", Type: DB_Int, Nullable: false},
 			{Name: "last_seen_at", Type: DB_Int, Nullable: true},
 		},
-		Indices: []*Index{
-			{Cols: []string{"org_id", "uid"}, Type: UniqueIndex},
+		Indices: []*migrator.Index{
+			{Cols: []string{"org_id", "uid"}, Type: migrator.UniqueIndex},
 		},
 	}
 
 	mg.AddMigration("create short_url table v1", NewAddTableMigration(shortURLV1))
 
-	mg.AddMigration("add index short_url.org_id-uid", NewAddIndexMigration(shortURLV1, shortURLV1.Indices[0]))
+	mg.AddMigration("add index short_url.org_id-uid", migrator.NewAddIndexMigration(shortURLV1, shortURLV1.Indices[0]))
 }

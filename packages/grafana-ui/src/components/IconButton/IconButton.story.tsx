@@ -1,11 +1,11 @@
 import React from 'react';
-import { css } from '@emotion/css';
-import { IconButton, IconButtonVariant } from './IconButton';
+import { css } from 'emotion';
+import { IconButton } from '@grafana/ui';
 import { withCenteredStory } from '../../utils/storybook/withCenteredStory';
-import { useTheme2 } from '../../themes';
+import { useTheme } from '../../themes/ThemeContext';
+import { GrafanaTheme } from '@grafana/data';
 import { IconSize, IconName } from '../../types';
 import mdx from './IconButton.mdx';
-import { VerticalGroup } from '../Layout/Layout';
 
 export default {
   title: 'Buttons/IconButton',
@@ -19,30 +19,42 @@ export default {
 };
 
 export const Simple = () => {
+  const theme = useTheme();
+
   return (
     <div>
-      <RenderScenario background="canvas" />
-      <RenderScenario background="primary" />
-      <RenderScenario background="secondary" />
+      {renderScenario(
+        'dashboard',
+        theme,
+        ['sm', 'md', 'lg', 'xl', 'xxl'],
+        ['search', 'trash-alt', 'arrow-left', 'times']
+      )}
+      {renderScenario('panel', theme, ['sm', 'md', 'lg', 'xl', 'xxl'], ['search', 'trash-alt', 'arrow-left', 'times'])}
+      {renderScenario('header', theme, ['sm', 'md', 'lg', 'xl', 'xxl'], ['search', 'trash-alt', 'arrow-left', 'times'])}
     </div>
   );
 };
 
-interface ScenarioProps {
-  background: 'canvas' | 'primary' | 'secondary';
-}
+function renderScenario(surface: string, theme: GrafanaTheme, sizes: IconSize[], icons: IconName[]) {
+  let bg = 'red';
 
-const RenderScenario = ({ background }: ScenarioProps) => {
-  const theme = useTheme2();
-  const sizes: IconSize[] = ['sm', 'md', 'lg', 'xl', 'xxl'];
-  const icons: IconName[] = ['search', 'trash-alt', 'arrow-left', 'times'];
-  const variants: IconButtonVariant[] = ['secondary', 'primary', 'destructive'];
+  switch (surface) {
+    case 'dashboard':
+      bg = theme.colors.dashboardBg;
+      break;
+    case 'panel':
+      bg = theme.colors.bodyBg;
+      break;
+    case 'header': {
+      bg = theme.colors.pageHeaderBg;
+    }
+  }
 
   return (
     <div
       className={css`
         padding: 30px;
-        background: ${theme.colors.background[background]};
+        background: ${bg};
         button {
           margin-right: 8px;
           margin-left: 8px;
@@ -50,22 +62,14 @@ const RenderScenario = ({ background }: ScenarioProps) => {
         }
       `}
     >
-      <VerticalGroup spacing="md">
-        <div>{background}</div>
-        {variants.map((variant) => {
-          return (
-            <div key={variant}>
-              {icons.map((icon) => {
-                return sizes.map((size) => (
-                  <span key={icon + size}>
-                    <IconButton name={icon} size={size} variant={variant} />
-                  </span>
-                ));
-              })}
-            </div>
-          );
-        })}
-      </VerticalGroup>
+      <div>Surface: {surface}</div>
+      {icons.map(icon => {
+        return sizes.map(size => (
+          <span key={icon + size}>
+            <IconButton name={icon} size={size} surface={surface as any} />
+          </span>
+        ));
+      })}
     </div>
   );
-};
+}

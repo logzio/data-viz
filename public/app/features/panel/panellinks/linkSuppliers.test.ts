@@ -1,12 +1,12 @@
 import { getFieldLinksSupplier } from './linkSuppliers';
-import { applyFieldOverrides, createTheme, DataFrameView, dateTime, FieldDisplay, toDataFrame } from '@grafana/data';
+import { applyFieldOverrides, DataFrameView, dateTime, FieldDisplay, toDataFrame } from '@grafana/data';
 import { getLinkSrv, LinkService, LinkSrv, setLinkSrv } from './link_srv';
 import { TemplateSrv } from '../../templating/template_srv';
 import { TimeSrv } from '../../dashboard/services/TimeSrv';
+import { getTheme } from '@grafana/ui';
 
 describe('getFieldLinksSupplier', () => {
   let originalLinkSrv: LinkService;
-  let templateSrv = new TemplateSrv();
   beforeAll(() => {
     // We do not need more here and TimeSrv is hard to setup fully.
     const timeSrvMock: TimeSrv = {
@@ -18,7 +18,6 @@ describe('getFieldLinksSupplier', () => {
     } as any;
     const linkService = new LinkSrv(new TemplateSrv(), timeSrvMock);
     originalLinkSrv = getLinkSrv();
-
     setLinkSrv(linkService);
   });
 
@@ -91,8 +90,10 @@ describe('getFieldLinksSupplier', () => {
         overrides: [],
       },
       replaceVariables: (val: string) => val,
+      getDataSourceSettingsByUid: (val: string) => ({} as any),
       timeZone: 'utc',
-      theme: createTheme(),
+      theme: getTheme(),
+      autoMinMax: true,
     })[0];
 
     const rowIndex = 0;
@@ -109,7 +110,7 @@ describe('getFieldLinksSupplier', () => {
     };
 
     const supplier = getFieldLinksSupplier(fieldDisp);
-    const links = supplier?.getLinks(templateSrv.replace.bind(templateSrv)).map((m) => {
+    const links = supplier?.getLinks({}).map(m => {
       return {
         title: m.title,
         href: m.href,

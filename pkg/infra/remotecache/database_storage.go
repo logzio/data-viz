@@ -13,11 +13,11 @@ var getTime = time.Now
 const databaseCacheType = "database"
 
 type databaseCache struct {
-	SQLStore *sqlstore.SQLStore
+	SQLStore *sqlstore.SqlStore
 	log      log.Logger
 }
 
-func newDatabaseCache(sqlstore *sqlstore.SQLStore) *databaseCache {
+func newDatabaseCache(sqlstore *sqlstore.SqlStore) *databaseCache {
 	dc := &databaseCache{
 		SQLStore: sqlstore,
 		log:      log.New("remotecache.database"),

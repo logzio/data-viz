@@ -137,7 +137,3 @@ func TestCloudWatchQuery(t *testing.T) {
 		assert.False(t, query.isMetricStat(), "Expected not metric stat")
 	})
 }
-
-func (q *cloudWatchQuery) isMetricStat() bool {
-	return !q.isSearchExpression() && !q.isMathExpression()
-}

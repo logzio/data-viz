@@ -1,38 +1,26 @@
 import React, { PureComponent } from 'react';
-import { connect, ConnectedProps } from 'react-redux';
-import { Button, LegacyForms } from '@grafana/ui';
+import { hot } from 'react-hot-loader';
+import { connect } from 'react-redux';
+import { NavModel } from '@grafana/data';
+import { LegacyForms } from '@grafana/ui';
 const { Input } = LegacyForms;
 import Page from 'app/core/components/Page/Page';
 import appEvents from 'app/core/app_events';
 import { getNavModel } from 'app/core/selectors/navModel';
-import { StoreState } from 'app/types';
+import { CoreEvents, FolderState, StoreState } from 'app/types';
 import { deleteFolder, getFolderByUid, saveFolder } from './state/actions';
 import { getLoadingNav } from './state/navModel';
 import { setFolderTitle } from './state/reducers';
-import { ShowConfirmModalEvent } from '../../types/events';
-import { GrafanaRouteComponentProps } from 'app/core/navigation/types';
 
-export interface OwnProps extends GrafanaRouteComponentProps<{ uid: string }> {}
-
-const mapStateToProps = (state: StoreState, props: OwnProps) => {
-  const uid = props.match.params.uid;
-  return {
-    navModel: getNavModel(state.navIndex, `folder-settings-${uid}`, getLoadingNav(2)),
-    folderUid: uid,
-    folder: state.folder,
-  };
-};
-
-const mapDispatchToProps = {
-  getFolderByUid,
-  saveFolder,
-  setFolderTitle,
-  deleteFolder,
-};
-
-const connector = connect(mapStateToProps, mapDispatchToProps);
-
-export type Props = OwnProps & ConnectedProps<typeof connector>;
+export interface Props {
+  navModel: NavModel;
+  folderUid: string;
+  folder: FolderState;
+  getFolderByUid: typeof getFolderByUid;
+  setFolderTitle: typeof setFolderTitle;
+  saveFolder: typeof saveFolder;
+  deleteFolder: typeof deleteFolder;
+}
 
 export interface State {
   isLoading: boolean;
@@ -66,17 +54,15 @@ export class FolderSettingsPage extends PureComponent<Props, State> {
     evt.stopPropagation();
     evt.preventDefault();
 
-    appEvents.publish(
-      new ShowConfirmModalEvent({
-        title: 'Delete',
-        text: `Do you want to delete this folder and all its dashboards?`,
-        icon: 'trash-alt',
-        yesText: 'Delete',
-        onConfirm: () => {
-          this.props.deleteFolder(this.props.folder.uid);
-        },
-      })
-    );
+    appEvents.emit(CoreEvents.showConfirmModal, {
+      title: 'Delete',
+      text: `Do you want to delete this folder and all its dashboards?`,
+      icon: 'trash-alt',
+      yesText: 'Delete',
+      onConfirm: () => {
+        this.props.deleteFolder(this.props.folder.uid);
+      },
+    });
   };
 
   render() {
@@ -85,7 +71,7 @@ export class FolderSettingsPage extends PureComponent<Props, State> {
     return (
       <Page navModel={navModel}>
         <Page.Contents isLoading={this.state.isLoading}>
-          <h3 className="page-sub-heading">Folder settings</h3>
+          <h3 className="page-sub-heading">Folder Settings</h3>
 
           <div className="section gf-form-group">
             <form name="folderSettingsForm" onSubmit={this.onSave}>
@@ -99,12 +85,12 @@ export class FolderSettingsPage extends PureComponent<Props, State> {
                 />
               </div>
               <div className="gf-form-button-row">
-                <Button type="submit" disabled={!folder.canSave || !folder.hasChanged}>
+                <button type="submit" className="btn btn-primary" disabled={!folder.canSave || !folder.hasChanged}>
                   Save
-                </Button>
-                <Button variant="destructive" onClick={this.onDelete} disabled={!folder.canSave}>
+                </button>
+                <button className="btn btn-danger" onClick={this.onDelete} disabled={!folder.canSave}>
                   Delete
-                </Button>
+                </button>
               </div>
             </form>
           </div>
@@ -114,4 +100,21 @@ export class FolderSettingsPage extends PureComponent<Props, State> {
   }
 }
 
-export default connector(FolderSettingsPage);
+const mapStateToProps = (state: StoreState) => {
+  const uid = state.location.routeParams.uid;
+
+  return {
+    navModel: getNavModel(state.navIndex, `folder-settings-${uid}`, getLoadingNav(2)),
+    folderUid: uid,
+    folder: state.folder,
+  };
+};
+
+const mapDispatchToProps = {
+  getFolderByUid,
+  saveFolder,
+  setFolderTitle,
+  deleteFolder,
+};
+
+export default hot(module)(connect(mapStateToProps, mapDispatchToProps)(FolderSettingsPage));

@@ -1,8 +1,5 @@
 import { Vector } from '../types/vector';
 
-/**
- * @public
- */
 export class ConstantVector<T = any> implements Vector<T> {
   constructor(private value: T, private len: number) {}
 

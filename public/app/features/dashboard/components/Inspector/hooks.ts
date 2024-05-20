@@ -1,11 +1,10 @@
 import { DataQueryError, DataSourceApi, PanelData, PanelPlugin } from '@grafana/data';
 import useAsync from 'react-use/lib/useAsync';
 import { getDataSourceSrv } from '@grafana/runtime';
-import { DashboardModel, PanelModel } from 'app/features/dashboard/state';
+import { DashboardModel } from 'app/features/dashboard/state';
 import { useMemo } from 'react';
 import { supportsDataQuery } from '../PanelEditor/utils';
-import { InspectTab } from 'app/features/inspector/types';
-import { PanelInspectActionSupplier } from './PanelInspectActions';
+import { InspectTab } from './types';
 
 /**
  * Given PanelData return first data source supporting metadata inspector
@@ -35,9 +34,8 @@ export const useDatasourceMetadata = (data?: PanelData) => {
  * Configures tabs for PanelInspector
  */
 export const useInspectTabs = (
-  panel: PanelModel,
+  plugin: PanelPlugin,
   dashboard: DashboardModel,
-  plugin: PanelPlugin | undefined | null,
   error?: DataQueryError,
   metaDs?: DataSourceApi
 ) => {
@@ -58,16 +56,9 @@ export const useInspectTabs = (
       tabs.push({ label: 'Error', value: InspectTab.Error });
     }
 
-    // This is a quick internal hack to allow custom actions in inspect
-    // For 8.1, something like this should be exposed through grafana/runtime
-    const supplier = (window as any).grafanaPanelInspectActionSupplier as PanelInspectActionSupplier;
-    if (supplier && supplier.getActions(panel)) {
-      tabs.push({ label: 'Actions', value: InspectTab.Actions });
-    }
-
     if (dashboard.meta.canEdit && supportsDataQuery(plugin)) {
       tabs.push({ label: 'Query', value: InspectTab.Query });
     }
     return tabs;
-  }, [panel, plugin, metaDs, dashboard, error]);
+  }, [plugin, metaDs, dashboard, error]);
 };

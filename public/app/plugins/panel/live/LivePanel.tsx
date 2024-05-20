@@ -1,11 +1,12 @@
 import React, { PureComponent } from 'react';
 import { Unsubscribable, PartialObserver } from 'rxjs';
-import { Alert, stylesFactory, Button, JSONFormatter, CustomScrollbar, CodeEditor } from '@grafana/ui';
+import { FeatureInfoBox, stylesFactory, Button, JSONFormatter, CustomScrollbar } from '@grafana/ui';
 import {
   GrafanaTheme,
   PanelProps,
   LiveChannelStatusEvent,
   isValidLiveChannelAddress,
+  LiveChannel,
   LiveChannelEvent,
   isLiveChannelStatusEvent,
   isLiveChannelMessageEvent,
@@ -13,22 +14,18 @@ import {
   PanelData,
   LoadingState,
   applyFieldOverrides,
-  StreamingDataFrame,
-  LiveChannelAddress,
-  LiveChannelConfig,
 } from '@grafana/data';
 import { TablePanel } from '../table/TablePanel';
 import { LivePanelOptions, MessageDisplayMode } from './types';
-import { config, getGrafanaLiveSrv } from '@grafana/runtime';
-import { css, cx } from '@emotion/css';
-import { isEqual } from 'lodash';
+import { config, getGrafanaLiveSrv, MeasurementCollector } from '@grafana/runtime';
+import { css, cx } from 'emotion';
+import { CodeEditor } from '@grafana/ui';
 
 interface Props extends PanelProps<LivePanelOptions> {}
 
 interface State {
   error?: any;
-  addr?: LiveChannelAddress;
-  info?: LiveChannelConfig;
+  channel?: LiveChannel;
   status?: LiveChannelStatusEvent;
   message?: any;
   changed: number;
@@ -87,37 +84,26 @@ export class LivePanel extends PureComponent<Props, State> {
       console.log('INVALID', addr);
       this.unsubscribe();
       this.setState({
-        addr: undefined,
-        info: undefined,
+        channel: undefined,
       });
       return;
     }
 
-    if (isEqual(addr, this.state.addr)) {
-      console.log('Same channel', this.state.addr);
-      return;
-    }
-
-    const live = getGrafanaLiveSrv();
-    if (!live) {
-      console.log('INVALID', addr);
+    const channel = getGrafanaLiveSrv().getChannel(addr);
+    const changed = channel.id !== this.state.channel?.id;
+    console.log('LOAD', addr, changed, channel);
+    if (changed) {
       this.unsubscribe();
-      this.setState({
-        addr: undefined,
-        info: undefined,
-      });
-      return;
-    }
-    this.unsubscribe();
 
-    console.log('LOAD', addr);
-
-    // Subscribe to new events
-    try {
-      this.subscription = live.getStream(addr).subscribe(this.streamObserver);
-      this.setState({ addr, error: undefined });
-    } catch (err) {
-      this.setState({ addr: undefined, error: err });
+      // Subscribe to new events
+      try {
+        this.subscription = channel.getStream().subscribe(this.streamObserver);
+        this.setState({ channel, error: undefined });
+      } catch (err) {
+        this.setState({ channel: undefined, error: err });
+      }
+    } else {
+      console.log('Same channel', channel);
     }
   }
 
@@ -125,12 +111,17 @@ export class LivePanel extends PureComponent<Props, State> {
     const preformatted = `[feature_toggles]
     enable = live`;
     return (
-      <Alert title="Grafana Live" severity="info">
+      <FeatureInfoBox
+        title="Grafana Live"
+        style={{
+          height: this.props.height,
+        }}
+      >
         <p>Grafana live requires a feature flag to run</p>
 
         <b>custom.ini:</b>
         <pre>{preformatted}</pre>
-      </Alert>
+      </FeatureInfoBox>
     );
   }
 
@@ -146,20 +137,18 @@ export class LivePanel extends PureComponent<Props, State> {
   };
 
   onPublishClicked = async () => {
-    const { addr, info } = this.state;
-    if (!info?.canPublish || !addr) {
+    const { channel } = this.state;
+    if (!channel?.publish) {
       console.log('channel does not support publishing');
       return;
     }
-
-    const data = this.props.options?.json;
-    if (!data) {
+    const json = this.props.options?.json;
+    if (json) {
+      const rsp = await channel.publish(json);
+      console.log('GOT', rsp);
+    } else {
       console.log('nothing to publish');
-      return;
     }
-
-    const rsp = await getGrafanaLiveSrv().publish(addr, data);
-    console.log('onPublishClicked (response from publish)', rsp);
   };
 
   renderMessage(height: number) {
@@ -180,11 +169,12 @@ export class LivePanel extends PureComponent<Props, State> {
     }
 
     if (options.message === MessageDisplayMode.Auto) {
-      if (message instanceof StreamingDataFrame) {
+      if (message instanceof MeasurementCollector) {
         const data: PanelData = {
           series: applyFieldOverrides({
-            data: [message],
-            theme: config.theme2,
+            data: message.getData(),
+            theme: config.theme,
+            getDataSourceSettingsByUid: () => undefined,
             replaceVariables: (v: string) => v,
             fieldConfig: {
               defaults: {},
@@ -205,11 +195,8 @@ export class LivePanel extends PureComponent<Props, State> {
   }
 
   renderPublish(height: number) {
-    const { info } = this.state;
-    if (!info) {
-      return <div>No info</div>;
-    }
-    if (!info.canPublish) {
+    const { channel } = this.state;
+    if (!channel?.publish) {
       return <div>This channel does not support publishing</div>;
     }
 
@@ -286,12 +273,17 @@ export class LivePanel extends PureComponent<Props, State> {
     if (!this.isValid) {
       return this.renderNotEnabled();
     }
-    const { addr, error } = this.state;
-    if (!addr) {
+    const { channel, error } = this.state;
+    if (!channel) {
       return (
-        <Alert title="Grafana Live" severity="info">
-          Use the panel editor to pick a channel
-        </Alert>
+        <FeatureInfoBox
+          title="Grafana Live"
+          style={{
+            height: this.props.height,
+          }}
+        >
+          <p>Use the panel editor to pick a channel</p>
+        </FeatureInfoBox>
       );
     }
     if (error) {

@@ -12,3 +12,12 @@ export const getDashboardUid = (url: string): string => {
     return matches[1];
   }
 };
+
+export const getDataSourceId = (url: string): string => {
+  const matches = new URL(url).pathname.match(/\/edit\/([^/]+)/);
+  if (!matches) {
+    throw new Error(`Couldn't parse id from ${url}`);
+  } else {
+    return matches[1];
+  }
+};

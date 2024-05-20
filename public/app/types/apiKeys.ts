@@ -1,21 +1,22 @@
 ﻿import { OrgRole } from './acl';
 
 export interface ApiKey {
-  id?: number;
+  id: number;
   name: string;
   role: OrgRole;
-  secondsToLive: number | null;
-  expiration?: string;
+  secondsToLive: number;
+  expiration: string;
 }
 
 export interface NewApiKey {
   name: string;
   role: OrgRole;
-  secondsToLive: string;
+  secondsToLive: number;
 }
 
 export interface ApiKeysState {
   keys: ApiKey[];
   searchQuery: string;
   hasFetched: boolean;
+  includeExpired: boolean;
 }

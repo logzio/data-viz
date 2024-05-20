@@ -1,25 +1,32 @@
 import React, { useState } from 'react';
 
-import { Props, Switch } from './Switch';
-import { Meta, Story } from '@storybook/react';
+import { Switch } from './Switch';
+import { text } from '@storybook/addon-knobs';
+import mdx from './Switch.mdx';
 
-export default {
-  title: 'Forms/Legacy/Switch',
-  component: Switch,
+const getStory = (title: string, component: any) => ({
+  title,
   parameters: {
-    controls: {
-      exclude: ['className', 'labelClass', 'switchClass'],
+    component,
+    docs: {
+      page: mdx,
     },
   },
-} as Meta;
+});
 
-const SwitchWrapper: Story<Props> = ({ label, ...args }) => {
+export default getStory('Forms/Legacy/Switch', Switch);
+
+const getKnobs = () => {
+  return {
+    label: text('Label Text', 'Label'),
+    tooltip: text('Tooltip', ''),
+  };
+};
+
+const SwitchWrapper = () => {
+  const { label, tooltip } = getKnobs();
   const [checked, setChecked] = useState(false);
-  return <Switch {...args} label={label} checked={checked} onChange={() => setChecked(!checked)} />;
+  return <Switch label={label} checked={checked} onChange={() => setChecked(!checked)} tooltip={tooltip} />;
 };
 
-export const Basic = SwitchWrapper.bind({});
-Basic.args = {
-  label: 'Label',
-  tooltip: '',
-};
+export const basic = () => <SwitchWrapper />;

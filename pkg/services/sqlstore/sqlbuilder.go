@@ -7,12 +7,12 @@ import (
 	"github.com/grafana/grafana/pkg/models"
 )
 
-type SQLBuilder struct {
+type SqlBuilder struct {
 	sql    bytes.Buffer
 	params []interface{}
 }
 
-func (sb *SQLBuilder) Write(sql string, params ...interface{}) {
+func (sb *SqlBuilder) Write(sql string, params ...interface{}) {
 	sb.sql.WriteString(sql)
 
 	if len(params) > 0 {
@@ -20,19 +20,15 @@ func (sb *SQLBuilder) Write(sql string, params ...interface{}) {
 	}
 }
 
-func (sb *SQLBuilder) GetSQLString() string {
+func (sb *SqlBuilder) GetSqlString() string {
 	return sb.sql.String()
 }
 
-func (sb *SQLBuilder) GetParams() []interface{} {
-	return sb.params
-}
-
-func (sb *SQLBuilder) AddParams(params ...interface{}) {
+func (sb *SqlBuilder) AddParams(params ...interface{}) {
 	sb.params = append(sb.params, params...)
 }
 
-func (sb *SQLBuilder) WriteDashboardPermissionFilter(user *models.SignedInUser, permission models.PermissionType) {
+func (sb *SqlBuilder) writeDashboardPermissionFilter(user *models.SignedInUser, permission models.PermissionType) {
 	if user.OrgRole == models.ROLE_ADMIN {
 		return
 	}

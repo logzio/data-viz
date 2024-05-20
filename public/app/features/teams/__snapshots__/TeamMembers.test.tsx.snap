@@ -8,29 +8,39 @@ exports[`Render should render component 1`] = `
     <div
       className="gf-form gf-form--grow"
     >
-      <FilterInput
+      <Component
+        inputClassName="gf-form-input"
+        labelClassName="gf-form--has-input-icon gf-form--grow"
         onChange={[Function]}
         placeholder="Search members"
         value=""
       />
     </div>
-    <Button
-      className="pull-right"
+    <div
+      className="page-action-bar__spacer"
+    />
+    <button
+      className="btn btn-primary pull-right"
       disabled={false}
       onClick={[Function]}
     >
       Add member
-    </Button>
+    </button>
   </div>
-  <SlideDown
+  <Component
     in={false}
   >
     <div
       className="cta-form"
     >
-      <CloseButton
+      <button
+        className="cta-form__close btn btn-transparent"
         onClick={[Function]}
-      />
+      >
+        <Icon
+          name="times"
+        />
+      </button>
       <h5>
         Add team member
       </h5>
@@ -43,7 +53,7 @@ exports[`Render should render component 1`] = `
         />
       </div>
     </div>
-  </SlideDown>
+  </Component>
   <div
     className="admin-list-table"
   >
@@ -62,13 +72,13 @@ exports[`Render should render component 1`] = `
           <th>
             Name
           </th>
-          <WithFeatureToggle
+          <Component
             featureToggle={false}
           >
             <th>
               Permission
             </th>
-          </WithFeatureToggle>
+          </Component>
           <th
             style={
               Object {
@@ -92,29 +102,39 @@ exports[`Render should render team members 1`] = `
     <div
       className="gf-form gf-form--grow"
     >
-      <FilterInput
+      <Component
+        inputClassName="gf-form-input"
+        labelClassName="gf-form--has-input-icon gf-form--grow"
         onChange={[Function]}
         placeholder="Search members"
         value=""
       />
     </div>
-    <Button
-      className="pull-right"
+    <div
+      className="page-action-bar__spacer"
+    />
+    <button
+      className="btn btn-primary pull-right"
       disabled={false}
       onClick={[Function]}
     >
       Add member
-    </Button>
+    </button>
   </div>
-  <SlideDown
+  <Component
     in={false}
   >
     <div
       className="cta-form"
     >
-      <CloseButton
+      <button
+        className="cta-form__close btn btn-transparent"
         onClick={[Function]}
-      />
+      >
+        <Icon
+          name="times"
+        />
+      </button>
       <h5>
         Add team member
       </h5>
@@ -127,7 +147,7 @@ exports[`Render should render team members 1`] = `
         />
       </div>
     </div>
-  </SlideDown>
+  </Component>
   <div
     className="admin-list-table"
   >
@@ -146,13 +166,13 @@ exports[`Render should render team members 1`] = `
           <th>
             Name
           </th>
-          <WithFeatureToggle
+          <Component
             featureToggle={false}
           >
             <th>
               Permission
             </th>
-          </WithFeatureToggle>
+          </Component>
           <th
             style={
               Object {

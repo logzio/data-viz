@@ -4,34 +4,33 @@ import { ArrayVector } from '../vector';
 
 describe('mapInternalLinkToExplore', () => {
   it('creates internal link', () => {
-    const dataLink = {
-      url: '',
-      title: '',
-      internal: {
-        datasourceUid: 'uid',
-        datasourceName: 'dsName',
-        query: { query: '12344' },
+    const link = mapInternalLinkToExplore(
+      {
+        url: '',
+        title: '',
+        internal: {
+          datasourceUid: 'uid',
+          query: { query: '12344' },
+        },
       },
-    };
-
-    const link = mapInternalLinkToExplore({
-      link: dataLink,
-      internalLink: dataLink.internal,
-      scopedVars: {},
-      range: {} as any,
-      field: {
+      {},
+      {} as any,
+      {
         name: 'test',
         type: FieldType.number,
         config: {},
         values: new ArrayVector([2]),
       },
-      replaceVariables: (val) => val,
-    });
+      {
+        replaceVariables: val => val,
+        getDataSourceSettingsByUid: uid => ({ name: 'testDS' } as any),
+      }
+    );
 
     expect(link).toEqual(
       expect.objectContaining({
-        title: 'dsName',
-        href: '/explore?left={"datasource":"dsName","queries":[{"query":"12344"}]}',
+        title: 'testDS',
+        href: '/explore?left={"datasource":"testDS","queries":[{"query":"12344"}]}',
         onClick: undefined,
       })
     );

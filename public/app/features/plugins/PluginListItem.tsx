@@ -1,13 +1,13 @@
 import React, { FC } from 'react';
 import { PluginMeta } from '@grafana/data';
-import { PluginSignatureBadge } from '@grafana/ui';
+import { PluginSignatureBadge } from './PluginSignatureBadge';
 import { selectors } from '@grafana/e2e-selectors';
 
 interface Props {
   plugin: PluginMeta;
 }
 
-const PluginListItem: FC<Props> = (props) => {
+const PluginListItem: FC<Props> = props => {
   const { plugin } = props;
 
   return (
@@ -15,9 +15,7 @@ const PluginListItem: FC<Props> = (props) => {
       <a className="card-item" href={`plugins/${plugin.id}/`}>
         <div className="card-item-header">
           <div className="card-item-type">{plugin.type}</div>
-          <div className="card-item-badge">
-            <PluginSignatureBadge status={plugin.signature} />
-          </div>
+          <PluginSignatureBadge status={plugin.signature} />
           {plugin.hasUpdate && (
             <div className="card-item-notice">
               <span bs-tooltip="plugin.latestVersion">Update available!</span>

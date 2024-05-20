@@ -1,16 +1,14 @@
 import React, { useEffect } from 'react';
-import { css, cx } from '@emotion/css';
+import { css, cx } from 'emotion';
 import { hot } from 'react-hot-loader';
 import { connect, MapDispatchToProps, MapStateToProps } from 'react-redux';
 import { NavModel } from '@grafana/data';
-import { Pagination, Tooltip, stylesFactory, LinkButton, Icon } from '@grafana/ui';
-import { AccessControlAction, StoreState, UserDTO } from '../../types';
+import { Pagination, Tooltip, HorizontalGroup, stylesFactory, LinkButton, Input, Icon } from '@grafana/ui';
+import { StoreState, UserDTO } from '../../types';
 import Page from 'app/core/components/Page/Page';
 import { getNavModel } from '../../core/selectors/navModel';
 import { fetchUsers, changeQuery, changePage } from './state/actions';
 import { TagBadge } from 'app/core/components/TagFilter/TagBadge';
-import { contextSrv } from 'app/core/core';
-import { FilterInput } from 'app/core/components/FilterInput/FilterInput';
 
 interface OwnProps {}
 
@@ -31,33 +29,36 @@ interface DispatchProps {
 
 type Props = OwnProps & ConnectedProps & DispatchProps;
 
-const UserListAdminPageUnConnected: React.FC<Props> = (props) => {
+const UserListAdminPageUnConnected: React.FC<Props> = props => {
   const styles = getStyles();
-  const { fetchUsers, navModel, query, changeQuery, users, showPaging, totalPages, page, changePage } = props;
 
   useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+    props.fetchUsers();
+  }, []);
 
   return (
-    <Page navModel={navModel}>
+    <Page navModel={props.navModel}>
       <Page.Contents>
         <>
-          <div className="page-action-bar">
-            <div className="gf-form gf-form--grow">
-              <FilterInput
-                placeholder="Search user by login, email, or name."
+          <div>
+            <HorizontalGroup justify="space-between">
+              <Input
+                width={40}
+                type="text"
+                placeholder="Search user by login, email or name"
+                tabIndex={1}
                 autoFocus={true}
-                value={query}
-                onChange={(value) => changeQuery(value)}
+                value={props.query}
+                spellCheck={false}
+                onChange={event => props.changeQuery(event.currentTarget.value)}
+                prefix={<Icon name="search" />}
               />
-            </div>
-            {contextSrv.hasPermission(AccessControlAction.UsersCreate) && (
               <LinkButton href="admin/users/create" variant="primary">
                 New user
               </LinkButton>
-            )}
+            </HorizontalGroup>
           </div>
+
           <div className={cx(styles.table, 'admin-list-table')}>
             <table className="filter-table form-inline filter-table--hover">
               <thead>
@@ -76,10 +77,12 @@ const UserListAdminPageUnConnected: React.FC<Props> = (props) => {
                   <th style={{ width: '1%' }}></th>
                 </tr>
               </thead>
-              <tbody>{users.map(renderUser)}</tbody>
+              <tbody>{props.users.map(renderUser)}</tbody>
             </table>
           </div>
-          {showPaging && <Pagination numberOfPages={totalPages} currentPage={page} onNavigate={changePage} />}
+          {props.showPaging && (
+            <Pagination numberOfPages={props.totalPages} currentPage={props.page} onNavigate={props.changePage} />
+          )}
         </>
       </Page.Contents>
     </Page>
@@ -147,7 +150,7 @@ const mapDispatchToProps: MapDispatchToProps<DispatchProps, OwnProps> = {
   changePage,
 };
 
-const mapStateToProps: MapStateToProps<ConnectedProps, OwnProps, StoreState> = (state) => ({
+const mapStateToProps: MapStateToProps<ConnectedProps, OwnProps, StoreState> = state => ({
   navModel: getNavModel(state.navIndex, 'global-users'),
   users: state.userListAdmin.users,
   query: state.userListAdmin.query,

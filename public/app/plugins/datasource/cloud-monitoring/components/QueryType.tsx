@@ -1,8 +1,8 @@
 import React, { FunctionComponent } from 'react';
+import _ from 'lodash';
 import { SelectableValue } from '@grafana/data';
 import { Segment } from '@grafana/ui';
-import { QueryType } from '../types';
-import { QUERY_TYPES } from '../constants';
+import { QueryType, queryTypes } from '../types';
 
 export interface Props {
   value: QueryType;
@@ -15,9 +15,9 @@ export const QueryTypeSelector: FunctionComponent<Props> = ({ onChange, value, t
     <div className="gf-form-inline">
       <label className="gf-form-label query-keyword width-9">Query Type</label>
       <Segment
-        value={[...QUERY_TYPES, ...templateVariableOptions].find((qt) => qt.value === value)}
+        value={[...queryTypes, ...templateVariableOptions].find(qt => qt.value === value)}
         options={[
-          ...QUERY_TYPES,
+          ...queryTypes,
           {
             label: 'Template Variables',
             options: templateVariableOptions,

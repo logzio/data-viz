@@ -5,7 +5,9 @@ import React, { PureComponent } from 'react';
 import { getAngularLoader, AngularComponent } from '@grafana/runtime';
 
 // Types
-import { DataQuery, TimeRange, EventBusExtended } from '@grafana/data';
+import { Emitter } from 'app/core/utils/emitter';
+import { DataQuery } from '@grafana/data';
+import { TimeRange } from '@grafana/data';
 import 'app/features/plugins/plugin_loader';
 
 interface QueryEditorProps {
@@ -14,7 +16,7 @@ interface QueryEditorProps {
   onExecuteQuery?: () => void;
   onQueryChange?: (value: DataQuery) => void;
   initialQuery: DataQuery;
-  exploreEvents: EventBusExtended;
+  exploreEvents: Emitter;
   range: TimeRange;
   textEditModeEnabled?: boolean;
 }
@@ -29,7 +31,7 @@ export default class QueryEditor extends PureComponent<QueryEditorProps, any> {
       return;
     }
 
-    const { datasource, initialQuery, exploreEvents, range } = this.props;
+    const { datasource, initialQuery, exploreEvents } = this.props;
 
     const loader = getAngularLoader();
     const template = '<plugin-component type="query-ctrl"> </plugin-component>';
@@ -38,15 +40,8 @@ export default class QueryEditor extends PureComponent<QueryEditorProps, any> {
       ctrl: {
         datasource,
         target,
-        range,
         refresh: () => {
           setTimeout(() => {
-            // the "hide" attribute of the quries can be changed from the "outside",
-            // it will be applied to "this.props.initialQuery.hide", but not to "target.hide".
-            // so we have to apply it.
-            if (target.hide !== this.props.initialQuery.hide) {
-              target.hide = this.props.initialQuery.hide;
-            }
             this.props.onQueryChange?.(target);
             this.props.onExecuteQuery?.();
           }, 1);
@@ -80,10 +75,6 @@ export default class QueryEditor extends PureComponent<QueryEditorProps, any> {
         this.angularScope.toggleEditorMode();
       }
 
-      if (this.angularScope) {
-        this.angularScope.range = this.props.range;
-      }
-
       if (hasNewError || hasToggledEditorMode) {
         // Some query controllers listen to data error events and need a digest
         // for some reason this needs to be done in next tick
@@ -99,6 +90,6 @@ export default class QueryEditor extends PureComponent<QueryEditorProps, any> {
   }
 
   render() {
-    return <div className="gf-form-query" ref={(element) => (this.element = element)} style={{ width: '100%' }} />;
+    return <div className="gf-form-query" ref={element => (this.element = element)} style={{ width: '100%' }} />;
   }
 }

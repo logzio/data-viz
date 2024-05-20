@@ -52,8 +52,7 @@ function getParentSpanId(span, levels) {
 function attachReferences(spans, depth, spansPerLevel) {
   let levels = [[getSpanId(spans[0])]];
 
-  const duplicateLevelFilter = (currentLevels) => (span) =>
-    !currentLevels.find((level) => level.indexOf(span.spanID) >= 0);
+  const duplicateLevelFilter = currentLevels => span => !currentLevels.find(level => level.indexOf(span.spanID) >= 0);
 
   while (levels.length < depth) {
     const remainingSpans = spans.filter(duplicateLevelFilter(levels));
@@ -65,9 +64,9 @@ function attachReferences(spans, depth, spansPerLevel) {
   }
 
   // filter out empty levels
-  levels = levels.filter((level) => level.length > 0);
+  levels = levels.filter(level => level.length > 0);
 
-  return spans.map((span) => {
+  return spans.map(span => {
     const parentSpanId = getParentSpanId(span, levels);
     return parentSpanId
       ? {
@@ -141,8 +140,6 @@ export default chance.mixin({
       max: traceEndTime,
     });
 
-    const maxDuration = traceEndTime - startTime;
-
     return {
       traceID,
       processID: chance.pickone(Object.keys(processes)),
@@ -151,7 +148,7 @@ export default chance.mixin({
       operationName: chance.pickone(operations),
       references: [],
       startTime,
-      duration: chance.integer({ min: 1, max: maxDuration <= 1 ? 2 : maxDuration }),
+      duration: chance.integer({ min: 1, max: traceEndTime - startTime }),
       tags: chance.tags(),
       logs: [],
     };

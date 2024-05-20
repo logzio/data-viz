@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
-import { Select, Icon, Button } from '@grafana/ui';
+import { LegacyForms, Icon } from '@grafana/ui';
 import { dashboardPermissionLevels } from 'app/types/acl';
+const { Select } = LegacyForms;
 
 export interface Props {
   item: any;
@@ -9,7 +10,7 @@ export interface Props {
 export default class DisabledPermissionListItem extends Component<Props, any> {
   render() {
     const { item } = this.props;
-    const currentPermissionLevel = dashboardPermissionLevels.find((dp) => dp.value === item.permission);
+    const currentPermissionLevel = dashboardPermissionLevels.find(dp => dp.value === item.permission);
 
     return (
       <tr className="gf-form-disabled">
@@ -27,13 +28,16 @@ export default class DisabledPermissionListItem extends Component<Props, any> {
             <Select
               options={dashboardPermissionLevels}
               onChange={() => {}}
-              disabled={true}
+              isDisabled={true}
+              className="gf-form-select-box__control--menu-right"
               value={currentPermissionLevel}
             />
           </div>
         </td>
         <td>
-          <Button size="sm" disabled icon="lock" />
+          <button className="btn btn-inverse btn-small">
+            <Icon name="lock" />
+          </button>
         </td>
       </tr>
     );

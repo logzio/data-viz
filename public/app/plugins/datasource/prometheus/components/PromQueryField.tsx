@@ -1,38 +1,31 @@
+import _ from 'lodash';
 import React, { ReactNode } from 'react';
 
 import { Plugin } from 'slate';
 import {
+  ButtonCascader,
+  CascaderOption,
   SlatePrism,
   TypeaheadInput,
   TypeaheadOutput,
   QueryField,
   BracesPlugin,
-  DOMUtil,
-  SuggestionsState,
-  Icon,
 } from '@grafana/ui';
-import { Editor } from 'slate-react';
 
-import { LanguageMap, languages as prismLanguages } from 'prismjs';
+import Prism from 'prismjs';
 
 // dom also includes Element polyfills
-import { PromQuery, PromOptions } from '../types';
-import { roundMsToMin } from '../language_utils';
+import { PromQuery, PromOptions, PromMetricsMetadata } from '../types';
 import { CancelablePromise, makePromiseCancelable } from 'app/core/utils/CancelablePromise';
-import {
-  ExploreQueryFieldProps,
-  QueryHint,
-  isDataFrame,
-  toLegacyResponseData,
-  HistoryItem,
-  TimeRange,
-} from '@grafana/data';
+import { ExploreQueryFieldProps, QueryHint, isDataFrame, toLegacyResponseData, HistoryItem } from '@grafana/data';
+import { DOMUtil, SuggestionsState } from '@grafana/ui';
 import { PrometheusDatasource } from '../datasource';
-import { PrometheusMetricsBrowser } from './PrometheusMetricsBrowser';
 
+const HISTOGRAM_GROUP = '__histograms__';
+const PRISM_SYNTAX = 'promql';
 export const RECORDING_RULES_GROUP = '__recording_rules__';
 
-function getChooserText(metricsLookupDisabled: boolean, hasSyntax: boolean, hasMetrics: boolean) {
+function getChooserText(metricsLookupDisabled: boolean, hasSyntax: boolean, metrics: string[]) {
   if (metricsLookupDisabled) {
     return '(Disabled)';
   }
@@ -41,11 +34,56 @@ function getChooserText(metricsLookupDisabled: boolean, hasSyntax: boolean, hasM
     return 'Loading metrics...';
   }
 
-  if (!hasMetrics) {
+  if (metrics && metrics.length === 0) {
     return '(No metrics found)';
   }
 
-  return 'Metrics browser';
+  return 'Metrics';
+}
+
+function addMetricsMetadata(metric: string, metadata?: PromMetricsMetadata): CascaderOption {
+  const option: CascaderOption = { label: metric, value: metric };
+  if (metadata && metadata[metric]) {
+    const { type = '', help } = metadata[metric][0];
+    option.title = [metric, type.toUpperCase(), help].join('\n');
+  }
+  return option;
+}
+
+export function groupMetricsByPrefix(metrics: string[], metadata?: PromMetricsMetadata): CascaderOption[] {
+  // Filter out recording rules and insert as first option
+  const ruleRegex = /:\w+:/;
+  const ruleNames = metrics.filter(metric => ruleRegex.test(metric));
+  const rulesOption = {
+    label: 'Recording rules',
+    value: RECORDING_RULES_GROUP,
+    children: ruleNames
+      .slice()
+      .sort()
+      .map(name => ({ label: name, value: name })),
+  };
+
+  const options = ruleNames.length > 0 ? [rulesOption] : [];
+
+  const delimiter = '_';
+  const metricsOptions = _.chain(metrics)
+    .filter((metric: string) => !ruleRegex.test(metric))
+    .groupBy((metric: string) => metric.split(delimiter)[0])
+    .map(
+      (metricsForPrefix: string[], prefix: string): CascaderOption => {
+        const prefixIsMetric = metricsForPrefix.length === 1 && metricsForPrefix[0] === prefix;
+        const children = prefixIsMetric ? [] : metricsForPrefix.sort().map(m => addMetricsMetadata(m, metadata));
+        return {
+          children,
+          label: prefix,
+          value: prefix,
+        };
+      }
+    )
+    .sortBy('label')
+    .value();
+
+  return [...options, ...metricsOptions];
 }
 
 export function willApplySuggestion(suggestion: string, { typeaheadContext, typeaheadText }: SuggestionsState): string {
@@ -78,18 +116,16 @@ export function willApplySuggestion(suggestion: string, { typeaheadContext, type
 interface PromQueryFieldProps extends ExploreQueryFieldProps<PrometheusDatasource, PromQuery, PromOptions> {
   history: Array<HistoryItem<PromQuery>>;
   ExtraFieldElement?: ReactNode;
-  placeholder?: string;
-  'data-testid'?: string;
 }
 
 interface PromQueryFieldState {
-  labelBrowserVisible: boolean;
+  metricsOptions: any[];
   syntaxLoaded: boolean;
   hint: QueryHint | null;
 }
 
 class PromQueryField extends React.PureComponent<PromQueryFieldProps, PromQueryFieldState> {
-  plugins: Array<Plugin<Editor>>;
+  plugins: Plugin[];
   languageProviderInitializationPromise: CancelablePromise<any>;
 
   constructor(props: PromQueryFieldProps, context: React.Context<any>) {
@@ -97,17 +133,14 @@ class PromQueryField extends React.PureComponent<PromQueryFieldProps, PromQueryF
 
     this.plugins = [
       BracesPlugin(),
-      SlatePrism(
-        {
-          onlyIn: (node: any) => node.type === 'code_block',
-          getSyntax: (node: any) => 'promql',
-        },
-        { ...(prismLanguages as LanguageMap), promql: this.props.datasource.languageProvider.syntax }
-      ),
+      SlatePrism({
+        onlyIn: (node: any) => node.type === 'code_block',
+        getSyntax: (node: any) => 'promql',
+      }),
     ];
 
     this.state = {
-      labelBrowserVisible: false,
+      metricsOptions: [],
       syntaxLoaded: false,
       hint: null,
     };
@@ -133,17 +166,27 @@ class PromQueryField extends React.PureComponent<PromQueryFieldProps, PromQueryF
       range,
     } = this.props;
 
+    const rangeChanged =
+      range &&
+      prevProps.range &&
+      !_.isEqual(
+        { from: range.from.valueOf(), to: range.to.valueOf() },
+        {
+          from: prevProps.range.from.valueOf(),
+          to: prevProps.range.to.valueOf(),
+        }
+      );
+
     if (languageProvider !== prevProps.datasource.languageProvider) {
       // We reset this only on DS change so we do not flesh loading state on every rangeChange which happens on every
       // query run if using relative range.
       this.setState({
+        metricsOptions: [],
         syntaxLoaded: false,
       });
     }
 
-    const changedRangeToRefresh = this.rangeChangedToRefresh(range, prevProps.range);
-    // We want to refresh metrics when language provider changes and/or when range changes (we round up intervals to a minute)
-    if (languageProvider !== prevProps.datasource.languageProvider || changedRangeToRefresh) {
+    if (languageProvider !== prevProps.datasource.languageProvider || rangeChanged) {
       this.refreshMetrics();
     }
 
@@ -154,21 +197,24 @@ class PromQueryField extends React.PureComponent<PromQueryFieldProps, PromQueryF
 
   refreshHint = () => {
     const { datasource, query, data } = this.props;
-    const initHints = datasource.getInitHints();
-    const initHint = initHints.length > 0 ? initHints[0] : null;
 
     if (!data || data.series.length === 0) {
-      this.setState({
-        hint: initHint,
-      });
+      this.setState({ hint: null });
       return;
     }
 
     const result = isDataFrame(data.series[0]) ? data.series.map(toLegacyResponseData) : data.series;
-    const queryHints = datasource.getQueryHints(query, result);
-    let queryHint = queryHints.length > 0 ? queryHints[0] : null;
+    const hints = datasource.getQueryHints(query, result);
+    let hint = hints.length > 0 ? hints[0] : null;
 
-    this.setState({ hint: queryHint ?? initHint });
+    // Hint for big disabled lookups
+    if (!hint && !datasource.lookupsDisabled && datasource.languageProvider.lookupsDisabled) {
+      hint = {
+        label: `Dynamic label lookup is disabled for datasources with more than ${datasource.languageProvider.lookupMetricsThreshold} metrics.`,
+        type: 'INFO',
+      };
+    }
+    this.setState({ hint });
   };
 
   refreshMetrics = async () => {
@@ -176,6 +222,7 @@ class PromQueryField extends React.PureComponent<PromQueryFieldProps, PromQueryF
       datasource: { languageProvider },
     } = this.props;
 
+    Prism.languages[PRISM_SYNTAX] = languageProvider.syntax;
     this.languageProviderInitializationPromise = makePromiseCancelable(languageProvider.start());
 
     try {
@@ -189,22 +236,26 @@ class PromQueryField extends React.PureComponent<PromQueryFieldProps, PromQueryF
     }
   };
 
-  rangeChangedToRefresh(range?: TimeRange, prevRange?: TimeRange): boolean {
-    if (range && prevRange) {
-      const sameMinuteFrom = roundMsToMin(range.from.valueOf()) === roundMsToMin(prevRange.from.valueOf());
-      const sameMinuteTo = roundMsToMin(range.to.valueOf()) === roundMsToMin(prevRange.to.valueOf());
-      // If both are same, don't need to refresh.
-      return !(sameMinuteFrom && sameMinuteTo);
+  onChangeMetrics = (values: string[], selectedOptions: CascaderOption[]) => {
+    let query;
+    if (selectedOptions.length === 1) {
+      const selectedOption = selectedOptions[0];
+      if (!selectedOption.children || selectedOption.children.length === 0) {
+        query = selectedOption.value;
+      } else {
+        // Ignore click on group
+        return;
+      }
+    } else {
+      const prefix = selectedOptions[0].value;
+      const metric = selectedOptions[1].value;
+      if (prefix === HISTOGRAM_GROUP) {
+        query = `histogram_quantile(0.95, sum(rate(${metric}[5m])) by (le))`;
+      } else {
+        query = metric;
+      }
     }
-    return false;
-  }
-
-  /**
-   * TODO #33976: Remove this, add histogram group (query = `histogram_quantile(0.95, sum(rate(${metric}[5m])) by (le))`;)
-   */
-  onChangeLabelBrowser = (selector: string) => {
-    this.onChangeQuery(selector, true);
-    this.setState({ labelBrowserVisible: false });
+    this.onChangeQuery(query, true);
   };
 
   onChangeQuery = (value: string, override?: boolean) => {
@@ -220,10 +271,6 @@ class PromQueryField extends React.PureComponent<PromQueryFieldProps, PromQueryF
     }
   };
 
-  onClickChooserButton = () => {
-    this.setState((state) => ({ labelBrowserVisible: !state.labelBrowserVisible }));
-  };
-
   onClickHintFix = () => {
     const { datasource, query, onChange, onRunQuery } = this.props;
     const { hint } = this.state;
@@ -236,13 +283,24 @@ class PromQueryField extends React.PureComponent<PromQueryFieldProps, PromQueryF
     const {
       datasource: { languageProvider },
     } = this.props;
-    const { metrics } = languageProvider;
+    const { histogramMetrics, metrics, metricsMetadata } = languageProvider;
 
     if (!metrics) {
       return;
     }
 
-    this.setState({ syntaxLoaded: true });
+    // Build metrics tree
+    const metricsByPrefix = groupMetricsByPrefix(metrics, metricsMetadata);
+    const histogramOptions = histogramMetrics.map((hm: any) => ({ label: hm, value: hm }));
+    const metricsOptions =
+      histogramMetrics.length > 0
+        ? [
+            { label: 'Histograms', value: HISTOGRAM_GROUP, children: histogramOptions, isLeaf: false },
+            ...metricsByPrefix,
+          ]
+        : metricsByPrefix;
+
+    this.setState({ metricsOptions, syntaxLoaded: true });
   };
 
   onTypeahead = async (typeahead: TypeaheadInput): Promise<TypeaheadOutput> => {
@@ -271,30 +329,20 @@ class PromQueryField extends React.PureComponent<PromQueryFieldProps, PromQueryF
       datasource: { languageProvider },
       query,
       ExtraFieldElement,
-      placeholder = 'Enter a PromQL query (run with Shift+Enter)',
     } = this.props;
-
-    const { labelBrowserVisible, syntaxLoaded, hint } = this.state;
+    const { metricsOptions, syntaxLoaded, hint } = this.state;
     const cleanText = languageProvider ? languageProvider.cleanText : undefined;
-    const hasMetrics = languageProvider.metrics.length > 0;
-    const chooserText = getChooserText(datasource.lookupsDisabled, syntaxLoaded, hasMetrics);
-    const buttonDisabled = !(syntaxLoaded && hasMetrics);
+    const chooserText = getChooserText(datasource.lookupsDisabled, syntaxLoaded, metricsOptions);
+    const buttonDisabled = !(syntaxLoaded && metricsOptions && metricsOptions.length > 0);
 
     return (
       <>
-        <div
-          className="gf-form-inline gf-form-inline--xs-view-flex-column flex-grow-1"
-          data-testid={this.props['data-testid']}
-        >
-          <button
-            className="gf-form-label query-keyword pointer"
-            onClick={this.onClickChooserButton}
-            disabled={buttonDisabled}
-          >
-            {chooserText}
-            <Icon name={labelBrowserVisible ? 'angle-down' : 'angle-right'} />
-          </button>
-
+        <div className="gf-form-inline gf-form-inline--xs-view-flex-column flex-grow-1">
+          <div className="gf-form flex-shrink-0 min-width-5">
+            <ButtonCascader options={metricsOptions} disabled={buttonDisabled} onChange={this.onChangeMetrics}>
+              {chooserText}
+            </ButtonCascader>
+          </div>
           <div className="gf-form gf-form--grow flex-shrink-1 min-width-15">
             <QueryField
               additionalPlugins={this.plugins}
@@ -305,18 +353,12 @@ class PromQueryField extends React.PureComponent<PromQueryFieldProps, PromQueryF
               onBlur={this.props.onBlur}
               onChange={this.onChangeQuery}
               onRunQuery={this.props.onRunQuery}
-              placeholder={placeholder}
+              placeholder="Enter a PromQL query (run with Shift+Enter)"
               portalOrigin="prometheus"
               syntaxLoaded={syntaxLoaded}
             />
           </div>
         </div>
-        {labelBrowserVisible && (
-          <div className="gf-form">
-            <PrometheusMetricsBrowser languageProvider={languageProvider} onChange={this.onChangeLabelBrowser} />
-          </div>
-        )}
-
         {ExtraFieldElement}
         {hint ? (
           <div className="query-row-break">

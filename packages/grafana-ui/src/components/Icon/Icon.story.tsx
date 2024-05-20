@@ -1,13 +1,14 @@
 import React, { ChangeEvent, useState } from 'react';
-import { css } from '@emotion/css';
+import { css } from 'emotion';
+
 import { Input, Field, Icon } from '@grafana/ui';
 import { getAvailableIcons, IconName } from '../../types';
 import { withCenteredStory } from '../../utils/storybook/withCenteredStory';
-import { useTheme } from '../../themes';
+import { useTheme, selectThemeVariant } from '../../themes';
 import mdx from './Icon.mdx';
 
 export default {
-  title: 'General/Icon',
+  title: 'Docs Overview/Icon',
   component: Icon,
   decorators: [withCenteredStory],
   parameters: {
@@ -20,9 +21,15 @@ export default {
   },
 };
 
-const IconWrapper = ({ name }: { name: IconName }) => {
+const IconWrapper: React.FC<{ name: IconName }> = ({ name }) => {
   const theme = useTheme();
-  const borderColor = theme.colors.border2;
+  const borderColor = selectThemeVariant(
+    {
+      light: theme.palette.gray5,
+      dark: theme.palette.dark6,
+    },
+    theme.type
+  );
 
   return (
     <div
@@ -52,8 +59,7 @@ const IconWrapper = ({ name }: { name: IconName }) => {
   );
 };
 
-const icons = [...getAvailableIcons()];
-icons.sort((a, b) => a.localeCompare(b));
+const icons = getAvailableIcons().sort((a, b) => a.localeCompare(b));
 
 export const IconsOverview = () => {
   const [filter, setFilter] = useState('');
@@ -84,8 +90,8 @@ export const IconsOverview = () => {
         `}
       >
         {icons
-          .filter((val) => val.includes(filter))
-          .map((i) => {
+          .filter(val => val.includes(filter))
+          .map(i => {
             return <IconWrapper name={i} key={i} />;
           })}
       </div>

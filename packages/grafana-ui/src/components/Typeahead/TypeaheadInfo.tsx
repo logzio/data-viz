@@ -1,9 +1,8 @@
-import React from 'react';
-import { css, cx } from '@emotion/css';
+import React, { useContext } from 'react';
+import { css, cx } from 'emotion';
 
-import { GrafanaTheme, renderMarkdown } from '@grafana/data';
-import { useTheme } from '../../themes/ThemeContext';
-import { CompletionItem } from '../../types';
+import { CompletionItem, selectThemeVariant, ThemeContext } from '../..';
+import { GrafanaTheme, renderMarkdown, textUtil } from '@grafana/data';
 
 const getStyles = (theme: GrafanaTheme, height: number, visible: boolean) => {
   return {
@@ -12,13 +11,19 @@ const getStyles = (theme: GrafanaTheme, height: number, visible: boolean) => {
       z-index: 11;
       padding: ${theme.spacing.sm} ${theme.spacing.sm} ${theme.spacing.sm} ${theme.spacing.md};
       border-radius: ${theme.border.radius.md};
-      border: ${theme.colors.border2};
+      border: ${selectThemeVariant(
+        { light: `solid 1px ${theme.palette.gray5}`, dark: `solid 1px ${theme.palette.dark1}` },
+        theme.type
+      )};
       overflow-y: scroll;
       overflow-x: hidden;
       outline: none;
-      background: ${theme.colors.bg2};
+      background: ${selectThemeVariant({ light: theme.palette.white, dark: theme.palette.dark4 }, theme.type)};
       color: ${theme.colors.text};
-      box-shadow: 0 0 20px ${theme.colors.dropdownShadow};
+      box-shadow: ${selectThemeVariant(
+        { light: `0 5px 10px 0 ${theme.palette.gray5}`, dark: `0 5px 10px 0 ${theme.palette.black}` },
+        theme.type
+      )};
       visibility: ${visible === true ? 'visible' : 'hidden'};
       width: 250px;
       height: ${height + parseInt(theme.spacing.xxs, 10)}px;
@@ -36,8 +41,8 @@ interface Props {
 export const TypeaheadInfo: React.FC<Props> = ({ item, height }) => {
   const visible = item && !!item.documentation;
   const label = item ? item.label : '';
-  const documentation = renderMarkdown(item?.documentation);
-  const theme = useTheme();
+  const documentation = textUtil.sanitize(renderMarkdown(item?.documentation));
+  const theme = useContext(ThemeContext);
   const styles = getStyles(theme, height, visible);
 
   return (

@@ -1,25 +1,24 @@
 import React, { PureComponent } from 'react';
-import { css } from '@emotion/css';
+import { css } from 'emotion';
 
 import {
-  Button,
-  Field,
-  FieldSet,
-  Form,
-  Icon,
-  Label,
-  RadioButtonGroup,
   Select,
-  stylesFactory,
-  TimeZonePicker,
+  Field,
+  Form,
   Tooltip,
+  Icon,
+  stylesFactory,
+  Label,
+  Button,
+  RadioButtonGroup,
+  FieldSet,
+  TimeZonePicker,
 } from '@grafana/ui';
 import { SelectableValue } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 // LOGZ.IO GRAFANA CHANGE :: DEV-20609 Remove DashboardSearchItemType (remove default dashboard)
 import { DashboardSearchHit } from 'app/features/search/types';
 import { backendSrv } from 'app/core/services/backend_srv';
-import { PreferencesService } from 'app/core/services/PreferencesService';
 
 export interface Props {
   resourceUri: string;
@@ -39,12 +38,11 @@ const themes: SelectableValue[] = [
 ];
 
 export class SharedPreferences extends PureComponent<Props, State> {
-  service: PreferencesService;
+  backendSrv = backendSrv;
 
   constructor(props: Props) {
     super(props);
 
-    this.service = new PreferencesService(props.resourceUri);
     this.state = {
       homeDashboardId: 0,
       theme: '',
@@ -76,7 +74,7 @@ export class SharedPreferences extends PureComponent<Props, State> {
     // };
     // LOGZ.IO GRAFANA CHANGE :: end
 
-    if (prefs.homeDashboardId > 0 && !dashboards.find((d) => d.id === prefs.homeDashboardId)) {
+    if (prefs.homeDashboardId > 0 && !dashboards.find(d => d.id === prefs.homeDashboardId)) {
       const missing = await backendSrv.search({ dashboardIds: [prefs.homeDashboardId] });
       if (missing && missing.length > 0) {
         dashboards.push(missing[0]);
@@ -138,7 +136,7 @@ export class SharedPreferences extends PureComponent<Props, State> {
               <Field label="UI Theme">
                 <RadioButtonGroup
                   options={themes}
-                  value={themes.find((item) => item.value === theme)?.value}
+                  value={themes.find(item => item.value === theme)?.value}
                   onChange={this.onThemeChanged}
                 />
               </Field>
@@ -152,11 +150,10 @@ export class SharedPreferences extends PureComponent<Props, State> {
                     </Tooltip>
                   </Label>
                 }
-                aria-label="User preferences home dashboard drop down"
               >
                 <Select
-                  value={dashboards.find((dashboard) => dashboard.id === homeDashboardId)}
-                  getOptionValue={(i) => i.id}
+                  value={dashboards.find(dashboard => dashboard.id === homeDashboardId)}
+                  getOptionValue={i => i.id}
                   getOptionLabel={this.getFullDashName}
                   onChange={(dashboard: DashboardSearchHit) => this.onHomeDashboardChanged(dashboard.id)}
                   options={dashboards}
@@ -168,9 +165,7 @@ export class SharedPreferences extends PureComponent<Props, State> {
                 <TimeZonePicker includeInternal={true} value={timezone} onChange={this.onTimeZoneChanged} />
               </Field>
               <div className="gf-form-button-row">
-                <Button variant="primary" aria-label="User preferences save button">
-                  Save
-                </Button>
+                <Button variant="primary">Save</Button>
               </div>
             </FieldSet>
           );

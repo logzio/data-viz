@@ -1,4 +1,4 @@
-import { map as _map, uniq, chain } from 'lodash';
+import _ from 'lodash';
 import { map } from 'rxjs/operators';
 import { MetricFindValue, TimeRange } from '@grafana/data';
 import { PrometheusDatasource } from './datasource';
@@ -50,15 +50,15 @@ export default class PrometheusMetricFindQuery {
   labelNamesQuery() {
     const start = this.datasource.getPrometheusTime(this.range.from, false);
     const end = this.datasource.getPrometheusTime(this.range.to, true);
-    const params = {
+    const params = new URLSearchParams({
       start: start.toString(),
       end: end.toString(),
-    };
+    });
 
-    const url = `/api/v1/labels`;
+    const url = `/api/v1/labels?${params.toString()}`;
 
-    return this.datasource.metadataRequest(url, params).then((result: any) => {
-      return _map(result.data.data, (value) => {
+    return this.datasource.metadataRequest(url).then((result: any) => {
+      return _.map(result.data.data, value => {
         return { text: value };
       });
     });
@@ -74,19 +74,18 @@ export default class PrometheusMetricFindQuery {
     const isLabelResolving = (window as any).logzio.configs.featureFlags.grafanaV2LabelResolving;
 
     if (!metric) {
-      const params = {
+      const params = new URLSearchParams({
         start: start.toString(),
         end: end.toString(),
-      };
+      });
       // return label values globally
-      url = `/api/v1/label/${label}/values`;
+      url = `/api/v1/label/${label}/values?${params.toString()}`;
 
-      return this.datasource.metadataRequest(url, params).then((result: any) => {
-        return _map(result.data.data, (value) => {
+      return this.datasource.metadataRequest(url).then((result: any) => {
+        return _.map(result.data.data, value => {
           return { text: value };
         });
       });
-      // LOGZ.IO GRAFANA CHANGE :: DEV-26768 - Use new label resolving api for m3
     } else if (isLabelResolving) {
       const params = new URLSearchParams({
         'match[]': metric,
@@ -97,27 +96,27 @@ export default class PrometheusMetricFindQuery {
       url = `/api/v1/label/${label}/values?${params.toString()}`;
 
       return this.datasource.metadataRequest(url).then((result: any) => {
-        return _map(result.data.data, (value) => {
+        return _.map(result.data.data, value => {
           return { text: value };
         });
       });
       // LOGZ.IO GRAFANA CHANGE :: end
     } else {
-      const params = {
+      const params = new URLSearchParams({
         'match[]': metric,
         start: start.toString(),
         end: end.toString(),
-      };
-      url = `/api/v1/series`;
+      });
+      url = `/api/v1/series?${params.toString()}`;
 
-      return this.datasource.metadataRequest(url, params).then((result: any) => {
-        const _labels = _map(result.data.data, (metric) => {
+      return this.datasource.metadataRequest(url).then((result: any) => {
+        const _labels = _.map(result.data.data, metric => {
           return metric[label] || '';
-        }).filter((label) => {
+        }).filter(label => {
           return label !== '';
         });
 
-        return uniq(_labels).map((metric) => {
+        return _.uniq(_labels).map(metric => {
           return {
             text: metric,
             expandable: true,
@@ -130,19 +129,19 @@ export default class PrometheusMetricFindQuery {
   metricNameQuery(metricFilterPattern: string) {
     const start = this.datasource.getPrometheusTime(this.range.from, false);
     const end = this.datasource.getPrometheusTime(this.range.to, true);
-    const params = {
+    const params = new URLSearchParams({
       start: start.toString(),
       end: end.toString(),
-    };
-    const url = `/api/v1/label/__name__/values`;
+    });
+    const url = `/api/v1/label/__name__/values?${params.toString()}`;
 
-    return this.datasource.metadataRequest(url, params).then((result: any) => {
-      return chain(result.data.data)
-        .filter((metricName) => {
+    return this.datasource.metadataRequest(url).then((result: any) => {
+      return _.chain(result.data.data)
+        .filter(metricName => {
           const r = new RegExp(metricFilterPattern);
           return r.test(metricName);
         })
-        .map((matchedMetricName) => {
+        .map(matchedMetricName => {
           return {
             text: matchedMetricName,
             expandable: true,
@@ -156,13 +155,13 @@ export default class PrometheusMetricFindQuery {
     const end = this.datasource.getPrometheusTime(this.range.to, true);
     const instantQuery: PromQueryRequest = { expr: query } as PromQueryRequest;
     return this.datasource.performInstantQuery(instantQuery, end).pipe(
-      map((result) => {
-        return _map(result.data.data.result, (metricData) => {
+      map(result => {
+        return _.map(result.data.data.result, metricData => {
           let text = metricData.metric.__name__ || '';
           delete metricData.metric.__name__;
           text +=
             '{' +
-            _map(metricData.metric, (v, k) => {
+            _.map(metricData.metric, (v, k) => {
               return k + '="' + v + '"';
             }).join(',') +
             '}';
@@ -180,17 +179,17 @@ export default class PrometheusMetricFindQuery {
   metricNameAndLabelsQuery(query: string): Promise<MetricFindValue[]> {
     const start = this.datasource.getPrometheusTime(this.range.from, false);
     const end = this.datasource.getPrometheusTime(this.range.to, true);
-    const params = {
+    const params = new URLSearchParams({
       'match[]': query,
       start: start.toString(),
       end: end.toString(),
-    };
+    });
 
-    const url = `/api/v1/series`;
+    const url = `/api/v1/series?${params.toString()}`;
     const self = this;
 
-    return this.datasource.metadataRequest(url, params).then((result: any) => {
-      return _map(result.data.data, (metric: { [key: string]: string }) => {
+    return this.datasource.metadataRequest(url).then((result: any) => {
+      return _.map(result.data.data, (metric: { [key: string]: string }) => {
         return {
           text: self.datasource.getOriginalMetricName(metric),
           expandable: true,

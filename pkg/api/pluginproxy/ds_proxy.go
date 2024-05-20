@@ -2,6 +2,7 @@ package pluginproxy
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -13,16 +14,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
+	"golang.org/x/oauth2"
+
 	"github.com/grafana/grafana/pkg/api/datasource"
-	"github.com/grafana/grafana/pkg/infra/httpclient"
+	"github.com/grafana/grafana/pkg/bus"
 	glog "github.com/grafana/grafana/pkg/infra/log"
+	"github.com/grafana/grafana/pkg/login/social"
 	"github.com/grafana/grafana/pkg/models"
 	"github.com/grafana/grafana/pkg/plugins"
-	"github.com/grafana/grafana/pkg/services/oauthtoken"
 	"github.com/grafana/grafana/pkg/setting"
 	"github.com/grafana/grafana/pkg/util"
 	"github.com/grafana/grafana/pkg/util/proxyutil"
-	"github.com/opentracing/opentracing-go"
 )
 
 var (
@@ -31,14 +34,13 @@ var (
 )
 
 type DataSourceProxy struct {
-	ds             *models.DataSource
-	ctx            *models.ReqContext
-	targetUrl      *url.URL
-	proxyPath      string
-	route          *plugins.AppPluginRoute
-	plugin         *plugins.DataSourcePlugin
-	cfg            *setting.Cfg
-	clientProvider httpclient.Provider
+	ds        *models.DataSource
+	ctx       *models.ReqContext
+	targetUrl *url.URL
+	proxyPath string
+	route     *plugins.AppPluginRoute
+	plugin    *plugins.DataSourcePlugin
+	cfg       *setting.Cfg
 }
 
 type handleResponseTransport struct {
@@ -71,20 +73,19 @@ func (lw *logWrapper) Write(p []byte) (n int, err error) {
 
 // NewDataSourceProxy creates a new Datasource proxy
 func NewDataSourceProxy(ds *models.DataSource, plugin *plugins.DataSourcePlugin, ctx *models.ReqContext,
-	proxyPath string, cfg *setting.Cfg, clientProvider httpclient.Provider) (*DataSourceProxy, error) {
+	proxyPath string, cfg *setting.Cfg) (*DataSourceProxy, error) {
 	targetURL, err := datasource.ValidateURL(ds.Type, ds.Url)
 	if err != nil {
 		return nil, err
 	}
 
 	return &DataSourceProxy{
-		ds:             ds,
-		plugin:         plugin,
-		ctx:            ctx,
-		proxyPath:      proxyPath,
-		targetUrl:      targetURL,
-		cfg:            cfg,
-		clientProvider: clientProvider,
+		ds:        ds,
+		plugin:    plugin,
+		ctx:       ctx,
+		proxyPath: proxyPath,
+		targetUrl: targetURL,
+		cfg:       cfg,
 	}, nil
 }
 
@@ -104,7 +105,7 @@ func (proxy *DataSourceProxy) HandleRequest() {
 	proxyErrorLogger := logger.New("userId", proxy.ctx.UserId, "orgId", proxy.ctx.OrgId, "uname", proxy.ctx.Login,
 		"path", proxy.ctx.Req.URL.Path, "remote_addr", proxy.ctx.RemoteAddr(), "referer", proxy.ctx.Req.Referer())
 
-	transport, err := proxy.ds.GetHTTPTransport(proxy.clientProvider)
+	transport, err := proxy.ds.GetHttpTransport()
 	if err != nil {
 		proxy.ctx.JsonApiErr(400, "Unable to load TLS certificate", err)
 		return
@@ -147,9 +148,9 @@ func (proxy *DataSourceProxy) HandleRequest() {
 
 	proxy.ctx.Req.Request = proxy.ctx.Req.WithContext(ctx)
 
-	span.SetTag("datasource_name", proxy.ds.Name)
+	span.SetTag("datasource_id", proxy.ds.Id)
 	span.SetTag("datasource_type", proxy.ds.Type)
-	span.SetTag("user", proxy.ctx.SignedInUser.Login)
+	span.SetTag("user_id", proxy.ctx.SignedInUser.UserId)
 	span.SetTag("org_id", proxy.ctx.SignedInUser.OrgId)
 
 	proxy.addTraceFromHeaderValue(span, "X-Panel-Id", "panel_id")
@@ -182,27 +183,19 @@ func (proxy *DataSourceProxy) director(req *http.Request) {
 
 	switch proxy.ds.Type {
 	case models.DS_INFLUXDB_08:
-		req.URL.RawPath = util.JoinURLFragments(proxy.targetUrl.Path, "db/"+proxy.ds.Database+"/"+proxy.proxyPath)
+		req.URL.Path = util.JoinURLFragments(proxy.targetUrl.Path, "db/"+proxy.ds.Database+"/"+proxy.proxyPath)
 		reqQueryVals.Add("u", proxy.ds.User)
 		reqQueryVals.Add("p", proxy.ds.DecryptedPassword())
 		req.URL.RawQuery = reqQueryVals.Encode()
 	case models.DS_INFLUXDB:
-		req.URL.RawPath = util.JoinURLFragments(proxy.targetUrl.Path, proxy.proxyPath)
+		req.URL.Path = util.JoinURLFragments(proxy.targetUrl.Path, proxy.proxyPath)
 		req.URL.RawQuery = reqQueryVals.Encode()
 		if !proxy.ds.BasicAuth {
 			req.Header.Set("Authorization", util.GetBasicAuthHeader(proxy.ds.User, proxy.ds.DecryptedPassword()))
 		}
 	default:
-		req.URL.RawPath = util.JoinURLFragments(proxy.targetUrl.Path, proxy.proxyPath)
+		req.URL.Path = util.JoinURLFragments(proxy.targetUrl.Path, proxy.proxyPath)
 	}
-
-	unescapedPath, err := url.PathUnescape(req.URL.RawPath)
-	if err != nil {
-		logger.Error("Failed to unescape raw path", "rawPath", req.URL.RawPath, "error", err)
-		return
-	}
-
-	req.URL.Path = unescapedPath
 
 	if proxy.ds.BasicAuth {
 		req.Header.Set("Authorization", util.GetBasicAuthHeader(proxy.ds.BasicAuthUser,
@@ -234,30 +227,40 @@ func (proxy *DataSourceProxy) director(req *http.Request) {
 	req.Header.Del("Referer")
 
 	if proxy.route != nil {
-		ApplyRoute(proxy.ctx.Req.Context(), req, proxy.proxyPath, proxy.route, proxy.ds, proxy.cfg)
+		ApplyRoute(proxy.ctx.Req.Context(), req, proxy.proxyPath, proxy.route, proxy.ds)
 	}
 
-	if oauthtoken.IsOAuthPassThruEnabled(proxy.ds) {
-		if token := oauthtoken.GetCurrentOAuthToken(proxy.ctx.Req.Context(), proxy.ctx.SignedInUser); token != nil {
-			req.Header.Set("Authorization", fmt.Sprintf("%s %s", token.Type(), token.AccessToken))
-		}
+	if proxy.ds.JsonData != nil && proxy.ds.JsonData.Get("oauthPassThru").MustBool() {
+		addOAuthPassThruAuth(proxy.ctx, req)
 	}
 }
 
 func (proxy *DataSourceProxy) validateRequest() error {
 	if !checkWhiteList(proxy.ctx, proxy.targetUrl.Host) {
-		return errors.New("target URL is not a valid target")
+		return errors.New("Target url is not a valid target")
+	}
+
+	if proxy.ds.Type == models.DS_PROMETHEUS {
+		if proxy.ctx.Req.Request.Method == "DELETE" {
+			return errors.New("Deletes not allowed on proxied Prometheus datasource")
+		}
+		if proxy.ctx.Req.Request.Method == "PUT" {
+			return errors.New("Puts not allowed on proxied Prometheus datasource")
+		}
+		if proxy.ctx.Req.Request.Method == "POST" && !(proxy.proxyPath == "api/v1/query" || proxy.proxyPath == "api/v1/query_range") {
+			return errors.New("Posts not allowed on proxied Prometheus datasource except on /query and /query_range")
+		}
 	}
 
 	if proxy.ds.Type == models.DS_ES {
 		if proxy.ctx.Req.Request.Method == "DELETE" {
-			return errors.New("deletes not allowed on proxied Elasticsearch datasource")
+			return errors.New("Deletes not allowed on proxied Elasticsearch datasource")
 		}
 		if proxy.ctx.Req.Request.Method == "PUT" {
-			return errors.New("puts not allowed on proxied Elasticsearch datasource")
+			return errors.New("Puts not allowed on proxied Elasticsearch datasource")
 		}
 		if proxy.ctx.Req.Request.Method == "POST" && proxy.proxyPath != "_msearch" {
-			return errors.New("posts not allowed on proxied Elasticsearch datasource except on /_msearch")
+			return errors.New("Posts not allowed on proxied Elasticsearch datasource except on /_msearch")
 		}
 	}
 
@@ -269,32 +272,16 @@ func (proxy *DataSourceProxy) validateRequest() error {
 				continue
 			}
 
-			// route match
-			if !strings.HasPrefix(proxy.proxyPath, route.Path) {
-				continue
-			}
-
 			if route.ReqRole.IsValid() {
 				if !proxy.ctx.HasUserRole(route.ReqRole) {
-					return errors.New("plugin proxy route access denied")
+					return errors.New("Plugin proxy route access denied")
 				}
 			}
 
-			proxy.route = route
-			return nil
-		}
-	}
-
-	// Trailing validation below this point for routes that were not matched
-	if proxy.ds.Type == models.DS_PROMETHEUS {
-		if proxy.ctx.Req.Request.Method == "DELETE" {
-			return errors.New("non allow-listed DELETEs not allowed on proxied Prometheus datasource")
-		}
-		if proxy.ctx.Req.Request.Method == "PUT" {
-			return errors.New("non allow-listed PUTs not allowed on proxied Prometheus datasource")
-		}
-		if proxy.ctx.Req.Request.Method == "POST" {
-			return errors.New("non allow-listed POSTs not allowed on proxied Prometheus datasource")
+			if strings.HasPrefix(proxy.proxyPath, route.Path) {
+				proxy.route = route
+				break
+			}
 		}
 	}
 
@@ -334,4 +321,65 @@ func checkWhiteList(c *models.ReqContext, host string) bool {
 	}
 
 	return true
+}
+
+func addOAuthPassThruAuth(c *models.ReqContext, req *http.Request) {
+	authInfoQuery := &models.GetAuthInfoQuery{UserId: c.UserId}
+	if err := bus.Dispatch(authInfoQuery); err != nil {
+		logger.Error("Error fetching oauth information for user", "userid", c.UserId, "username", c.Login, "error", err)
+		return
+	}
+
+	authProvider := authInfoQuery.Result.AuthModule
+	connect, err := social.GetConnector(authProvider)
+	if err != nil {
+		logger.Error("Failed to get OAuth connector", "error", err)
+		return
+	}
+
+	persistedToken := &oauth2.Token{
+		AccessToken:  authInfoQuery.Result.OAuthAccessToken,
+		Expiry:       authInfoQuery.Result.OAuthExpiry,
+		RefreshToken: authInfoQuery.Result.OAuthRefreshToken,
+		TokenType:    authInfoQuery.Result.OAuthTokenType,
+	}
+
+	client, err := social.GetOAuthHttpClient(authProvider)
+	if err != nil {
+		logger.Error("Failed to create OAuth http client", "error", err)
+		return
+	}
+	oauthctx := context.WithValue(c.Req.Context(), oauth2.HTTPClient, client)
+
+	// TokenSource handles refreshing the token if it has expired
+	token, err := connect.TokenSource(oauthctx, persistedToken).Token()
+	if err != nil {
+		logger.Error("Failed to retrieve access token from OAuth provider", "provider", authInfoQuery.Result.AuthModule, "userid", c.UserId, "username", c.Login, "error", err)
+		return
+	}
+
+	// If the tokens are not the same, update the entry in the DB
+	if !tokensEq(persistedToken, token) {
+		updateAuthCommand := &models.UpdateAuthInfoCommand{
+			UserId:     authInfoQuery.Result.UserId,
+			AuthModule: authInfoQuery.Result.AuthModule,
+			AuthId:     authInfoQuery.Result.AuthId,
+			OAuthToken: token,
+		}
+		if err := bus.Dispatch(updateAuthCommand); err != nil {
+			logger.Error("Failed to update auth info during token refresh", "userid", c.UserId, "username", c.Login, "error", err)
+			return
+		}
+		logger.Debug("Updated OAuth info while proxying an OAuth pass-thru request", "userid", c.UserId, "username", c.Login)
+	}
+	req.Header.Del("Authorization")
+	req.Header.Add("Authorization", fmt.Sprintf("%s %s", token.Type(), token.AccessToken))
+}
+
+// tokensEq checks for OAuth2 token equivalence given the fields of the struct Grafana is interested in
+func tokensEq(t1, t2 *oauth2.Token) bool {
+	return t1.AccessToken == t2.AccessToken &&
+		t1.RefreshToken == t2.RefreshToken &&
+		t1.Expiry == t2.Expiry &&
+		t1.TokenType == t2.TokenType
 }

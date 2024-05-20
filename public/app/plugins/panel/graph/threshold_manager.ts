@@ -1,6 +1,6 @@
 import 'vendor/flot/jquery.flot';
 import $ from 'jquery';
-import { isNumber } from 'lodash';
+import _ from 'lodash';
 import { getColorForTheme } from '@grafana/data';
 import { CoreEvents } from 'app/types';
 import { PanelCtrl } from 'app/features/panel/panel_ctrl';
@@ -11,7 +11,7 @@ export class ThresholdManager {
   placeholder: any;
   height: any;
   thresholds: any;
-  needsCleanup = false;
+  needsCleanup: boolean;
   hasSecondYAxis: any;
 
   constructor(private panelCtrl: PanelCtrl) {}
@@ -87,17 +87,12 @@ export class ThresholdManager {
 
   renderHandle(handleIndex: number, defaultHandleTopPos: number) {
     const model = this.thresholds[handleIndex];
-    // alerting defines
-    if (!model.visible && (this.panelCtrl as any).alert) {
-      return;
-    }
-
     const value = model.value;
     let valueStr = value;
     let handleTopPos = 0;
 
     // handle no value
-    if (!isNumber(value)) {
+    if (!_.isNumber(value)) {
       valueStr = '';
       handleTopPos = defaultHandleTopPos;
     } else {
@@ -172,7 +167,7 @@ export class ThresholdManager {
 
     for (i = 0; i < panel.thresholds.length; i++) {
       threshold = panel.thresholds[i];
-      if (!isNumber(threshold.value)) {
+      if (!_.isNumber(threshold.value)) {
         continue;
       }
 

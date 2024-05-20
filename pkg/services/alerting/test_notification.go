@@ -3,8 +3,6 @@ package alerting
 import (
 	"context"
 	"fmt"
-	"math/rand"
-	"net/http"
 	"time"  // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - import time
 
 	"github.com/grafana/grafana/pkg/components/securejsondata"
@@ -33,10 +31,10 @@ var (
 )
 
 func init() {
-	bus.AddHandlerCtx("alerting", handleNotificationTestCommand)
+	bus.AddHandler("alerting", handleNotificationTestCommand)
 }
 
-func handleNotificationTestCommand(ctx context.Context, cmd *NotificationTestCommand) error {
+func handleNotificationTestCommand(cmd *NotificationTestCommand) error {
 	notifier := newNotificationService(nil)
 
 	model := &models.AlertNotification{
@@ -84,17 +82,15 @@ func createTestEvalContext(cmd *NotificationTestCommand) *EvalContext {
 		Name:        "Test notification",
 		Message:     "Someone is testing the alert notification within Grafana.",
 		State:       models.AlertStateAlerting,
-		ID:          rand.Int63(),
 	}
 
-  	// LOGZ.IO GRAFANA CHANGE :: DEV-17927 - Add time.now()
-  	ctx := NewEvalContext(context.Background(), testRule, time.Now(), fakeRequestValidator{})
+	ctx := NewEvalContext(context.Background(), testRule, time.Now())  // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - Add time.now()
 	if cmd.Settings.Get("uploadImage").MustBool(true) {
 		ctx.ImagePublicURL = "https://grafana.com/assets/img/blog/mixed_styles.png"
 	}
 	ctx.IsTestRun = true
 	ctx.Firing = true
-	ctx.Error = fmt.Errorf("this is only a test")
+	ctx.Error = fmt.Errorf("This is only a test")
 	ctx.EvalMatches = evalMatchesBasedOnState()
 
 	return ctx
@@ -113,10 +109,4 @@ func evalMatchesBasedOnState() []*EvalMatch {
 	})
 
 	return matches
-}
-
-type fakeRequestValidator struct{}
-
-func (fakeRequestValidator) Validate(_ string, _ *http.Request) error {
-	return nil
 }

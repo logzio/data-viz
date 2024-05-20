@@ -68,7 +68,6 @@ input[type='text'].tight-form-func-param {
 .rst-unknown.rst-directive {
   font-family: monospace;
   margin-bottom: $space-md;
-  word-wrap: break-word;
 }
 
 .rst-interpreted_text {
@@ -107,6 +106,16 @@ input[type='text'].tight-form-func-param {
       color: $text-color-weak;
     }
   }
+}
+
+.query-editor-row__header {
+  display: flex;
+  padding: 4px 0px 4px 8px;
+  position: relative;
+  height: 35px;
+  background: $input-label-bg;
+  flex-wrap: nowrap;
+  align-items: center;
 }
 
 .query-editor-row__action {

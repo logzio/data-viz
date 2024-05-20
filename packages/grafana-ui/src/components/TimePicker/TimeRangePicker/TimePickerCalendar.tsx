@@ -1,36 +1,38 @@
-import React, { FormEvent, memo, useCallback } from 'react';
-import { css } from '@emotion/css';
+import React, { FormEvent, memo, useCallback, useEffect, useState } from 'react';
+import { css } from 'emotion';
 import Calendar from 'react-calendar/dist/entry.nostyle';
-import { dateTime, DateTime, dateTimeParse, GrafanaTheme2, TimeZone } from '@grafana/data';
-import { stylesFactory, useTheme2 } from '../../../themes';
+import { dateTime, DateTime, dateTimeParse, GrafanaTheme, TimeZone } from '@grafana/data';
+import { stylesFactory, useTheme } from '../../../themes';
 import { TimePickerTitle } from './TimePickerTitle';
 import { Button } from '../../Button';
 import { Icon } from '../../Icon/Icon';
 import { Portal } from '../../Portal/Portal';
 import { ClickOutsideWrapper } from '../../ClickOutsideWrapper/ClickOutsideWrapper';
 
-const getStyles = stylesFactory((theme: GrafanaTheme2, isReversed = false) => {
+const getStyles = stylesFactory((theme: GrafanaTheme, isReversed = false) => {
+  const containerBorder = theme.isDark ? theme.palette.dark9 : theme.palette.gray5;
+
   return {
     container: css`
       top: -1px;
       position: absolute;
       ${isReversed ? 'left' : 'right'}: 544px;
-      box-shadow: ${theme.shadows.z3};
-      background-color: ${theme.colors.background.primary};
+      box-shadow: ${isReversed ? '10px' : '0px'} 0px 20px ${theme.colors.dropdownShadow};
+      background-color: ${theme.colors.bodyBg};
       z-index: -1;
-      border: 1px solid ${theme.colors.border.weak};
+      border: 1px solid ${containerBorder};
       border-radius: 2px 0 0 2px;
 
       &:after {
         display: block;
-        background-color: ${theme.colors.background.primary};
+        background-color: ${theme.colors.bodyBg};
         width: 19px;
         height: 100%;
         content: ${!isReversed ? ' ' : ''};
         position: absolute;
         top: 0;
         right: -19px;
-        border-left: 1px solid ${theme.colors.border.weak};
+        border-left: 1px solid ${theme.colors.border1};
       }
     `,
     modal: css`
@@ -57,10 +59,10 @@ const getStyles = stylesFactory((theme: GrafanaTheme2, isReversed = false) => {
   };
 });
 
-const getFooterStyles = stylesFactory((theme: GrafanaTheme2) => {
+const getFooterStyles = stylesFactory((theme: GrafanaTheme) => {
   return {
     container: css`
-      background-color: ${theme.colors.background.primary};
+      background-color: ${theme.colors.bodyBg};
       display: flex;
       justify-content: center;
       padding: 10px;
@@ -74,11 +76,11 @@ const getFooterStyles = stylesFactory((theme: GrafanaTheme2) => {
   };
 });
 
-const getBodyStyles = stylesFactory((theme: GrafanaTheme2) => {
+const getBodyStyles = stylesFactory((theme: GrafanaTheme) => {
   return {
     title: css`
       color: ${theme.colors.text};
-      background-color: ${theme.colors.background.primary};
+      background-color: ${theme.colors.bodyBg};
       font-size: ${theme.typography.size.md};
       border: 1px solid transparent;
 
@@ -88,7 +90,7 @@ const getBodyStyles = stylesFactory((theme: GrafanaTheme2) => {
     `,
     body: css`
       z-index: ${theme.zIndex.modal};
-      background-color: ${theme.colors.background.primary};
+      background-color: ${theme.colors.bodyBg};
       width: 268px;
 
       .react-calendar__navigation__label,
@@ -98,13 +100,13 @@ const getBodyStyles = stylesFactory((theme: GrafanaTheme2) => {
         background-color: inherit;
         color: ${theme.colors.text};
         border: 0;
-        font-weight: ${theme.typography.fontWeightMedium};
+        font-weight: ${theme.typography.weight.semibold};
       }
 
       .react-calendar__month-view__weekdays {
         background-color: inherit;
         text-align: center;
-        color: ${theme.colors.primary.text};
+        color: ${theme.palette.blue77};
 
         abbr {
           border: 0;
@@ -134,9 +136,9 @@ const getBodyStyles = stylesFactory((theme: GrafanaTheme2) => {
 
       .react-calendar__tile--active,
       .react-calendar__tile--active:hover {
-        color: ${theme.colors.primary.contrastText};
-        font-weight: ${theme.typography.fontWeightMedium};
-        background: ${theme.colors.primary.main};
+        color: ${theme.palette.white};
+        font-weight: ${theme.typography.weight.semibold};
+        background: ${theme.palette.blue95};
         box-shadow: none;
         border: 0px;
       }
@@ -145,12 +147,12 @@ const getBodyStyles = stylesFactory((theme: GrafanaTheme2) => {
       .react-calendar__tile--rangeStart {
         padding: 0;
         border: 0px;
-        color: ${theme.colors.primary.contrastText};
-        font-weight: ${theme.typography.fontWeightMedium};
-        background: ${theme.colors.primary.main};
+        color: ${theme.palette.white};
+        font-weight: ${theme.typography.weight.semibold};
+        background: ${theme.palette.blue95};
 
         abbr {
-          background-color: ${theme.colors.primary.main};
+          background-color: ${theme.palette.blue77};
           border-radius: 100px;
           display: block;
           padding-top: 2px;
@@ -171,10 +173,10 @@ const getBodyStyles = stylesFactory((theme: GrafanaTheme2) => {
   };
 });
 
-const getHeaderStyles = stylesFactory((theme: GrafanaTheme2) => {
+const getHeaderStyles = stylesFactory((theme: GrafanaTheme) => {
   return {
     container: css`
-      background-color: ${theme.colors.background.primary};
+      background-color: ${theme.colors.bodyBg};
       display: flex;
       justify-content: space-between;
       padding: 7px;
@@ -196,8 +198,8 @@ interface Props {
 
 const stopPropagation = (event: React.MouseEvent<HTMLDivElement>) => event.stopPropagation();
 
-export const TimePickerCalendar = memo<Props>((props) => {
-  const theme = useTheme2();
+export const TimePickerCalendar = memo<Props>(props => {
+  const theme = useTheme();
   const styles = getStyles(theme, props.isReversed);
   const { isOpen, isFullscreen } = props;
 
@@ -229,10 +231,8 @@ export const TimePickerCalendar = memo<Props>((props) => {
   );
 });
 
-TimePickerCalendar.displayName = 'TimePickerCalendar';
-
 const Header = memo<Props>(({ onClose }) => {
-  const theme = useTheme2();
+  const theme = useTheme();
   const styles = getHeaderStyles(theme);
 
   return (
@@ -243,13 +243,15 @@ const Header = memo<Props>(({ onClose }) => {
   );
 });
 
-Header.displayName = 'Header';
-
 const Body = memo<Props>(({ onChange, from, to, timeZone }) => {
-  const value = inputToValue(from, to);
-  const theme = useTheme2();
+  const [value, setValue] = useState<Date[]>();
+  const theme = useTheme();
   const onCalendarChange = useOnCalendarChange(onChange, timeZone);
   const styles = getBodyStyles(theme);
+
+  useEffect(() => {
+    setValue(inputToValue(from, to));
+  }, []);
 
   return (
     <Calendar
@@ -267,10 +269,8 @@ const Body = memo<Props>(({ onChange, from, to, timeZone }) => {
   );
 });
 
-Body.displayName = 'Body';
-
 const Footer = memo<Props>(({ onClose, onApply }) => {
-  const theme = useTheme2();
+  const theme = useTheme();
   const styles = getFooterStyles(theme);
 
   return (
@@ -284,8 +284,6 @@ const Footer = memo<Props>(({ onClose, onApply }) => {
     </div>
   );
 });
-
-Footer.displayName = 'Footer';
 
 export function inputToValue(from: DateTime, to: DateTime, invalidDateDefault: Date = new Date()): Date[] {
   const fromAsDate = from.toDate();
@@ -311,7 +309,7 @@ function useOnCalendarChange(onChange: (from: DateTime, to: DateTime) => void, t
 
       onChange(from, to);
     },
-    [onChange, timeZone]
+    [onChange]
   );
 }
 

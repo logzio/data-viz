@@ -32,7 +32,7 @@ describe('QueryOperationRow', () => {
       const onOpenSpy = jest.fn();
       const onCloseSpy = jest.fn();
       const wrapper = mount(
-        <QueryOperationRow title="title" onOpen={onOpenSpy} onClose={onCloseSpy} isOpen={false} id="test-id" index={0}>
+        <QueryOperationRow onOpen={onOpenSpy} onClose={onCloseSpy} isOpen={false} id="test-id" index={0}>
           <div>Test</div>
         </QueryOperationRow>
       );
@@ -56,11 +56,11 @@ describe('QueryOperationRow', () => {
     });
   });
 
-  describe('headerElement rendering', () => {
-    it('should render headerElement provided as element', () => {
+  describe('title rendering', () => {
+    it('should render title provided as element', () => {
       const title = <div aria-label="test title">Test</div>;
       const wrapper = shallow(
-        <QueryOperationRow headerElement={title} id="test-id" index={0}>
+        <QueryOperationRow title={title} id="test-id" index={0}>
           <div>Test</div>
         </QueryOperationRow>
       );
@@ -68,11 +68,10 @@ describe('QueryOperationRow', () => {
       const titleEl = wrapper.find({ 'aria-label': 'test title' });
       expect(titleEl).toHaveLength(1);
     });
-
-    it('should render headerElement provided as function', () => {
+    it('should render title provided as function', () => {
       const title = () => <div aria-label="test title">Test</div>;
       const wrapper = shallow(
-        <QueryOperationRow headerElement={title} id="test-id" index={0}>
+        <QueryOperationRow title={title} id="test-id" index={0}>
           <div>Test</div>
         </QueryOperationRow>
       );
@@ -81,14 +80,14 @@ describe('QueryOperationRow', () => {
       expect(titleEl).toHaveLength(1);
     });
 
-    it('should expose api to headerElement rendered as function', () => {
+    it('should expose api to title rendered as function', () => {
       const propsSpy = jest.fn();
       const title = (props: any) => {
         propsSpy(props);
         return <div aria-label="test title">Test</div>;
       };
       shallow(
-        <QueryOperationRow headerElement={title} id="test-id" index={0}>
+        <QueryOperationRow title={title} id="test-id" index={0}>
           <div>Test</div>
         </QueryOperationRow>
       );
@@ -133,7 +132,9 @@ describe('QueryOperationRow', () => {
         </QueryOperationRow>
       );
 
-      expect(Object.keys(propsSpy.mock.calls[0][0])).toEqual(['isOpen', 'onOpen', 'onClose']);
+      expect(Object.keys(propsSpy.mock.calls[0][0])).toContainEqual('isOpen');
+      expect(Object.keys(propsSpy.mock.calls[0][0])).toContainEqual('openRow');
+      expect(Object.keys(propsSpy.mock.calls[0][0])).toContainEqual('closeRow');
     });
   });
 });

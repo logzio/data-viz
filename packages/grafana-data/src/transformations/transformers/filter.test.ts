@@ -5,6 +5,7 @@ import { FieldMatcherID } from '../matchers/ids';
 import { mockTransformationsRegistry } from '../../utils/tests/mockTransformationsRegistry';
 import { filterFieldsTransformer } from './filter';
 import { transformDataFrame } from '../transformDataFrame';
+import { observableTester } from '../../utils/tests/observableTester';
 
 export const simpleSeriesWithTypes = toDataFrame({
   fields: [
@@ -20,7 +21,7 @@ describe('Filter Transformer', () => {
     mockTransformationsRegistry([filterFieldsTransformer]);
   });
 
-  it('filters by include', async () => {
+  it('filters by include', done => {
     const cfg = {
       id: DataTransformerID.filterFields,
       options: {
@@ -28,11 +29,14 @@ describe('Filter Transformer', () => {
       },
     };
 
-    await expect(transformDataFrame([cfg], [simpleSeriesWithTypes])).toEmitValuesWith((received) => {
-      const data = received[0];
-      const filtered = data[0];
-      expect(filtered.fields.length).toBe(1);
-      expect(filtered.fields[0].name).toBe('D');
+    observableTester().subscribeAndExpectOnNext({
+      observable: transformDataFrame([cfg], [simpleSeriesWithTypes]),
+      expect: data => {
+        const filtered = data[0];
+        expect(filtered.fields.length).toBe(1);
+        expect(filtered.fields[0].name).toBe('D');
+      },
+      done,
     });
   });
 });

@@ -1,12 +1,13 @@
 import React, { PureComponent } from 'react';
-import { css } from '@emotion/css';
-import { Select, Alert, Label, stylesFactory } from '@grafana/ui';
+import { css } from 'emotion';
+import { Select, FeatureInfoBox, Label, stylesFactory } from '@grafana/ui';
 import {
   LiveChannelScope,
   LiveChannelAddress,
   LiveChannelSupport,
   SelectableValue,
   StandardEditorProps,
+  FeatureState,
   GrafanaTheme,
 } from '@grafana/data';
 
@@ -50,11 +51,18 @@ export class LiveChannelEditor extends PureComponent<Props, State> {
     const srv = getGrafanaLiveCentrifugeSrv();
     const namespaces = await srv.scopes[scope].listNamespaces();
     const support = namespace ? await srv.scopes[scope].getChannelSupport(namespace) : undefined;
+    const paths = support ? await support.getSupportedPaths() : undefined;
 
     this.setState({
       namespaces,
       support,
-      paths: [],
+      paths: paths
+        ? paths.map(p => ({
+            label: p.path,
+            value: p.path,
+            description: p.description,
+          }))
+        : [],
     });
   }
 
@@ -99,15 +107,17 @@ export class LiveChannelEditor extends PureComponent<Props, State> {
 
     return (
       <>
-        <Alert title="Grafana Live" severity="info">
-          This supports real-time event streams in grafana core. This feature is under heavy development. Expect the
-          intefaces and structures to change as this becomes more production ready.
-        </Alert>
+        <FeatureInfoBox title="Grafana Live" featureState={FeatureState.alpha}>
+          <p>
+            This supports real-time event streams in grafana core. This feature is under heavy development. Expect the
+            intefaces and structures to change as this becomes more production ready.
+          </p>
+        </FeatureInfoBox>
 
         <div>
           <div className={style.dropWrap}>
             <Label>Scope</Label>
-            <Select options={scopes} value={scopes.find((s) => s.value === scope)} onChange={this.onScopeChanged} />
+            <Select options={scopes} value={scopes.find(s => s.value === scope)} onChange={this.onScopeChanged} />
           </div>
 
           {scope && (
@@ -116,7 +126,7 @@ export class LiveChannelEditor extends PureComponent<Props, State> {
               <Select
                 options={namespaces}
                 value={
-                  namespaces.find((s) => s.value === namespace) ??
+                  namespaces.find(s => s.value === namespace) ??
                   (namespace ? { label: namespace, value: namespace } : undefined)
                 }
                 onChange={this.onNamespaceChanged}
@@ -145,7 +155,7 @@ export class LiveChannelEditor extends PureComponent<Props, State> {
 }
 
 function findPathOption(paths: Array<SelectableValue<string>>, path?: string): SelectableValue<string> | undefined {
-  const v = paths.find((s) => s.value === path);
+  const v = paths.find(s => s.value === path);
   if (v) {
     return v;
   }

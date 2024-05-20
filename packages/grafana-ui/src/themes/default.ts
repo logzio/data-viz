@@ -32,7 +32,7 @@ const theme: GrafanaThemeCommons = {
   typography: {
     fontFamily: {
       sansSerif: "'Roboto', 'Helvetica Neue', Arial, sans-serif",
-      monospace: "'Roboto Mono', monospace",
+      monospace: "Menlo, Monaco, Consolas, 'Courier New', monospace",
     },
     size: {
       base: '14px',
@@ -53,7 +53,7 @@ const theme: GrafanaThemeCommons = {
       light: 300,
       regular: 400,
       semibold: 500,
-      bold: 500,
+      bold: 600,
     },
     lineHeight: {
       xs: 1,
@@ -75,7 +75,6 @@ const theme: GrafanaThemeCommons = {
     xxl: '1440px',
   },
   spacing: {
-    base: SPACING_BASE,
     insetSquishMd: '4px 8px',
     d: '16px',
     xxs: '2px',

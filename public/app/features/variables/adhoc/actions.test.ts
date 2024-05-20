@@ -3,7 +3,8 @@ import { DataSourcePluginMeta, DataSourceSelectItem } from '@grafana/data';
 import { variableAdapters } from '../adapters';
 import { createAdHocVariableAdapter } from './adapter';
 import { reduxTester } from '../../../../test/core/redux/reduxTester';
-import { getRootReducer, RootReducerType } from '../state/helpers';
+import { TemplatingState } from 'app/features/variables/state/reducers';
+import { getRootReducer } from '../state/helpers';
 import { toVariableIdentifier, toVariablePayload } from '../state/types';
 import {
   addFilter,
@@ -17,21 +18,27 @@ import {
 } from './actions';
 import { filterAdded, filterRemoved, filtersRestored, filterUpdated } from './reducer';
 import { addVariable, changeVariableProp } from '../state/sharedReducer';
+import { updateLocation } from 'app/core/actions';
+import { DashboardState, LocationState } from 'app/types';
 import { VariableModel } from 'app/features/variables/types';
 import { changeVariableEditorExtended, setIdInEditor } from '../editor/reducer';
 import { adHocBuilder } from '../shared/testing/builders';
-import { locationService } from '@grafana/runtime';
 
 const getMetricSources = jest.fn().mockReturnValue([]);
 const getDatasource = jest.fn().mockResolvedValue({});
 
-locationService.partial = jest.fn();
 jest.mock('app/features/plugins/datasource_srv', () => ({
   getDatasourceSrv: jest.fn(() => ({
     get: getDatasource,
     getMetricSources,
   })),
 }));
+
+type ReducersUsedInContext = {
+  templating: TemplatingState;
+  dashboard: DashboardState;
+  location: LocationState;
+};
 
 variableAdapters.setInit(() => [createAdHocVariableAdapter()]);
 
@@ -59,7 +66,7 @@ describe('adhoc actions', () => {
         .withDatasource(options.datasource)
         .build();
 
-      const tester = await reduxTester<RootReducerType>()
+      const tester = await reduxTester<ReducersUsedInContext>()
         .givenRootReducer(getRootReducer())
         .whenActionIsDispatched(createAddVariableAction(variable))
         .whenAsyncActionIsDispatched(applyFilterFromTable(options), true);
@@ -67,9 +74,10 @@ describe('adhoc actions', () => {
       const expectedQuery = { 'var-Filters': ['filter-key|!=|filter-existing', 'filter-key|=|filter-value'] };
       const expectedFilter = { key: 'filter-key', value: 'filter-value', operator: '=', condition: '' };
 
-      tester.thenDispatchedActionsShouldEqual(filterAdded(toVariablePayload(variable, expectedFilter)));
-
-      expect(locationService.partial).toHaveBeenLastCalledWith(expectedQuery);
+      tester.thenDispatchedActionsShouldEqual(
+        filterAdded(toVariablePayload(variable, expectedFilter)),
+        updateLocation({ query: expectedQuery })
+      );
     });
   });
 
@@ -82,21 +90,24 @@ describe('adhoc actions', () => {
         operator: '=',
       };
 
-      const tester = await reduxTester<RootReducerType>()
+      const tester = await reduxTester<ReducersUsedInContext>()
         .givenRootReducer(getRootReducer())
         .whenAsyncActionIsDispatched(applyFilterFromTable(options), true);
 
-      const variable = adHocBuilder().withId('Filters').withName('Filters').withDatasource(options.datasource).build();
+      const variable = adHocBuilder()
+        .withId('Filters')
+        .withName('Filters')
+        .withDatasource(options.datasource)
+        .build();
 
       const expectedQuery = { 'var-Filters': ['filter-key|=|filter-value'] };
       const expectedFilter = { key: 'filter-key', value: 'filter-value', operator: '=', condition: '' };
 
       tester.thenDispatchedActionsShouldEqual(
         createAddVariableAction(variable),
-        filterAdded(toVariablePayload(variable, expectedFilter))
+        filterAdded(toVariablePayload(variable, expectedFilter)),
+        updateLocation({ query: expectedQuery })
       );
-
-      expect(locationService.partial).toHaveBeenLastCalledWith(expectedQuery);
     });
   });
 
@@ -116,7 +127,7 @@ describe('adhoc actions', () => {
         .withDatasource(options.datasource)
         .build();
 
-      const tester = await reduxTester<RootReducerType>()
+      const tester = await reduxTester<ReducersUsedInContext>()
         .givenRootReducer(getRootReducer())
         .whenActionIsDispatched(createAddVariableAction(variable))
         .whenAsyncActionIsDispatched(applyFilterFromTable(options), true);
@@ -124,8 +135,10 @@ describe('adhoc actions', () => {
       const expectedFilter = { key: 'filter-key', value: 'filter-value', operator: '=', condition: '' };
       const expectedQuery = { 'var-Filters': ['filter-key|=|filter-value'] };
 
-      tester.thenDispatchedActionsShouldEqual(filterAdded(toVariablePayload(variable, expectedFilter)));
-      expect(locationService.partial).toHaveBeenLastCalledWith(expectedQuery);
+      tester.thenDispatchedActionsShouldEqual(
+        filterAdded(toVariablePayload(variable, expectedFilter)),
+        updateLocation({ query: expectedQuery })
+      );
     });
   });
 
@@ -144,9 +157,13 @@ describe('adhoc actions', () => {
         .withDatasource('elasticsearch')
         .build();
 
-      const variable = adHocBuilder().withId('Filters').withName('Filters').withDatasource(options.datasource).build();
+      const variable = adHocBuilder()
+        .withId('Filters')
+        .withName('Filters')
+        .withDatasource(options.datasource)
+        .build();
 
-      const tester = await reduxTester<RootReducerType>()
+      const tester = await reduxTester<ReducersUsedInContext>()
         .givenRootReducer(getRootReducer())
         .whenActionIsDispatched(createAddVariableAction(existing))
         .whenAsyncActionIsDispatched(applyFilterFromTable(options), true);
@@ -156,10 +173,9 @@ describe('adhoc actions', () => {
 
       tester.thenDispatchedActionsShouldEqual(
         createAddVariableAction(variable, 1),
-        filterAdded(toVariablePayload(variable, expectedFilter))
+        filterAdded(toVariablePayload(variable, expectedFilter)),
+        updateLocation({ query: expectedQuery })
       );
-
-      expect(locationService.partial).toHaveBeenLastCalledWith(expectedQuery);
     });
   });
 
@@ -186,7 +202,7 @@ describe('adhoc actions', () => {
 
       const update = { index: 0, filter: updated };
 
-      const tester = await reduxTester<RootReducerType>()
+      const tester = await reduxTester<ReducersUsedInContext>()
         .givenRootReducer(getRootReducer())
         .whenActionIsDispatched(createAddVariableAction(variable))
         .whenAsyncActionIsDispatched(changeFilter('elastic-filter', update), true);
@@ -194,9 +210,10 @@ describe('adhoc actions', () => {
       const expectedQuery = { 'var-elastic-filter': ['key|!=|value'] };
       const expectedUpdate = { index: 0, filter: updated };
 
-      tester.thenDispatchedActionsShouldEqual(filterUpdated(toVariablePayload(variable, expectedUpdate)));
-
-      expect(locationService.partial).toHaveBeenLastCalledWith(expectedQuery);
+      tester.thenDispatchedActionsShouldEqual(
+        filterUpdated(toVariablePayload(variable, expectedUpdate)),
+        updateLocation({ query: expectedQuery })
+      );
     });
   });
 
@@ -221,7 +238,7 @@ describe('adhoc actions', () => {
         .withDatasource('elasticsearch')
         .build();
 
-      const tester = await reduxTester<RootReducerType>()
+      const tester = await reduxTester<ReducersUsedInContext>()
         .givenRootReducer(getRootReducer())
         .whenActionIsDispatched(createAddVariableAction(variable))
         .whenAsyncActionIsDispatched(addFilter('elastic-filter', adding), true);
@@ -229,8 +246,10 @@ describe('adhoc actions', () => {
       const expectedQuery = { 'var-elastic-filter': ['key|=|value', 'key|!=|value'] };
       const expectedFilter = { key: 'key', value: 'value', operator: '!=', condition: '' };
 
-      tester.thenDispatchedActionsShouldEqual(filterAdded(toVariablePayload(variable, expectedFilter)));
-      expect(locationService.partial).toHaveBeenLastCalledWith(expectedQuery);
+      tester.thenDispatchedActionsShouldEqual(
+        filterAdded(toVariablePayload(variable, expectedFilter)),
+        updateLocation({ query: expectedQuery })
+      );
     });
   });
 
@@ -250,15 +269,17 @@ describe('adhoc actions', () => {
         .withDatasource('elasticsearch')
         .build();
 
-      const tester = await reduxTester<RootReducerType>()
+      const tester = await reduxTester<ReducersUsedInContext>()
         .givenRootReducer(getRootReducer())
         .whenActionIsDispatched(createAddVariableAction(variable))
         .whenAsyncActionIsDispatched(addFilter('elastic-filter', adding), true);
 
       const expectedQuery = { 'var-elastic-filter': ['key|=|value'] };
 
-      tester.thenDispatchedActionsShouldEqual(filterAdded(toVariablePayload(variable, adding)));
-      expect(locationService.partial).toHaveBeenLastCalledWith(expectedQuery);
+      tester.thenDispatchedActionsShouldEqual(
+        filterAdded(toVariablePayload(variable, adding)),
+        updateLocation({ query: expectedQuery })
+      );
     });
   });
 
@@ -271,15 +292,17 @@ describe('adhoc actions', () => {
         .withDatasource('elasticsearch')
         .build();
 
-      const tester = await reduxTester<RootReducerType>()
+      const tester = await reduxTester<ReducersUsedInContext>()
         .givenRootReducer(getRootReducer())
         .whenActionIsDispatched(createAddVariableAction(variable))
         .whenAsyncActionIsDispatched(removeFilter('elastic-filter', 0), true);
 
       const expectedQuery = { 'var-elastic-filter': [] as string[] };
 
-      tester.thenDispatchedActionsShouldEqual(filterRemoved(toVariablePayload(variable, 0)));
-      expect(locationService.partial).toHaveBeenLastCalledWith(expectedQuery);
+      tester.thenDispatchedActionsShouldEqual(
+        filterRemoved(toVariablePayload(variable, 0)),
+        updateLocation({ query: expectedQuery })
+      );
     });
   });
 
@@ -299,15 +322,17 @@ describe('adhoc actions', () => {
         .withDatasource('elasticsearch')
         .build();
 
-      const tester = await reduxTester<RootReducerType>()
+      const tester = await reduxTester<ReducersUsedInContext>()
         .givenRootReducer(getRootReducer())
         .whenActionIsDispatched(createAddVariableAction(variable))
         .whenAsyncActionIsDispatched(removeFilter('elastic-filter', 0), true);
 
       const expectedQuery = { 'var-elastic-filter': [] as string[] };
 
-      tester.thenDispatchedActionsShouldEqual(filterRemoved(toVariablePayload(variable, 0)));
-      expect(locationService.partial).toHaveBeenLastCalledWith(expectedQuery);
+      tester.thenDispatchedActionsShouldEqual(
+        filterRemoved(toVariablePayload(variable, 0)),
+        updateLocation({ query: expectedQuery })
+      );
     });
   });
 
@@ -332,7 +357,7 @@ describe('adhoc actions', () => {
         { ...existing, name: 'value-2' },
       ];
 
-      const tester = await reduxTester<RootReducerType>()
+      const tester = await reduxTester<ReducersUsedInContext>()
         .givenRootReducer(getRootReducer())
         .whenActionIsDispatched(createAddVariableAction(variable))
         .whenAsyncActionIsDispatched(setFiltersFromUrl('elastic-filter', fromUrl), true);
@@ -343,15 +368,16 @@ describe('adhoc actions', () => {
         { key: 'key', value: 'value', operator: '=', condition: '', name: 'value-2' },
       ];
 
-      tester.thenDispatchedActionsShouldEqual(filtersRestored(toVariablePayload(variable, expectedFilters)));
-      expect(locationService.partial).toHaveBeenLastCalledWith(expectedQuery);
+      tester.thenDispatchedActionsShouldEqual(
+        filtersRestored(toVariablePayload(variable, expectedFilters)),
+        updateLocation({ query: expectedQuery })
+      );
     });
   });
 
   describe('when initAdHocVariableEditor is dispatched', () => {
     it('then correct actions are dispatched', async () => {
       const datasources = [
-        { ...createDatasource('default', true), value: null },
         createDatasource('elasticsearch-v1'),
         createDatasource('loki', false),
         createDatasource('influx'),
@@ -362,13 +388,12 @@ describe('adhoc actions', () => {
       getMetricSources.mockRestore();
       getMetricSources.mockReturnValue(datasources);
 
-      const tester = reduxTester<RootReducerType>()
+      const tester = reduxTester<ReducersUsedInContext>()
         .givenRootReducer(getRootReducer())
         .whenActionIsDispatched(initAdHocVariableEditor());
 
       const expectedDatasources = [
         { text: '', value: '' },
-        { text: 'default (default)', value: null },
         { text: 'elasticsearch-v1', value: 'elasticsearch-v1' },
         { text: 'influx', value: 'influx' },
         { text: 'elasticsearch-v7', value: 'elasticsearch-v7' },
@@ -383,13 +408,17 @@ describe('adhoc actions', () => {
   describe('when changeVariableDatasource is dispatched with unsupported datasource', () => {
     it('then correct actions are dispatched', async () => {
       const datasource = 'mysql';
-      const loadingText = 'Ad hoc filters are applied automatically to all queries that target this data source';
-      const variable = adHocBuilder().withId('Filters').withName('Filters').withDatasource('influxdb').build();
+      const loadingText = 'Adhoc filters are applied automatically to all queries that target this datasource';
+      const variable = adHocBuilder()
+        .withId('Filters')
+        .withName('Filters')
+        .withDatasource('influxdb')
+        .build();
 
       getDatasource.mockRestore();
       getDatasource.mockResolvedValue(null);
 
-      const tester = await reduxTester<RootReducerType>()
+      const tester = await reduxTester<ReducersUsedInContext>()
         .givenRootReducer(getRootReducer())
         .whenActionIsDispatched(createAddVariableAction(variable))
         .whenActionIsDispatched(setIdInEditor({ id: variable.id }))
@@ -400,7 +429,7 @@ describe('adhoc actions', () => {
         changeVariableProp(toVariablePayload(variable, { propName: 'datasource', propValue: datasource })),
         changeVariableEditorExtended({
           propName: 'infoText',
-          propValue: 'This data source does not support ad hoc filters yet.',
+          propValue: 'This datasource does not support adhoc filters yet.',
         })
       );
     });
@@ -409,15 +438,19 @@ describe('adhoc actions', () => {
   describe('when changeVariableDatasource is dispatched with datasource', () => {
     it('then correct actions are dispatched', async () => {
       const datasource = 'elasticsearch';
-      const loadingText = 'Ad hoc filters are applied automatically to all queries that target this data source';
-      const variable = adHocBuilder().withId('Filters').withName('Filters').withDatasource('influxdb').build();
+      const loadingText = 'Adhoc filters are applied automatically to all queries that target this datasource';
+      const variable = adHocBuilder()
+        .withId('Filters')
+        .withName('Filters')
+        .withDatasource('influxdb')
+        .build();
 
       getDatasource.mockRestore();
       getDatasource.mockResolvedValue({
         getTagKeys: () => {},
       });
 
-      const tester = await reduxTester<RootReducerType>()
+      const tester = await reduxTester<ReducersUsedInContext>()
         .givenRootReducer(getRootReducer())
         .whenActionIsDispatched(createAddVariableAction(variable))
         .whenActionIsDispatched(setIdInEditor({ id: variable.id }))
@@ -445,5 +478,6 @@ function createDatasource(name: string, selectable = true): DataSourceSelectItem
     meta: {
       mixed: !selectable,
     } as DataSourcePluginMeta,
+    sort: '',
   };
 }

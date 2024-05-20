@@ -1,11 +1,20 @@
 import React, { PureComponent } from 'react';
-import { css, cx } from '@emotion/css';
-import { Button, ConfirmButton, Field, HorizontalGroup, Modal, stylesFactory, Themeable, withTheme } from '@grafana/ui';
+import { css, cx } from 'emotion';
+import {
+  Modal,
+  Themeable,
+  stylesFactory,
+  withTheme,
+  ConfirmButton,
+  Button,
+  HorizontalGroup,
+  Container,
+  Field,
+} from '@grafana/ui';
 import { GrafanaTheme } from '@grafana/data';
-import { AccessControlAction, Organization, OrgRole, UserOrg } from 'app/types';
+import { UserOrg, Organization, OrgRole } from 'app/types';
 import { OrgPicker, OrgSelectItem } from 'app/core/components/Select/OrgPicker';
 import { OrgRolePicker } from './OrgRolePicker';
-import { contextSrv } from 'app/core/core';
 
 interface Props {
   orgs: UserOrg[];
@@ -34,11 +43,10 @@ export class UserOrgs extends PureComponent<Props, State> {
     const addToOrgContainerClass = css`
       margin-top: 0.8rem;
     `;
-    const canAddToOrg = contextSrv.hasPermission(AccessControlAction.OrgUsersAdd);
 
     return (
       <>
-        <h3 className="page-heading">Organizations</h3>
+        <h3 className="page-heading">Organisations</h3>
         <div className="gf-form-group">
           <div className="gf-form">
             <table className="filter-table form-inline">
@@ -55,11 +63,9 @@ export class UserOrgs extends PureComponent<Props, State> {
             </table>
           </div>
           <div className={addToOrgContainerClass}>
-            {canAddToOrg && (
-              <Button variant="secondary" onClick={this.showOrgAddModal(true)}>
-                Add user to organization
-              </Button>
-            )}
+            <Button variant="secondary" onClick={this.showOrgAddModal(true)}>
+              Add user to organisation
+            </Button>
           </div>
           <AddToOrgModal isOpen={showAddOrgModal} onOrgAdd={onOrgAdd} onDismiss={this.showOrgAddModal(false)} />
         </div>
@@ -125,8 +131,6 @@ class UnThemedOrgRow extends PureComponent<OrgRowProps, OrgRowState> {
     const { currentRole, isChangingRole } = this.state;
     const styles = getOrgRowStyles(theme);
     const labelClass = cx('width-16', styles.label);
-    const canChangeRole = contextSrv.hasPermission(AccessControlAction.OrgUsersRoleUpdate);
-    const canRemoveFromOrg = contextSrv.hasPermission(AccessControlAction.OrgUsersRemove);
 
     return (
       <tr>
@@ -140,30 +144,26 @@ class UnThemedOrgRow extends PureComponent<OrgRowProps, OrgRowState> {
         )}
         <td colSpan={1}>
           <div className="pull-right">
-            {canChangeRole && (
-              <ConfirmButton
-                confirmText="Save"
-                onClick={this.onChangeRoleClick}
-                onCancel={this.onCancelClick}
-                onConfirm={this.onOrgRoleSave}
-              >
-                Change role
-              </ConfirmButton>
-            )}
+            <ConfirmButton
+              confirmText="Save"
+              onClick={this.onChangeRoleClick}
+              onCancel={this.onCancelClick}
+              onConfirm={this.onOrgRoleSave}
+            >
+              Change role
+            </ConfirmButton>
           </div>
         </td>
         <td colSpan={1}>
           <div className="pull-right">
-            {canRemoveFromOrg && (
-              <ConfirmButton
-                confirmText="Confirm removal"
-                confirmVariant="destructive"
-                onCancel={this.onCancelClick}
-                onConfirm={this.onOrgRemove}
-              >
-                Remove from organization
-              </ConfirmButton>
-            )}
+            <ConfirmButton
+              confirmText="Confirm removal"
+              confirmVariant="destructive"
+              onCancel={this.onCancelClick}
+              onConfirm={this.onOrgRemove}
+            >
+              Remove from organisation
+            </ConfirmButton>
           </div>
         </td>
       </tr>
@@ -179,9 +179,6 @@ const getAddToOrgModalStyles = stylesFactory(() => ({
   `,
   buttonRow: css`
     text-align: center;
-  `,
-  modalContent: css`
-    overflow: visible;
   `,
 }));
 
@@ -227,30 +224,25 @@ export class AddToOrgModal extends PureComponent<AddToOrgModalProps, AddToOrgMod
     const { isOpen } = this.props;
     const { role } = this.state;
     const styles = getAddToOrgModalStyles();
+
     return (
-      <Modal
-        className={styles.modal}
-        contentClassName={styles.modalContent}
-        title="Add to an organization"
-        isOpen={isOpen}
-        onDismiss={this.onCancel}
-      >
-        <Field label="Organization">
+      <Modal className={styles.modal} title="Add to an organization" isOpen={isOpen} onDismiss={this.onCancel}>
+        <Field label="Organisation">
           <OrgPicker onSelected={this.onOrgSelect} />
         </Field>
         <Field label="Role">
           <OrgRolePicker value={role} onChange={this.onOrgRoleChange} />
         </Field>
-        <Modal.ButtonRow>
+        <Container padding="md">
           <HorizontalGroup spacing="md" justify="center">
-            <Button variant="secondary" fill="outline" onClick={this.onCancel}>
+            <Button variant="primary" onClick={this.onAddUserToOrg}>
+              Add to organisation
+            </Button>
+            <Button variant="secondary" onClick={this.onCancel}>
               Cancel
             </Button>
-            <Button variant="primary" onClick={this.onAddUserToOrg}>
-              Add to organization
-            </Button>
           </HorizontalGroup>
-        </Modal.ButtonRow>
+        </Container>
       </Modal>
     );
   }

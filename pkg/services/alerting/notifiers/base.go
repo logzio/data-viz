@@ -30,7 +30,8 @@ type NotifierBase struct {
 // NewNotifierBase returns a new `NotifierBase`.
 func NewNotifierBase(model *models.AlertNotification) NotifierBase {
 	uploadImage := true
-	if value, exists := model.Settings.CheckGet("uploadImage"); exists {
+	value, exist := model.Settings.CheckGet("uploadImage")
+	if exist {
 		uploadImage = value.MustBool()
 	}
 

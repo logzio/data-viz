@@ -7,6 +7,11 @@
   padding: 0 0 $space-sm 0;
 }
 
+.annotation-disabled,
+.annotation-disabled a {
+  color: $link-color-disabled;
+}
+
 .annotation-segment {
   padding: 8px 7px;
 
@@ -25,7 +30,7 @@
     padding-left: 8px;
   }
 
-  .gf-form {
+  .gf-form-inline .gf-form {
     margin-bottom: 0;
   }
 }
@@ -54,14 +59,14 @@
 
 .variable-value-dropdown {
   position: absolute;
-  top: $input-height;
+  top: 47px;
   min-width: 150px;
   max-height: 400px;
   min-height: 150px;
   overflow-y: auto;
   overflow-x: hidden;
   background-color: $dropdownBackground;
-  box-shadow: $dropdownShadow;
+  box-shadow: 0 0 25px 0 rgba(0, 0, 0, 0.4);
   z-index: $zindex-typeahead;
   font-size: $font-size-base;
   border-radius: 3px 3px 0 0;

@@ -1,13 +1,18 @@
 import angular from 'angular';
 import coreModule from '../core_module';
 import { GrafanaRootScope } from 'app/routes/GrafanaCtrl';
+import { CoreEvents } from 'app/types';
 
 export class DeltaCtrl {
   observer: any;
 
   /** @ngInject */
-  constructor() {
-    const waitForCompile = () => {};
+  constructor(private $rootScope: GrafanaRootScope) {
+    const waitForCompile = (mutations: any) => {
+      if (mutations.length === 1) {
+        this.$rootScope.appEvent(CoreEvents.jsonDiffReady);
+      }
+    };
 
     this.observer = new MutationObserver(waitForCompile);
 

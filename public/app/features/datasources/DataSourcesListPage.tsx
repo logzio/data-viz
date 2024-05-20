@@ -4,13 +4,14 @@ import { connect } from 'react-redux';
 import { hot } from 'react-hot-loader';
 // Components
 import Page from 'app/core/components/Page/Page';
-import PageActionBar from 'app/core/components/PageActionBar/PageActionBar';
+import OrgActionBar from 'app/core/components/OrgActionBar/OrgActionBar';
 import EmptyListCTA from 'app/core/components/EmptyListCTA/EmptyListCTA';
 import DataSourcesList from './DataSourcesList';
 // Types
-import { DataSourceSettings, NavModel, LayoutMode } from '@grafana/data';
+import { DataSourceSettings, NavModel } from '@grafana/data';
 import { IconName } from '@grafana/ui';
 import { StoreState } from 'app/types';
+import { LayoutMode } from 'app/core/components/LayoutSelector/LayoutSelector';
 // Actions
 import { loadDataSources } from './state/actions';
 import { getNavModel } from 'app/core/selectors/navModel';
@@ -36,7 +37,7 @@ export interface Props {
 }
 
 const emptyListModel = {
-  title: 'No data sources defined',
+  title: 'There are no data sources defined yet',
   buttonIcon: 'database' as IconName,
   buttonLink: 'datasources/new',
   buttonTitle: 'Add data source',
@@ -48,7 +49,11 @@ const emptyListModel = {
 
 export class DataSourcesListPage extends PureComponent<Props> {
   componentDidMount() {
-    this.props.loadDataSources();
+    this.fetchDataSources();
+  }
+
+  async fetchDataSources() {
+    return await this.props.loadDataSources();
   }
 
   render() {
@@ -74,9 +79,9 @@ export class DataSourcesListPage extends PureComponent<Props> {
             {hasFetched && dataSourcesCount === 0 && <EmptyListCTA {...emptyListModel} />}
             {hasFetched &&
               dataSourcesCount > 0 && [
-                <PageActionBar
+                <OrgActionBar
                   searchQuery={searchQuery}
-                  setSearchQuery={(query) => setDataSourcesSearchQuery(query)}
+                  setSearchQuery={query => setDataSourcesSearchQuery(query)}
                   linkButton={linkButton}
                   key="action-bar"
                 />,

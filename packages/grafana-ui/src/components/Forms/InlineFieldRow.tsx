@@ -1,7 +1,6 @@
-import React, { FC, HTMLProps, ReactNode } from 'react';
-import { css, cx } from '@emotion/css';
+import React, { FC, ReactNode, HTMLProps } from 'react';
+import { css, cx } from 'emotion';
 import { useStyles } from '../../themes';
-import { GrafanaTheme } from '@grafana/data';
 
 export interface Props extends Omit<HTMLProps<HTMLDivElement>, 'css'> {
   children: ReactNode | ReactNode[];
@@ -16,10 +15,9 @@ export const InlineFieldRow: FC<Props> = ({ children, className, ...htmlProps })
   );
 };
 
-const getStyles = (theme: GrafanaTheme) => {
+const getStyles = () => {
   return {
     container: css`
-      label: InlineFieldRow;
       display: flex;
       flex-direction: row;
       flex-wrap: wrap;

@@ -1,7 +1,8 @@
 package alerting
 
 import (
-	"errors"
+	// "context" // LOGZ.IO GRAFANA CHANGE :: DEV-17992 - Remove unnecessary import
+	// "errors" // LOGZ.IO GRAFANA CHANGE :: DEV-17992 - Remove unnecessary import
 	"time"
 
 	"github.com/grafana/grafana/pkg/bus"
@@ -59,12 +60,12 @@ func (handler *defaultResultHandler) handle(evalContext *EvalContext) error {
 		}
 
 		if err := bus.Dispatch(cmd); err != nil {
-			if errors.Is(err, models.ErrCannotChangeStateOnPausedAlert) {
+			if err == models.ErrCannotChangeStateOnPausedAlert {
 				handler.log.Error("Cannot change state on alert that's paused", "error", err)
 				return err
 			}
 
-			if errors.Is(err, models.ErrRequiresNewState) {
+			if err == models.ErrRequiresNewState {
 				handler.log.Info("Alert already updated")
 				return nil
 			}
@@ -98,18 +99,16 @@ func (handler *defaultResultHandler) handle(evalContext *EvalContext) error {
 			handler.log.Error("Failed to save annotation for new alert state", "error", err)
 		}
 	}
-
 	// LOGZ.IO GRAFANA CHANGE :: DEV-17992 - Remove notify send after alert evaluate
-	//if err := handler.notifier.SendIfNeeded(evalContext); err != nil {
-	//	switch {
-	//	case errors.Is(err, context.Canceled):
-	//		handler.log.Debug("handler.notifier.SendIfNeeded returned context.Canceled")
-	//	case errors.Is(err, context.DeadlineExceeded):
-	//		handler.log.Debug("handler.notifier.SendIfNeeded returned context.DeadlineExceeded")
-	//	default:
-	//		handler.log.Error("handler.notifier.SendIfNeeded failed", "err", err)
-	//	}
-	//}
+	// if err := handler.notifier.SendIfNeeded(evalContext); err != nil {
+	// 	if xerrors.Is(err, context.Canceled) {
+	// 		handler.log.Debug("handler.notifier.SendIfNeeded returned context.Canceled")
+	// 	} else if xerrors.Is(err, context.DeadlineExceeded) {
+	// 		handler.log.Debug("handler.notifier.SendIfNeeded returned context.DeadlineExceeded")
+	// 	} else {
+	// 		handler.log.Error("handler.notifier.SendIfNeeded failed", "err", err)
+	// 	}
+	// }
 	// LOGZ.IO GRAFANA CHANGE :: DEV-17992 - end
 
 	return nil

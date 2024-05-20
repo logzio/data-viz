@@ -1,31 +1,31 @@
-import { createTheme, dateTime, TimeRange } from '@grafana/data';
-import { render } from '@testing-library/react';
 import React from 'react';
+import { mount } from 'enzyme';
 import { UnthemedTimeRangePicker } from './TimeRangePicker';
+import { dateTime, TimeRange } from '@grafana/data';
+import dark from '../../themes/dark';
 
-const from = dateTime('2019-12-17T07:48:27.433Z');
-const to = dateTime('2019-12-18T07:48:27.433Z');
+const from = '2019-12-17T07:48:27.433Z';
+const to = '2019-12-18T07:48:27.433Z';
 
 const value: TimeRange = {
-  from,
-  to,
-  raw: { from, to },
+  from: dateTime(from),
+  to: dateTime(to),
+  raw: { from: dateTime(from), to: dateTime(to) },
 };
 
 describe('TimePicker', () => {
   it('renders buttons correctly', () => {
-    const container = render(
+    const wrapper = mount(
       <UnthemedTimeRangePicker
         onChangeTimeZone={() => {}}
-        onChange={(value) => {}}
+        onChange={value => {}}
         value={value}
         onMoveBackward={() => {}}
         onMoveForward={() => {}}
         onZoom={() => {}}
-        theme={createTheme().v1}
+        theme={dark}
       />
     );
-
-    expect(container.queryByLabelText(/timepicker open button/i)).toBeInTheDocument();
+    expect(wrapper.exists('.navbar-button')).toBe(true);
   });
 });

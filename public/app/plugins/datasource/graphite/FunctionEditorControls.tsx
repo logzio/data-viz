@@ -1,5 +1,5 @@
-import React, { Suspense } from 'react';
-import { Icon, Tooltip } from '@grafana/ui';
+import React from 'react';
+import { Icon } from '@grafana/ui';
 
 export interface FunctionDescriptor {
   text: string;
@@ -11,10 +11,6 @@ export interface FunctionDescriptor {
     fake: boolean;
     name: string;
     params: string[];
-    /**
-     * True if the function was not found on the list of available function descriptions.
-     */
-    unknown?: boolean;
   };
 }
 
@@ -24,28 +20,9 @@ export interface FunctionEditorControlsProps {
   onRemove: (func: FunctionDescriptor) => void;
 }
 
-const FunctionDescription = React.lazy(async () => {
-  // @ts-ignore
-  const { default: rst2html } = await import(/* webpackChunkName: "rst2html" */ 'rst2html');
-  return {
-    default(props: { description?: string }) {
-      return <div dangerouslySetInnerHTML={{ __html: rst2html(props.description ?? '') }} />;
-    },
-  };
-});
-
-const FunctionHelpButton = (props: { description?: string; name: string }) => {
+const FunctionHelpButton = (props: { description?: string; name: string; onDescriptionShow: () => void }) => {
   if (props.description) {
-    let tooltip = (
-      <Suspense fallback={<span>Loading description...</span>}>
-        <FunctionDescription description={props.description} />
-      </Suspense>
-    );
-    return (
-      <Tooltip content={tooltip} placement={'bottom-end'}>
-        <Icon className={props.description ? undefined : 'pointer'} name="question-circle" />
-      </Tooltip>
-    );
+    return <Icon className="pointer" name="question-circle" onClick={props.onDescriptionShow} />;
   }
 
   return (
@@ -65,9 +42,10 @@ const FunctionHelpButton = (props: { description?: string; name: string }) => {
 export const FunctionEditorControls = (
   props: FunctionEditorControlsProps & {
     func: FunctionDescriptor;
+    onDescriptionShow: () => void;
   }
 ) => {
-  const { func, onMoveLeft, onMoveRight, onRemove } = props;
+  const { func, onMoveLeft, onMoveRight, onRemove, onDescriptionShow } = props;
   return (
     <div
       style={{
@@ -77,7 +55,11 @@ export const FunctionEditorControls = (
       }}
     >
       <Icon name="arrow-left" onClick={() => onMoveLeft(func)} />
-      <FunctionHelpButton name={func.def.name} description={func.def.description} />
+      <FunctionHelpButton
+        name={func.def.name}
+        description={func.def.description}
+        onDescriptionShow={onDescriptionShow}
+      />
       <Icon name="times" onClick={() => onRemove(func)} />
       <Icon name="arrow-right" onClick={() => onMoveRight(func)} />
     </div>

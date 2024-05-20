@@ -6,7 +6,6 @@ import { LiveChannelSupport } from './live';
 export enum PluginState {
   alpha = 'alpha', // Only included if `enable_alpha` config option is true
   beta = 'beta', // Will show a warning banner
-  stable = 'stable', // Will not show anything
   deprecated = 'deprecated', // Will continue to work -- but not show up in the options to add
 }
 
@@ -25,14 +24,6 @@ export enum PluginSignatureStatus {
   invalid = 'invalid', // invalid signature
   modified = 'modified', // valid signature, but content mismatch
   missing = 'missing', // missing signature file
-}
-
-/** Describes level of {@link https://grafana.com/docs/grafana/latest/plugins/plugin-signatures/#plugin-signature-levels/ | plugin signature level} */
-export enum PluginSignatureType {
-  grafana = 'grafana',
-  commercial = 'commercial',
-  community = 'community',
-  private = 'private',
 }
 
 /** Describes error code returned from Grafana plugins API call */
@@ -73,8 +64,6 @@ export interface PluginMeta<T extends KeyValue = {}> {
   latestVersion?: string;
   pinned?: boolean;
   signature?: PluginSignatureStatus;
-  signatureType?: PluginSignatureType;
-  signatureOrg?: string;
   live?: boolean;
 }
 

@@ -1,5 +1,5 @@
 import React, { PureComponent } from 'react';
-import { css, cx } from '@emotion/css';
+import { css, cx } from 'emotion';
 import { Field, LinkModel, LogLabelStatsModel, GrafanaTheme } from '@grafana/data';
 
 import { Themeable } from '../../types/theme';
@@ -10,20 +10,19 @@ import { stylesFactory } from '../../themes/stylesFactory';
 //Components
 import { LogLabelStats } from './LogLabelStats';
 import { IconButton } from '../IconButton/IconButton';
-import { DataLinkButton } from '../DataLinks/DataLinkButton';
+import { Tag } from '..';
 
 export interface Props extends Themeable {
   parsedValue: string;
   parsedKey: string;
-  wrapLogMessage?: boolean;
   isLabel?: boolean;
   onClickFilterLabel?: (key: string, value: string) => void;
   onClickFilterOutLabel?: (key: string, value: string) => void;
   links?: Array<LinkModel<Field>>;
   getStats: () => LogLabelStatsModel[] | null;
-  showDetectedFields?: string[];
-  onClickShowDetectedField?: (key: string) => void;
-  onClickHideDetectedField?: (key: string) => void;
+  showParsedFields?: string[];
+  onClickShowParsedField?: (key: string) => void;
+  onClickHideParsedField?: (key: string) => void;
 }
 
 interface State {
@@ -51,10 +50,6 @@ const getStyles = stylesFactory((theme: GrafanaTheme) => {
     showingField: css`
       color: ${theme.palette.blue95};
     `,
-    wrapLine: css`
-      label: wrapLine;
-      white-space: pre-wrap;
-    `,
   };
 });
 
@@ -66,16 +61,16 @@ class UnThemedLogDetailsRow extends PureComponent<Props, State> {
   };
 
   showField = () => {
-    const { onClickShowDetectedField, parsedKey } = this.props;
-    if (onClickShowDetectedField) {
-      onClickShowDetectedField(parsedKey);
+    const { onClickShowParsedField, parsedKey } = this.props;
+    if (onClickShowParsedField) {
+      onClickShowParsedField(parsedKey);
     }
   };
 
   hideField = () => {
-    const { onClickHideDetectedField, parsedKey } = this.props;
-    if (onClickHideDetectedField) {
-      onClickHideDetectedField(parsedKey);
+    const { onClickHideParsedField, parsedKey } = this.props;
+    if (onClickHideParsedField) {
+      onClickHideParsedField(parsedKey);
     }
   };
 
@@ -104,7 +99,7 @@ class UnThemedLogDetailsRow extends PureComponent<Props, State> {
   };
 
   toggleFieldsStats() {
-    this.setState((state) => {
+    this.setState(state => {
       return {
         showFieldsStats: !state.showFieldsStats,
       };
@@ -112,28 +107,12 @@ class UnThemedLogDetailsRow extends PureComponent<Props, State> {
   }
 
   render() {
-    const {
-      theme,
-      parsedKey,
-      parsedValue,
-      isLabel,
-      links,
-      showDetectedFields,
-      wrapLogMessage,
-      onClickShowDetectedField,
-      onClickHideDetectedField,
-      onClickFilterLabel,
-      onClickFilterOutLabel,
-    } = this.props;
+    const { theme, parsedKey, parsedValue, isLabel, links, showParsedFields } = this.props;
     const { showFieldsStats, fieldStats, fieldCount } = this.state;
     const styles = getStyles(theme);
     const style = getLogRowStyles(theme);
-
-    const hasDetectedFieldsFunctionality = onClickShowDetectedField && onClickHideDetectedField;
-    const hasFilteringFunctionality = onClickFilterLabel && onClickFilterOutLabel;
-
     const toggleFieldButton =
-      !isLabel && showDetectedFields && showDetectedFields.includes(parsedKey) ? (
+      !isLabel && showParsedFields && showParsedFields.includes(parsedKey) ? (
         <IconButton name="eye" className={styles.showingField} title="Hide this field" onClick={this.hideField} />
       ) : (
         <IconButton name="eye" title="Show this field instead of the message" onClick={this.showField} />
@@ -142,11 +121,11 @@ class UnThemedLogDetailsRow extends PureComponent<Props, State> {
     return (
       <tr className={cx(style.logDetailsValue, { [styles.noHoverBackground]: showFieldsStats })}>
         {/* Action buttons - show stats/filter results */}
-        <td className={style.logsDetailsIcon}>
+        <td className={style.logsDetailsIcon} colSpan={isLabel ? undefined : 2}>
           <IconButton name="signal" title={'Ad-hoc statistics'} onClick={this.showStats} />
         </td>
 
-        {hasFilteringFunctionality && isLabel && (
+        {isLabel && (
           <>
             <td className={style.logsDetailsIcon}>
               <IconButton name="search-plus" title="Filter for value" onClick={this.filterLabel} />
@@ -157,22 +136,25 @@ class UnThemedLogDetailsRow extends PureComponent<Props, State> {
           </>
         )}
 
-        {hasDetectedFieldsFunctionality && !isLabel && (
-          <td className={style.logsDetailsIcon} colSpan={2}>
-            {toggleFieldButton}
-          </td>
+        {!isLabel && (
+          <>
+            <td className={style.logsDetailsIcon}>{toggleFieldButton}</td>
+          </>
         )}
 
         {/* Key - value columns */}
         <td className={style.logDetailsLabel}>{parsedKey}</td>
-        <td className={cx(styles.wordBreakAll, wrapLogMessage && styles.wrapLine)}>
+        <td className={styles.wordBreakAll}>
           {parsedValue}
-          {links?.map((link) => (
-            <span key={link.title}>
-              &nbsp;
-              <DataLinkButton link={link} />
-            </span>
-          ))}
+          {links &&
+            links.map(link => {
+              return (
+                <>
+                  &nbsp;
+                  <FieldLink link={link} />
+                </>
+              );
+            })}
           {showFieldsStats && (
             <LogLabelStats
               stats={fieldStats!}
@@ -186,6 +168,41 @@ class UnThemedLogDetailsRow extends PureComponent<Props, State> {
       </tr>
     );
   }
+}
+
+const getLinkStyles = stylesFactory(() => {
+  return {
+    tag: css`
+      margin-left: 6px;
+      font-size: 11px;
+      padding: 2px 6px;
+    `,
+  };
+});
+
+type FieldLinkProps = {
+  link: LinkModel<Field>;
+};
+function FieldLink({ link }: FieldLinkProps) {
+  const styles = getLinkStyles();
+  return (
+    <a
+      href={link.href}
+      target={'_blank'}
+      onClick={
+        link.onClick
+          ? event => {
+              if (!(event.ctrlKey || event.metaKey || event.shiftKey) && link.onClick) {
+                event.preventDefault();
+                link.onClick(event);
+              }
+            }
+          : undefined
+      }
+    >
+      <Tag name={link.title} className={styles.tag} colorIndex={6} />
+    </a>
+  );
 }
 
 export const LogDetailsRow = withTheme(UnThemedLogDetailsRow);

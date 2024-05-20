@@ -1,6 +1,10 @@
 +++
 title = "Thresholds"
-weight = 600
+type = "docs"
+[menu.docs]
+identifier = "thresholds"
+parent = "panels"
+weight = 300
 +++
 
 # Thresholds
@@ -11,7 +15,13 @@ You can define thresholds one of two ways:
 - **Absolute** thresholds are defined based on a number. For example, 80 on a scale of 1 to 150.
 - **Percentage** thresholds are defined relative to minimum or maximum. For example, 80 percent.
 
-You can apply thresholds to most, but not all, visualizations.
+You can apply thresholds to the following visualizations:
+
+- [Bar gauge]({{< relref "visualizations/bar-gauge-panel.md" >}})
+- [Gauge]({{< relref "visualizations/gauge-panel.md" >}})
+- [Graph]({{< relref "visualizations/graph-panel.md" >}})
+- [Stat]({{< relref "visualizations/stat-panel.md" >}})
+- [Table]({{< relref "visualizations/table/_index.md" >}})
 
 ## Default thresholds
 
@@ -26,11 +36,11 @@ The **Base** value represents minus infinity. It is generally the “good” col
 
 You can add as many thresholds to a panel as you want. Grafana automatically sorts thresholds from highest value to lowest.
 
-> **Note:** These instructions apply only to the Stat, Gauge, Bar gauge, and Table visualizations.
+> **Note:** These instructions apply only to the Stat, Gauge, Bar gauge, and Table visualizations. 
 
 1. Navigate to the panel you want to add a threshold to.
 1. Click the **Field** tab.
-1. Click **Add threshold**.
+1. Click **Add threshold**. 
 1. Grafana adds a threshold with suggested numerical and color values.
 1. Accept the recommendations or edit the new threshold.
    - **Edit color:** Click the color dot you wish to change and then select a new color.
@@ -38,7 +48,7 @@ You can add as many thresholds to a panel as you want. Grafana automatically sor
    - **Thresholds mode -** Click the mode to change it for all thresholds on this panel.
 1. Click **Save** to save the changes in the dashboard.
 
-## Add a threshold to a Graph (old) panel
+## Add a threshold to a Graph panel
 
 In the Graph panel visualization, thresholds allow you to add arbitrary lines or sections to the graph to make it easier to see when the graph crosses a particular threshold.
 

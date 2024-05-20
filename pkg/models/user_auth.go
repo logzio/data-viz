@@ -3,7 +3,6 @@ package models
 import (
 	"time"
 
-	"github.com/grafana/grafana/pkg/setting"
 	"golang.org/x/oauth2"
 )
 
@@ -46,10 +45,6 @@ type LoginInfo struct {
 	Error         error
 }
 
-// RequestURIKey is used as key to save request URI in contexts
-// (used for the Enterprise auditing feature)
-type RequestURIKey struct{}
-
 // ---------------------
 // COMMANDS
 
@@ -89,7 +84,6 @@ type LoginUserQuery struct {
 	User       *User
 	IpAddress  string
 	AuthModule string
-	Cfg        *setting.Cfg
 }
 
 type GetUserByAuthInfoQuery struct {
@@ -125,4 +119,9 @@ type TeamOrgGroupDTO struct {
 type GetTeamsForLDAPGroupCommand struct {
 	Groups []string
 	Result []TeamOrgGroupDTO
+}
+
+type SyncTeamsCommand struct {
+	ExternalUser *ExternalUserInfo
+	User         *User
 }

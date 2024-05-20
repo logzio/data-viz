@@ -13,15 +13,15 @@
 // limitations under the License.
 
 import * as React from 'react';
-import { sortBy as _sortBy } from 'lodash';
+import _sortBy from 'lodash/sortBy';
 import IoIosArrowDown from 'react-icons/lib/io/ios-arrow-down';
 import IoIosArrowRight from 'react-icons/lib/io/ios-arrow-right';
-import { css } from '@emotion/css';
+import { css } from 'emotion';
 
 import AccordianKeyValues from './AccordianKeyValues';
 import { formatDuration } from '../utils';
 import { TNil } from '../../types';
-import { TraceLog, TraceKeyValuePair, TraceLink } from '../../types/trace';
+import { TraceLog, TraceKeyValuePair, TraceLink } from '@grafana/data';
 import { autoColor, createStyle, Theme, useTheme } from '../../Theme';
 import { uAlignIcon, ubMb1 } from '../../uberUtilityStyles';
 

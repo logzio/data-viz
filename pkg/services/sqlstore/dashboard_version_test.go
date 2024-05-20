@@ -13,9 +13,7 @@ import (
 	"github.com/grafana/grafana/pkg/setting"
 )
 
-func updateTestDashboard(t *testing.T, sqlStore *SQLStore, dashboard *models.Dashboard, data map[string]interface{}) {
-	t.Helper()
-
+func updateTestDashboard(dashboard *models.Dashboard, data map[string]interface{}) {
 	data["id"] = dashboard.Id
 
 	saveCmd := models.SaveDashboardCommand{
@@ -23,16 +21,17 @@ func updateTestDashboard(t *testing.T, sqlStore *SQLStore, dashboard *models.Das
 		Overwrite: true,
 		Dashboard: simplejson.NewFromAny(data),
 	}
-	_, err := sqlStore.SaveDashboard(saveCmd)
+
+	err := SaveDashboard(&saveCmd)
 	So(err, ShouldBeNil)
 }
 
 func TestGetDashboardVersion(t *testing.T) {
 	Convey("Testing dashboard version retrieval", t, func() {
-		sqlStore := InitTestDB(t)
+		InitTestDB(t)
 
 		Convey("Get a Dashboard ID and version ID", func() {
-			savedDash := insertTestDashboard(t, sqlStore, "test dash 26", 1, 0, false, "diff")
+			savedDash := insertTestDashboard("test dash 26", 1, 0, false, "diff")
 
 			query := models.GetDashboardVersionQuery{
 				DashboardId: savedDash.Id,
@@ -72,8 +71,8 @@ func TestGetDashboardVersion(t *testing.T) {
 
 func TestGetDashboardVersions(t *testing.T) {
 	Convey("Testing dashboard versions retrieval", t, func() {
-		sqlStore := InitTestDB(t)
-		savedDash := insertTestDashboard(t, sqlStore, "test dash 43", 1, 0, false, "diff-all")
+		InitTestDB(t)
+		savedDash := insertTestDashboard("test dash 43", 1, 0, false, "diff-all")
 
 		Convey("Get all versions for a given Dashboard ID", func() {
 			query := models.GetDashboardVersionsQuery{DashboardId: savedDash.Id, OrgId: 1}
@@ -93,7 +92,7 @@ func TestGetDashboardVersions(t *testing.T) {
 		})
 
 		Convey("Get all versions for an updated dashboard", func() {
-			updateTestDashboard(t, sqlStore, savedDash, map[string]interface{}{
+			updateTestDashboard(savedDash, map[string]interface{}{
 				"tags": "different-tag",
 			})
 
@@ -108,14 +107,14 @@ func TestGetDashboardVersions(t *testing.T) {
 
 func TestDeleteExpiredVersions(t *testing.T) {
 	Convey("Testing dashboard versions clean up", t, func() {
-		sqlStore := InitTestDB(t)
+		InitTestDB(t)
 		versionsToKeep := 5
 		versionsToWrite := 10
 		setting.DashboardVersionsToKeep = versionsToKeep
 
-		savedDash := insertTestDashboard(t, sqlStore, "test dash 53", 1, 0, false, "diff-all")
+		savedDash := insertTestDashboard("test dash 53", 1, 0, false, "diff-all")
 		for i := 0; i < versionsToWrite-1; i++ {
-			updateTestDashboard(t, sqlStore, savedDash, map[string]interface{}{
+			updateTestDashboard(savedDash, map[string]interface{}{
 				"tags": "different-tag",
 			})
 		}
@@ -153,7 +152,7 @@ func TestDeleteExpiredVersions(t *testing.T) {
 
 			versionsToWriteBigNumber := perBatch*maxBatches + versionsToWrite
 			for i := 0; i < versionsToWriteBigNumber-versionsToWrite; i++ {
-				updateTestDashboard(t, sqlStore, savedDash, map[string]interface{}{
+				updateTestDashboard(savedDash, map[string]interface{}{
 					"tags": "different-tag",
 				})
 			}

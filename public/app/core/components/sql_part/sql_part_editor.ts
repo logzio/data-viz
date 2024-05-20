@@ -1,4 +1,4 @@
-import { debounce, each, indexOf, map, partial, escape, unescape } from 'lodash';
+import _ from 'lodash';
 import $ from 'jquery';
 import coreModule from 'app/core/core_module';
 
@@ -95,7 +95,7 @@ export function sqlPartEditorDirective(templateSrv: any) {
           if (param.options) {
             let options = param.options;
             if (param.type === 'int') {
-              options = map(options, (val) => {
+              options = _.map(options, val => {
                 return val.toString();
               });
             }
@@ -104,13 +104,13 @@ export function sqlPartEditorDirective(templateSrv: any) {
 
           $scope.$apply(() => {
             $scope.handleEvent({ $event: { name: 'get-param-options', param: param } }).then((result: any) => {
-              const dynamicOptions = map(result, (op) => {
-                return escape(op.value);
+              const dynamicOptions = _.map(result, op => {
+                return _.escape(op.value);
               });
 
               // add current value to dropdown if it's not in dynamicOptions
-              if (indexOf(dynamicOptions, part.params[paramIndex]) === -1) {
-                dynamicOptions.unshift(escape(part.params[paramIndex]));
+              if (_.indexOf(dynamicOptions, part.params[paramIndex]) === -1) {
+                dynamicOptions.unshift(_.escape(part.params[paramIndex]));
               }
 
               callback(dynamicOptions);
@@ -125,7 +125,7 @@ export function sqlPartEditorDirective(templateSrv: any) {
           minLength: 0,
           items: 1000,
           updater: (value: string) => {
-            value = unescape(value);
+            value = _.unescape(value);
             if (value === part.params[paramIndex]) {
               clearTimeout(cancelBlur);
               $input.focus();
@@ -136,14 +136,14 @@ export function sqlPartEditorDirective(templateSrv: any) {
         });
 
         const typeahead = $input.data('typeahead');
-        typeahead.lookup = function () {
+        typeahead.lookup = function() {
           this.query = this.$element.val() || '';
           const items = this.source(this.query, $.proxy(this.process, this));
           return items ? this.process(items) : items;
         };
 
         if (debounceLookup) {
-          typeahead.lookup = debounce(typeahead.lookup, 500, { leading: true });
+          typeahead.lookup = _.debounce(typeahead.lookup, 500, { leading: true });
         }
       }
 
@@ -158,7 +158,7 @@ export function sqlPartEditorDirective(templateSrv: any) {
       };
 
       function addElementsAndCompile() {
-        each(partDef.params, (param: any, index: number) => {
+        _.each(partDef.params, (param: any, index: number) => {
           if (param.optional && part.params.length <= index) {
             return;
           }
@@ -174,10 +174,10 @@ export function sqlPartEditorDirective(templateSrv: any) {
           $paramLink.appendTo($paramsContainer);
           $input.appendTo($paramsContainer);
 
-          $input.blur(partial(inputBlur, $input, index));
+          $input.blur(_.partial(inputBlur, $input, index));
           $input.keyup(inputKeyDown);
-          $input.keypress(partial(inputKeyPress, index));
-          $paramLink.click(partial(clickFuncParam, index));
+          $input.keypress(_.partial(inputKeyPress, index));
+          $paramLink.click(_.partial(clickFuncParam, index));
 
           addTypeahead($input, param, index);
         });

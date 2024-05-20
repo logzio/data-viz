@@ -1,22 +1,26 @@
 import React from 'react';
-import { css, cx } from '@emotion/css';
-import { components, SingleValueProps } from 'react-select';
+import { css, cx } from 'emotion';
+
+// Ignoring because I couldn't get @types/react-select work with Torkel's fork
+// @ts-ignore
+import { components } from '@torkelo/react-select';
 import { useDelayedSwitch } from '../../utils/useDelayedSwitch';
-import { useStyles2 } from '../../themes';
+import { stylesFactory, useTheme } from '../../themes';
 import { SlideOutTransition } from '../transitions/SlideOutTransition';
 import { FadeTransition } from '../transitions/FadeTransition';
 import { Spinner } from '../Spinner/Spinner';
-import { GrafanaTheme2 } from '@grafana/data';
+import { GrafanaTheme } from '@grafana/data';
 
-const getStyles = (theme: GrafanaTheme2) => {
+const getStyles = stylesFactory((theme: GrafanaTheme) => {
   const singleValue = css`
     label: singleValue;
-    color: ${theme.components.input.text};
+    color: ${theme.colors.formInputText};
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     box-sizing: border-box;
     max-width: 100%;
+    /* padding-right: 40px; */
   `;
   const container = css`
     ${/* LOGZ.IO GRAFANA CHANGE :: DEV-19985: add datasource logos */ ''}
@@ -35,34 +39,37 @@ const getStyles = (theme: GrafanaTheme2) => {
     position: absolute;
   `;
 
-  const disabled = css`
-    color: ${theme.colors.action.disabledText};
-  `;
+  return { singleValue, container, item };
+});
 
-  return { singleValue, container, item, disabled };
-};
-
-type StylesType = ReturnType<typeof getStyles>;
-
-interface Props
-  extends SingleValueProps<{
+type Props = {
+  children: React.ReactNode;
+  data: {
     imgUrl?: string;
     loading?: boolean;
     hideText?: boolean;
-  }> {
-  disabled?: boolean;
-}
+  };
+};
 
 export const SingleValue = (props: Props) => {
-  const { children, data, disabled } = props;
-  const styles = useStyles2(getStyles);
+  const { children, data } = props;
+  const theme = useTheme();
+  const styles = getStyles(theme);
+
   const loading = useDelayedSwitch(data.loading || false, { delay: 250, duration: 750 });
 
   return (
     <components.SingleValue {...props}>
-      <div className={cx(styles.singleValue, disabled && styles.disabled)}>
+      <div
+        className={cx(
+          styles.singleValue,
+          css`
+            overflow: hidden;
+          `
+        )}
+      >
         {data.imgUrl ? (
-          <FadeWithImage loading={loading} imgUrl={data.imgUrl} styles={styles} />
+          <FadeWithImage loading={loading} imgUrl={data.imgUrl} />
         ) : (
           <SlideOutTransition horizontal size={16} visible={loading} duration={150}>
             <div className={styles.container}>
@@ -76,14 +83,17 @@ export const SingleValue = (props: Props) => {
   );
 };
 
-const FadeWithImage = (props: { loading: boolean; imgUrl: string; styles: StylesType }) => {
+const FadeWithImage = (props: { loading: boolean; imgUrl: string }) => {
+  const theme = useTheme();
+  const styles = getStyles(theme);
+
   return (
-    <div className={props.styles.container}>
+    <div className={styles.container}>
       <FadeTransition duration={150} visible={props.loading}>
-        <Spinner className={props.styles.item} inline />
+        <Spinner className={styles.item} inline />
       </FadeTransition>
       <FadeTransition duration={150} visible={!props.loading}>
-        <img className={props.styles.item} src={props.imgUrl} />
+        <img className={styles.item} src={props.imgUrl} />
       </FadeTransition>
     </div>
   );

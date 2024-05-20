@@ -4,7 +4,6 @@ export const silenceConsoleOutput = () => {
     jest.spyOn(console, 'error').mockImplementation(jest.fn());
     jest.spyOn(console, 'debug').mockImplementation(jest.fn());
     jest.spyOn(console, 'info').mockImplementation(jest.fn());
-    jest.spyOn(console, 'warn').mockImplementation(jest.fn());
   });
 
   afterEach(() => {
@@ -12,6 +11,5 @@ export const silenceConsoleOutput = () => {
     jest.spyOn(console, 'error').mockRestore();
     jest.spyOn(console, 'debug').mockRestore();
     jest.spyOn(console, 'info').mockRestore();
-    jest.spyOn(console, 'warn').mockRestore();
   });
 };

@@ -7,12 +7,11 @@ import { TemplateSrv } from 'app/features/templating/template_srv';
 import { MetricsQueryEditor, normalizeQuery, Props } from './MetricsQueryEditor';
 import { CloudWatchDatasource } from '../datasource';
 import { CustomVariableModel, initialVariableModelState } from '../../../../features/variables/types';
-import { CloudWatchJsonData } from '../types';
 
 const setup = () => {
   const instanceSettings = {
     jsonData: { defaultRegion: 'us-east-1' },
-  } as DataSourceInstanceSettings<CloudWatchJsonData>;
+  } as DataSourceInstanceSettings;
 
   const templateSrv = new TemplateSrv();
   const variable: CustomVariableModel = {
@@ -34,7 +33,7 @@ const setup = () => {
   templateSrv.init([variable]);
 
   const datasource = new CloudWatchDatasource(instanceSettings, templateSrv as any, {} as any);
-  datasource.metricFindQuery = async () => [{ value: 'test', label: 'test', text: 'test' }];
+  datasource.metricFindQuery = async () => [{ value: 'test', label: 'test' }];
 
   const props: Props = {
     query: {
@@ -109,7 +108,12 @@ describe('QueryEditor', () => {
         props.query.region = (null as unknown) as string;
         const wrapper = mount(<MetricsQueryEditor {...props} />);
         expect(
-          wrapper.find('.gf-form-inline').first().find('Segment').find('InlineLabel').find('label').text()
+          wrapper
+            .find('.gf-form-inline')
+            .first()
+            .find('.gf-form-label.query-part')
+            .first()
+            .text()
         ).toEqual('default');
       });
     });

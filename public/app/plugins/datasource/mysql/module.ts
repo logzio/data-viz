@@ -5,8 +5,6 @@ import {
   createResetHandler,
   PasswordFieldEnum,
 } from '../../../features/datasources/utils/passwordHandlers';
-import { MySQLQuery } from './types';
-import { DataSourcePlugin } from '@grafana/data';
 
 class MysqlConfigCtrl {
   static templateUrl = 'partials/config.html';
@@ -33,11 +31,10 @@ const defaultQuery = `SELECT
 class MysqlAnnotationsQueryCtrl {
   static templateUrl = 'partials/annotations.editor.html';
 
-  declare annotation: any;
+  annotation: any;
 
   /** @ngInject */
-  constructor($scope: any) {
-    this.annotation = $scope.ctrl.annotation;
+  constructor() {
     this.annotation.rawQuery = this.annotation.rawQuery || defaultQuery;
   }
 }
@@ -49,8 +46,3 @@ export {
   MysqlConfigCtrl as ConfigCtrl,
   MysqlAnnotationsQueryCtrl as AnnotationsQueryCtrl,
 };
-
-export const plugin = new DataSourcePlugin<MysqlDatasource, MySQLQuery>(MysqlDatasource)
-  .setQueryCtrl(MysqlQueryCtrl)
-  .setConfigCtrl(MysqlConfigCtrl)
-  .setAnnotationQueryCtrl(MysqlAnnotationsQueryCtrl);

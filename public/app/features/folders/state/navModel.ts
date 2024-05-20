@@ -1,12 +1,11 @@
-import { NavModel, NavModelItem } from '@grafana/data';
-
 import { FolderDTO } from 'app/types';
+import { NavModelItem, NavModel } from '@grafana/data';
 
 export function buildNavModel(folder: FolderDTO): NavModelItem {
-  const model = {
+  return {
     icon: 'folder',
     id: 'manage-folder',
-    subTitle: 'Manage folder dashboards and permissions',
+    subTitle: 'Manage folder dashboards & permissions',
     url: '',
     text: folder.title,
     breadcrumbs: [{ title: 'Dashboards', url: 'dashboards' }],
@@ -18,38 +17,22 @@ export function buildNavModel(folder: FolderDTO): NavModelItem {
         text: 'Dashboards',
         url: folder.url,
       },
+      {
+        active: false,
+        icon: 'lock',
+        id: `folder-permissions-${folder.uid}`,
+        text: 'Permissions',
+        url: `${folder.url}/permissions`,
+      },
+      {
+        active: false,
+        icon: 'cog',
+        id: `folder-settings-${folder.uid}`,
+        text: 'Settings',
+        url: `${folder.url}/settings`,
+      },
     ],
   };
-
-  model.children.push({
-    active: false,
-    icon: 'library-panel',
-    id: `folder-library-panels-${folder.uid}`,
-    text: 'Panels',
-    url: `${folder.url}/library-panels`,
-  });
-
-  if (folder.canAdmin) {
-    model.children.push({
-      active: false,
-      icon: 'lock',
-      id: `folder-permissions-${folder.uid}`,
-      text: 'Permissions',
-      url: `${folder.url}/permissions`,
-    });
-  }
-
-  if (folder.canSave) {
-    model.children.push({
-      active: false,
-      icon: 'cog',
-      id: `folder-settings-${folder.uid}`,
-      text: 'Settings',
-      url: `${folder.url}/settings`,
-    });
-  }
-
-  return model;
 }
 
 export function getLoadingNav(tabIndex: number): NavModel {
@@ -58,9 +41,9 @@ export function getLoadingNav(tabIndex: number): NavModel {
     uid: 'loading',
     title: 'Loading',
     url: 'url',
-    canSave: true,
-    canEdit: true,
-    canAdmin: true,
+    canSave: false,
+    canEdit: false,
+    canAdmin: false,
     version: 0,
   });
 

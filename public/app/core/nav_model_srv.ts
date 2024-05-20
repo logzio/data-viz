@@ -1,6 +1,6 @@
 import coreModule from 'app/core/core_module';
 import config from 'app/core/config';
-import { find, isNumber } from 'lodash';
+import _ from 'lodash';
 import { NavModel } from '@grafana/data';
 
 export class NavModelSrv {
@@ -12,7 +12,7 @@ export class NavModelSrv {
   }
 
   getCfgNode() {
-    return find(this.navItems, { id: 'cfg' });
+    return _.find(this.navItems, { id: 'cfg' });
   }
 
   getNav(...args: Array<string | number>) {
@@ -23,12 +23,12 @@ export class NavModelSrv {
 
     for (const id of args) {
       // if its a number then it's the index to use for main
-      if (isNumber(id)) {
+      if (_.isNumber(id)) {
         nav.main = nav.breadcrumbs[id];
         break;
       }
 
-      const node: any = find(children, { id: id });
+      const node: any = _.find(children, { id: id });
       nav.breadcrumbs.push(node);
       nav.node = node;
       nav.main = node;

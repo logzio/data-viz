@@ -4,10 +4,9 @@ import {
   dashboardInitFetching,
   dashboardInitSlow,
   loadDashboardPermissions,
-  dashboardReducer,
-  initialState,
 } from './reducers';
 import { DashboardInitPhase, DashboardState, OrgRole, PermissionLevel } from 'app/types';
+import { dashboardReducer, initialState } from './reducers';
 import { DashboardModel } from './DashboardModel';
 
 describe('dashboard reducer', () => {

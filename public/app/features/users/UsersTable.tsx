@@ -1,9 +1,8 @@
 import React, { FC, useState } from 'react';
-import { AccessControlAction, OrgUser } from 'app/types';
+import { OrgUser } from 'app/types';
 import { OrgRolePicker } from '../admin/OrgRolePicker';
 import { Button, ConfirmModal } from '@grafana/ui';
 import { OrgRole } from '@grafana/data';
-import { contextSrv } from 'app/core/core';
 
 export interface Props {
   users: OrgUser[];
@@ -11,10 +10,8 @@ export interface Props {
   onRemoveUser: (user: OrgUser) => void;
 }
 
-const UsersTable: FC<Props> = (props) => {
+const UsersTable: FC<Props> = props => {
   const { users, onRoleChange, onRemoveUser } = props;
-  const canUpdateRole = contextSrv.hasPermission(AccessControlAction.OrgUsersRoleUpdate);
-  const canRemoveFromOrg = contextSrv.hasPermission(AccessControlAction.OrgUsersRemove);
 
   const [showRemoveModal, setShowRemoveModal] = useState<string | boolean>(false);
   return (
@@ -56,28 +53,22 @@ const UsersTable: FC<Props> = (props) => {
               <td className="width-1">{user.lastSeenAtAge}</td>
 
               <td className="width-8">
-                <OrgRolePicker
-                  value={user.role}
-                  disabled={!canUpdateRole}
-                  onChange={(newRole) => onRoleChange(newRole, user)}
-                />
+                <OrgRolePicker value={user.role} onChange={newRole => onRoleChange(newRole, user)} />
               </td>
 
-              {canRemoveFromOrg && (
-                <td>
-                  <Button size="sm" variant="destructive" onClick={() => setShowRemoveModal(user.login)} icon="times" />
-                  <ConfirmModal
-                    body={`Are you sure you want to delete user ${user.login}?`}
-                    confirmText="Delete"
-                    title="Delete"
-                    onDismiss={() => setShowRemoveModal(false)}
-                    isOpen={user.login === showRemoveModal}
-                    onConfirm={() => {
-                      onRemoveUser(user);
-                    }}
-                  />
-                </td>
-              )}
+              <td>
+                <Button size="sm" variant="destructive" onClick={() => setShowRemoveModal(user.login)} icon="times" />
+                <ConfirmModal
+                  body={`Are you sure you want to delete user ${user.login}?`}
+                  confirmText="Delete"
+                  title="Delete"
+                  onDismiss={() => setShowRemoveModal(false)}
+                  isOpen={user.login === showRemoveModal}
+                  onConfirm={() => {
+                    onRemoveUser(user);
+                  }}
+                />
+              </td>
             </tr>
           );
         })}

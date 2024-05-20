@@ -4,8 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
-	"errors"
-	"fmt"
 	"time"
 
 	"github.com/gchaincl/sqlhooks"
@@ -19,28 +17,35 @@ import (
 )
 
 var (
-	databaseQueryHistogram *prometheus.HistogramVec
+	databaseQueryCounter   *prometheus.CounterVec
+	databaseQueryHistogram prometheus.Histogram
 )
 
 func init() {
-	databaseQueryHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+	databaseQueryCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "grafana",
+		Name:      "database_queries_total",
+		Help:      "The total amount of Database queries",
+	}, []string{"status"})
+
+	databaseQueryHistogram = prometheus.NewHistogram(prometheus.HistogramOpts{
 		Namespace: "grafana",
 		Name:      "database_queries_duration_seconds",
 		Help:      "Database query histogram",
-		Buckets:   prometheus.ExponentialBuckets(0.00001, 4, 10),
-	}, []string{"status"})
+		Buckets:   prometheus.ExponentialBuckets(0.0001, 4, 9),
+	})
 
-	prometheus.MustRegister(databaseQueryHistogram)
+	prometheus.MustRegister(databaseQueryCounter, databaseQueryHistogram)
 }
 
 // WrapDatabaseDriverWithHooks creates a fake database driver that
 // executes pre and post functions which we use to gather metrics about
-// database queries. It also registers the metrics.
+// database queries.
 func WrapDatabaseDriverWithHooks(dbType string) string {
 	drivers := map[string]driver.Driver{
-		migrator.SQLite:   &sqlite3.SQLiteDriver{},
-		migrator.MySQL:    &mysql.MySQLDriver{},
-		migrator.Postgres: &pq.Driver{},
+		migrator.SQLITE:   &sqlite3.SQLiteDriver{},
+		migrator.MYSQL:    &mysql.MySQLDriver{},
+		migrator.POSTGRES: &pq.Driver{},
 	}
 
 	d, exist := drivers[dbType]
@@ -50,7 +55,7 @@ func WrapDatabaseDriverWithHooks(dbType string) string {
 
 	driverWithHooks := dbType + "WithHooks"
 	sql.Register(driverWithHooks, sqlhooks.Wrap(d, &databaseQueryWrapper{log: log.New("sqlstore.metrics")}))
-	core.RegisterDriver(driverWithHooks, &databaseQueryWrapperDriver{dbType: dbType})
+	core.RegisterDriver(driverWithHooks, &databaseQueryWrapperParser{dbType: dbType})
 	return driverWithHooks
 }
 
@@ -72,7 +77,8 @@ func (h *databaseQueryWrapper) Before(ctx context.Context, query string, args ..
 func (h *databaseQueryWrapper) After(ctx context.Context, query string, args ...interface{}) (context.Context, error) {
 	begin := ctx.Value(databaseQueryWrapperKey{}).(time.Time)
 	elapsed := time.Since(begin)
-	databaseQueryHistogram.WithLabelValues("success").Observe(elapsed.Seconds())
+	databaseQueryCounter.WithLabelValues("success").Inc()
+	databaseQueryHistogram.Observe(elapsed.Seconds())
 	h.log.Debug("query finished", "status", "success", "elapsed time", elapsed, "sql", query)
 	return ctx, nil
 }
@@ -81,26 +87,24 @@ func (h *databaseQueryWrapper) After(ctx context.Context, query string, args ...
 func (h *databaseQueryWrapper) OnError(ctx context.Context, err error, query string, args ...interface{}) error {
 	status := "error"
 	// https://golang.org/pkg/database/sql/driver/#ErrSkip
-	if err == nil || errors.Is(err, driver.ErrSkip) {
+	if err == nil || err == driver.ErrSkip {
 		status = "success"
 	}
 
 	begin := ctx.Value(databaseQueryWrapperKey{}).(time.Time)
 	elapsed := time.Since(begin)
-	databaseQueryHistogram.WithLabelValues(status).Observe(elapsed.Seconds())
+	databaseQueryCounter.WithLabelValues(status).Inc()
+	databaseQueryHistogram.Observe(elapsed.Seconds())
 	h.log.Debug("query finished", "status", status, "elapsed time", elapsed, "sql", query, "error", err)
 	return err
 }
 
-// databaseQueryWrapperDriver satisfies the xorm.io/core.Driver interface
-type databaseQueryWrapperDriver struct {
+type databaseQueryWrapperParser struct {
 	dbType string
 }
 
-func (hp *databaseQueryWrapperDriver) Parse(driverName, dataSourceName string) (*core.Uri, error) {
-	driver := core.QueryDriver(hp.dbType)
-	if driver == nil {
-		return nil, fmt.Errorf("could not find driver with name %s", hp.dbType)
-	}
-	return driver.Parse(driverName, dataSourceName)
+func (hp *databaseQueryWrapperParser) Parse(string, string) (*core.Uri, error) {
+	return &core.Uri{
+		DbType: core.DbType(hp.dbType),
+	}, nil
 }

@@ -1,12 +1,9 @@
 import React from 'react';
-import { css } from '@emotion/css';
+import { css } from 'emotion';
 import { stylesFactory, useTheme, Select, Button, Switch, Field } from '@grafana/ui';
-import { GrafanaTheme } from '@grafana/data';
+import { GrafanaTheme, AppEvents } from '@grafana/data';
 import appEvents from 'app/core/app_events';
-import { ShowConfirmModalEvent } from '../../../types/events';
-import { dispatch } from 'app/store/store';
-import { notifyApp } from 'app/core/actions';
-import { createSuccessNotification } from 'app/core/copy/appNotification';
+import { CoreEvents } from 'app/types';
 
 export interface RichHistorySettingsProps {
   retentionPeriod: number;
@@ -59,21 +56,19 @@ export function RichHistorySettings(props: RichHistorySettingsProps) {
   } = props;
   const theme = useTheme();
   const styles = getStyles(theme);
-  const selectedOption = retentionPeriodOptions.find((v) => v.value === retentionPeriod);
+  const selectedOption = retentionPeriodOptions.find(v => v.value === retentionPeriod);
 
   const onDelete = () => {
-    appEvents.publish(
-      new ShowConfirmModalEvent({
-        title: 'Delete',
-        text: 'Are you sure you want to permanently delete your query history?',
-        yesText: 'Delete',
-        icon: 'trash-alt',
-        onConfirm: () => {
-          deleteRichHistory();
-          dispatch(notifyApp(createSuccessNotification('Query history deleted')));
-        },
-      })
-    );
+    appEvents.emit(CoreEvents.showConfirmModal, {
+      title: 'Delete',
+      text: 'Are you sure you want to permanently delete your query history?',
+      yesText: 'Delete',
+      icon: 'trash-alt',
+      onConfirm: () => {
+        deleteRichHistory();
+        appEvents.emit(AppEvents.alertSuccess, ['Query history deleted']);
+      },
+    });
   };
 
   return (

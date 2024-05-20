@@ -1,4 +1,4 @@
-import { map, without } from 'lodash';
+import _ from 'lodash';
 import { getValueFormats } from '@grafana/data';
 
 export class ColumnOptionsCtrl {
@@ -61,7 +61,7 @@ export class ColumnOptionsCtrl {
       if (!this.panelCtrl.table) {
         return [];
       }
-      return map(this.panelCtrl.table.columns, (col: any) => {
+      return _.map(this.panelCtrl.table.columns, (col: any) => {
         return col.text;
       });
     };
@@ -112,7 +112,7 @@ export class ColumnOptionsCtrl {
   }
 
   removeColumnStyle(style: any) {
-    this.panel.styles = without(this.panel.styles, style);
+    this.panel.styles = _.without(this.panel.styles, style);
   }
 
   invertColorOrder(index: number) {

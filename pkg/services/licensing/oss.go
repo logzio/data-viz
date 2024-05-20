@@ -32,13 +32,9 @@ func (*OSSLicensingService) StateInfo() string {
 	return ""
 }
 
-func (*OSSLicensingService) ContentDeliveryPrefix() string {
-	return "grafana-oss"
-}
-
 func (l *OSSLicensingService) LicenseURL(user *models.SignedInUser) string {
 	if user.IsGrafanaAdmin {
-		return l.Cfg.AppSubURL + "/admin/upgrading"
+		return l.Cfg.AppSubUrl + "/admin/upgrading"
 	}
 
 	return "https://grafana.com/products/enterprise/?utm_source=grafana_footer"
@@ -63,4 +59,8 @@ func (l *OSSLicensingService) Init() error {
 
 func (*OSSLicensingService) HasValidLicense() bool {
 	return false
+}
+
+func (*OSSLicensingService) TokenRaw() string {
+	return ""
 }

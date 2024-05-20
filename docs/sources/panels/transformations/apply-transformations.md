@@ -1,5 +1,9 @@
 +++
 title = "Apply a transformation"
+type = "docs"
+[menu.docs]
+identifier = "apply-transformation"
+parent = "transformations"
 weight = 300
 +++
 
@@ -21,7 +25,7 @@ To apply a transformation:
 
    This next transformation acts on the result set returned by the previous transformation.
 
-   {{< figure src="/static/img/docs/transformations/transformations-7-0.png" class="docs-image--no-shadow" max-width= "1100px" >}}
+   {{< docs-imagebox img="/img/docs/transformations/transformations-7-0.png" class="docs-image--no-shadow" max-width= "1100px" >}}
 
 ## Delete a transformation
 
@@ -31,4 +35,4 @@ To remove a transformation that is no longer needed, click the trash can icon.
 
 To see the input and the output result sets of the transformation, click the bug icon on the right side of the transformation row
 Grafana displays the transformation debug view below the transformation row.
-{{< figure src="/static/img/docs/transformations/debug-transformations-7-0.png" class="docs-image--no-shadow" max-width= "1100px" >}}
+{{< docs-imagebox img="/img/docs/transformations/debug-transformations-7-0.png" class="docs-image--no-shadow" max-width= "1100px" >}}

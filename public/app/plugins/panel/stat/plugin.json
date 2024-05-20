@@ -2,9 +2,10 @@
   "type": "panel",
   "name": "Stat",
   "id": "stat",
+  "state": "beta",
 
   "info": {
-    "description": "Big stat values & sparklines",
+    "description": "Singlestat Panel for Grafana",
     "author": {
       "name": "Grafana Labs",
       "url": "https://grafana.com"

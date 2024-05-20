@@ -2,7 +2,12 @@
 title = "Security"
 description = "Security Docs"
 keywords = ["grafana", "security", "documentation"]
+type = "docs"
 aliases = ["/docs/grafana/latest/installation/security/"]
+[menu.docs]
+name = "Security"
+identifier = "security"
+parent = "admin"
 weight = 500
 +++
 
@@ -18,7 +23,7 @@ You can configure Grafana to only allow certain IP addresses or hostnames to be 
 
 ## Firewall rules
 
-Configure a firewall to restrict Grafana from making network requests to sensitive internal web services.
+Configure a firewall to restrict Grafana from making network requests to sensitive internal web services. 
 
 There are many firewall tools available, refer to the documentation for your specific security tool. For example, Linux users can use [iptables](https://en.wikipedia.org/wiki/Iptables).
 
@@ -34,13 +39,5 @@ Users with the Viewer role can enter *any possible query* in *any* of the data s
 
 To address this vulnerability, you can restrict data source query access in the following ways:
 
-- Create multiple data sources with some restrictions added in data source configuration that restrict access (like database name or credentials). Then use the [Data Source Permissions]({{< relref "../permissions/datasource_permissions.md" >}}) Enterprise feature to restrict user access to the data source in Grafana.
+- Create multiple data sources with some restrictions added in data source config that restrict access (like database name or credentials). Then use the [Data Source Permissions]({{< relref "../permissions/datasource_permissions.md" >}}) Enterprise feature to restrict user access to the data source in Grafana.
 - Create a separate Grafana organization, and in that organization, create a separate data source. Make sure the data source has some option/user/credentials setting that limits access to a subset of the data. Not all data sources have an option to limit access.
-
-## Implications of enabling anonymous access to dashboards
-
-When you enable anonymous access to a dashboard, it is publicly available. This section lists the security implications of enabling Anonymous access.
-
-- Anyone with the URL can access the dashboard. 
-- Anyone can make view calls to the API and list all folders, dashboards, and data sources.
-- Anyone can make arbitrary queries to any data source that the Grafana instance is configured with.

@@ -1,5 +1,6 @@
 import React, { PureComponent } from 'react';
 import { connect } from 'react-redux';
+import { Icon } from '@grafana/ui';
 import { SlideDown } from 'app/core/components/Animations/SlideDown';
 import { UserPicker } from 'app/core/components/Select/UserPicker';
 import { TagBadge } from 'app/core/components/TagFilter/TagBadge';
@@ -12,8 +13,6 @@ import { config } from 'app/core/config';
 import { contextSrv, User as SignedInUser } from 'app/core/services/context_srv';
 import TeamMemberRow from './TeamMemberRow';
 import { setSearchMemberQuery } from './state/reducers';
-import { CloseButton } from 'app/core/components/CloseButton/CloseButton';
-import { Button } from '@grafana/ui';
 
 export interface Props {
   members: TeamMember[];
@@ -60,7 +59,7 @@ export class TeamMembers extends PureComponent<Props, State> {
 
     return (
       <td>
-        {labels.map((label) => (
+        {labels.map(label => (
           <TagBadge key={label} label={label} removeIcon={false} count={0} onClick={() => {}} />
         ))}
       </td>
@@ -76,23 +75,38 @@ export class TeamMembers extends PureComponent<Props, State> {
       <div>
         <div className="page-action-bar">
           <div className="gf-form gf-form--grow">
-            <FilterInput placeholder="Search members" value={searchMemberQuery} onChange={this.onSearchQueryChange} />
+            <FilterInput
+              labelClassName="gf-form--has-input-icon gf-form--grow"
+              inputClassName="gf-form-input"
+              placeholder="Search members"
+              value={searchMemberQuery}
+              onChange={this.onSearchQueryChange}
+            />
           </div>
-          <Button className="pull-right" onClick={this.onToggleAdding} disabled={isAdding || !isTeamAdmin}>
+
+          <div className="page-action-bar__spacer" />
+
+          <button
+            className="btn btn-primary pull-right"
+            onClick={this.onToggleAdding}
+            disabled={isAdding || !isTeamAdmin}
+          >
             Add member
-          </Button>
+          </button>
         </div>
 
         <SlideDown in={isAdding}>
           <div className="cta-form">
-            <CloseButton onClick={this.onToggleAdding} />
+            <button className="cta-form__close btn btn-transparent" onClick={this.onToggleAdding}>
+              <Icon name="times" />
+            </button>
             <h5>Add team member</h5>
             <div className="gf-form-inline">
               <UserPicker onSelected={this.onUserSelected} className="min-width-30" />
               {this.state.newTeamMember && (
-                <Button type="submit" onClick={this.onAddUserToTeam}>
+                <button className="btn btn-primary gf-form-btn" type="submit" onClick={this.onAddUserToTeam}>
                   Add to team
-                </Button>
+                </button>
               )}
             </div>
           </div>
@@ -115,7 +129,7 @@ export class TeamMembers extends PureComponent<Props, State> {
             </thead>
             <tbody>
               {members &&
-                members.map((member) => (
+                members.map(member => (
                   <TeamMemberRow
                     key={member.userId}
                     member={member}

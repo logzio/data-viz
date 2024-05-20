@@ -2,45 +2,41 @@ package testdatasource
 
 import (
 	"context"
-	"net/http"
 
-	"github.com/grafana/grafana-plugin-sdk-go/backend"
-	"github.com/grafana/grafana-plugin-sdk-go/backend/datasource"
-	"github.com/grafana/grafana-plugin-sdk-go/backend/resource/httpadapter"
 	"github.com/grafana/grafana/pkg/infra/log"
-	"github.com/grafana/grafana/pkg/plugins/backendplugin"
-	"github.com/grafana/grafana/pkg/plugins/backendplugin/coreplugin"
-	"github.com/grafana/grafana/pkg/registry"
-	"github.com/grafana/grafana/pkg/setting"
+	"github.com/grafana/grafana/pkg/models"
+	"github.com/grafana/grafana/pkg/tsdb"
 )
 
+type TestDataExecutor struct {
+	*models.DataSource
+	log log.Logger
+}
+
+func NewTestDataExecutor(dsInfo *models.DataSource) (tsdb.TsdbQueryEndpoint, error) {
+	return &TestDataExecutor{
+		DataSource: dsInfo,
+		log:        log.New("tsdb.testdata"),
+	}, nil
+}
+
 func init() {
-	registry.RegisterService(&testDataPlugin{})
+	tsdb.RegisterTsdbQueryEndpoint("testdata", NewTestDataExecutor)
 }
 
-type testDataPlugin struct {
-	BackendPluginManager backendplugin.Manager `inject:""`
-	Cfg                  *setting.Cfg          `inject:""`
-	logger               log.Logger
-	scenarios            map[string]*Scenario
-	queryMux             *datasource.QueryTypeMux
-}
+func (e *TestDataExecutor) Query(ctx context.Context, dsInfo *models.DataSource, tsdbQuery *tsdb.TsdbQuery) (*tsdb.Response, error) {
+	result := &tsdb.Response{}
+	result.Results = make(map[string]*tsdb.QueryResult)
 
-func (p *testDataPlugin) Init() error {
-	p.logger = log.New("tsdb.testdata")
-	p.scenarios = map[string]*Scenario{}
-	p.queryMux = datasource.NewQueryTypeMux()
-	p.registerScenarios()
-	resourceMux := http.NewServeMux()
-	p.registerRoutes(resourceMux)
-	factory := coreplugin.New(backend.ServeOpts{
-		QueryDataHandler:    p.queryMux,
-		CallResourceHandler: httpadapter.New(resourceMux),
-		StreamHandler:       newTestStreamHandler(p.logger),
-	})
-	err := p.BackendPluginManager.RegisterAndStart(context.Background(), "testdata", factory)
-	if err != nil {
-		p.logger.Error("Failed to register plugin", "error", err)
+	for _, query := range tsdbQuery.Queries {
+		scenarioId := query.Model.Get("scenarioId").MustString("random_walk")
+		if scenario, exist := ScenarioRegistry[scenarioId]; exist {
+			result.Results[query.RefId] = scenario.Handler(query, tsdbQuery)
+			result.Results[query.RefId].RefId = query.RefId
+		} else {
+			e.log.Error("Scenario not found", "scenarioId", scenarioId)
+		}
 	}
-	return nil
+
+	return result, nil
 }

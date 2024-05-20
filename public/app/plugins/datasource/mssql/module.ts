@@ -1,8 +1,6 @@
 import { MssqlDatasource } from './datasource';
 import { MssqlQueryCtrl } from './query_ctrl';
 import { MssqlConfigCtrl } from './config_ctrl';
-import { MssqlQuery } from './types';
-import { DataSourcePlugin } from '@grafana/data';
 
 const defaultQuery = `SELECT
     <time_column> as time,
@@ -18,16 +16,18 @@ const defaultQuery = `SELECT
 class MssqlAnnotationsQueryCtrl {
   static templateUrl = 'partials/annotations.editor.html';
 
-  declare annotation: any;
+  annotation: any;
 
   /** @ngInject */
-  constructor($scope: any) {
-    this.annotation = $scope.ctrl.annotation;
+  constructor() {
     this.annotation.rawQuery = this.annotation.rawQuery || defaultQuery;
   }
 }
 
-export const plugin = new DataSourcePlugin<MssqlDatasource, MssqlQuery>(MssqlDatasource)
-  .setQueryCtrl(MssqlQueryCtrl)
-  .setConfigCtrl(MssqlConfigCtrl)
-  .setAnnotationQueryCtrl(MssqlAnnotationsQueryCtrl);
+export {
+  MssqlDatasource,
+  MssqlDatasource as Datasource,
+  MssqlQueryCtrl as QueryCtrl,
+  MssqlConfigCtrl as ConfigCtrl,
+  MssqlAnnotationsQueryCtrl as AnnotationsQueryCtrl,
+};

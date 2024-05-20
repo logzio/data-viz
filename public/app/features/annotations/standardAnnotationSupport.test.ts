@@ -1,8 +1,8 @@
-import { FieldType, toDataFrame } from '@grafana/data';
+import { FieldType, observableTester, toDataFrame } from '@grafana/data';
 import { getAnnotationsFromData } from './standardAnnotationSupport';
 
 describe('DataFrame to annotations', () => {
-  test('simple conversion', async () => {
+  test('simple conversion', done => {
     const frame = toDataFrame({
       fields: [
         { type: FieldType.time, values: [1, 2, 3, 4, 5] },
@@ -11,44 +11,48 @@ describe('DataFrame to annotations', () => {
       ],
     });
 
-    await expect(getAnnotationsFromData([frame])).toEmitValues([
-      [
-        {
-          color: 'red',
-          tags: ['aaa', 'bbb'],
-          text: 't1',
-          time: 1,
-          type: 'default',
-        },
-        {
-          color: 'red',
-          tags: ['bbb', 'ccc'],
-          text: 't2',
-          time: 2,
-          type: 'default',
-        },
-        {
-          color: 'red',
-          tags: ['zyz'],
-          text: 't3',
-          time: 3,
-          type: 'default',
-        },
-        {
-          color: 'red',
-          time: 4,
-          type: 'default',
-        },
-        {
-          color: 'red',
-          time: 5,
-          type: 'default',
-        },
-      ],
-    ]);
+    observableTester().subscribeAndExpectOnNext({
+      observable: getAnnotationsFromData([frame]),
+      expect: events => {
+        expect(events).toEqual([
+          {
+            color: 'red',
+            tags: ['aaa', 'bbb'],
+            text: 't1',
+            time: 1,
+            type: 'default',
+          },
+          {
+            color: 'red',
+            tags: ['bbb', 'ccc'],
+            text: 't2',
+            time: 2,
+            type: 'default',
+          },
+          {
+            color: 'red',
+            tags: ['zyz'],
+            text: 't3',
+            time: 3,
+            type: 'default',
+          },
+          {
+            color: 'red',
+            time: 4,
+            type: 'default',
+          },
+          {
+            color: 'red',
+            time: 5,
+            type: 'default',
+          },
+        ]);
+      },
+      done,
+    });
   });
 
-  test('explicit mappins', async () => {
+  test('explicit mappins', done => {
     const frame = toDataFrame({
       fields: [
         { name: 'time1', values: [111, 222, 333] },
@@ -58,40 +62,42 @@ describe('DataFrame to annotations', () => {
       ],
     });
 
-    const observable = getAnnotationsFromData([frame], {
-      text: { value: 'bbbbb' },
-      time: { value: 'time2' },
-      timeEnd: { value: 'time1' },
-      title: { value: 'aaaaa' },
+    observableTester().subscribeAndExpectOnNext({
+      observable: getAnnotationsFromData([frame], {
+        text: { value: 'bbbbb' },
+        time: { value: 'time2' },
+        timeEnd: { value: 'time1' },
+        title: { value: 'aaaaa' },
+      }),
+      expect: events => {
+        expect(events).toEqual([
+          {
+            color: 'red',
+            text: 'b1',
+            time: 100,
+            timeEnd: 111,
+            title: 'a1',
+            type: 'default',
+          },
+          {
+            color: 'red',
+            text: 'b2',
+            time: 200,
+            timeEnd: 222,
+            title: 'a2',
+            type: 'default',
+          },
+          {
+            color: 'red',
+            text: 'b3',
+            time: 300,
+            timeEnd: 333,
+            title: 'a3',
+            type: 'default',
+          },
+        ]);
+      },
+      done,
     });
-
-    await expect(observable).toEmitValues([
-      [
-        {
-          color: 'red',
-          text: 'b1',
-          time: 100,
-          timeEnd: 111,
-          title: 'a1',
-          type: 'default',
-        },
-        {
-          color: 'red',
-          text: 'b2',
-          time: 200,
-          timeEnd: 222,
-          title: 'a2',
-          type: 'default',
-        },
-        {
-          color: 'red',
-          text: 'b3',
-          time: 300,
-          timeEnd: 333,
-          title: 'a3',
-          type: 'default',
-        },
-      ],
-    ]);
   });
 });

@@ -1,11 +1,11 @@
 import React, { PureComponent } from 'react';
 
-import { AnnotationEventMappings, AnnotationQuery, DataQuery, DataSourceApi, LoadingState } from '@grafana/data';
-import { Button, Icon, IconName, Spinner } from '@grafana/ui';
+import { AnnotationEventMappings, DataQuery, LoadingState, DataSourceApi, AnnotationQuery } from '@grafana/data';
+import { Spinner, Icon, IconName, Button } from '@grafana/ui';
 
 import { getDashboardSrv } from 'app/features/dashboard/services/DashboardSrv';
 import { getTimeSrv } from 'app/features/dashboard/services/TimeSrv';
-import { css, cx } from '@emotion/css';
+import { cx, css } from 'emotion';
 import { standardAnnotationSupport } from '../standardAnnotationSupport';
 import { executeAnnotationQuery } from '../annotations_srv';
 import { PanelModel } from 'app/features/dashboard/state';
@@ -16,7 +16,7 @@ import coreModule from 'app/core/core_module';
 interface Props {
   datasource: DataSourceApi;
   annotation: AnnotationQuery<DataQuery>;
-  onChange: (annotation: AnnotationQuery<DataQuery>) => void;
+  change: (annotation: AnnotationQuery<DataQuery>) => void;
 }
 
 interface State {
@@ -48,7 +48,7 @@ export default class StandardAnnotationQueryEditor extends PureComponent<Props, 
 
     const fixed = processor.prepareAnnotation!(annotation);
     if (fixed !== annotation) {
-      this.props.onChange(fixed);
+      this.props.change(fixed);
     } else {
       this.onRunQuery();
     }
@@ -56,11 +56,6 @@ export default class StandardAnnotationQueryEditor extends PureComponent<Props, 
 
   onRunQuery = async () => {
     const { datasource, annotation } = this.props;
-    const dashboard = getDashboardSrv().getCurrent();
-    if (!dashboard) {
-      return;
-    }
-
     this.setState({
       running: true,
     });
@@ -68,7 +63,7 @@ export default class StandardAnnotationQueryEditor extends PureComponent<Props, 
       {
         range: getTimeSrv().timeRange(),
         panel: {} as PanelModel,
-        dashboard,
+        dashboard: getDashboardSrv().getCurrent(),
       },
       datasource,
       annotation
@@ -80,14 +75,14 @@ export default class StandardAnnotationQueryEditor extends PureComponent<Props, 
   };
 
   onQueryChange = (target: DataQuery) => {
-    this.props.onChange({
+    this.props.change({
       ...this.props.annotation,
       target,
     });
   };
 
   onMappingChange = (mappings: AnnotationEventMappings) => {
-    this.props.onChange({
+    this.props.change({
       ...this.props.annotation,
       mappings,
     });

@@ -1,9 +1,9 @@
 package log
 
 type DisposableHandler interface {
-	Close() error
+	Close()
 }
 
 type ReloadableHandler interface {
-	Reload() error
+	Reload()
 }

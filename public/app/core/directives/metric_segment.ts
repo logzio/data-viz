@@ -1,4 +1,4 @@
-import { debounce, find, indexOf, map, escape, unescape } from 'lodash';
+import _ from 'lodash';
 import $ from 'jquery';
 import coreModule from '../core_module';
 import { TemplateSrv } from 'app/features/templating/template_srv';
@@ -43,7 +43,7 @@ export function metricSegment($compile: any, $sce: any, templateSrv: TemplateSrv
         }
 
         $scope.$apply(() => {
-          const selected: any = find($scope.altSegments, { value: value });
+          const selected: any = _.find($scope.altSegments, { value: value });
           if (selected) {
             segment.value = selected.value;
             segment.html = selected.html || $sce.trustAsHtml(templateSrv.highlightVariablesAsHtml(selected.value));
@@ -87,14 +87,14 @@ export function metricSegment($compile: any, $sce: any, templateSrv: TemplateSrv
         $scope.$apply(() => {
           $scope.getOptions({ $query: query }).then((altSegments: any) => {
             $scope.altSegments = altSegments;
-            options = map($scope.altSegments, (alt) => {
-              return escape(alt.value);
+            options = _.map($scope.altSegments, alt => {
+              return _.escape(alt.value);
             });
 
             // add custom values
             if (segment.custom !== 'false') {
-              if (!segment.fake && indexOf(options, segment.value) === -1) {
-                options.unshift(escape(segment.value));
+              if (!segment.fake && _.indexOf(options, segment.value) === -1) {
+                options.unshift(_.escape(segment.value));
               }
             }
 
@@ -104,7 +104,7 @@ export function metricSegment($compile: any, $sce: any, templateSrv: TemplateSrv
       };
 
       $scope.updater = (value: string) => {
-        value = unescape(value);
+        value = _.unescape(value);
         if (value === segment.value) {
           clearTimeout(cancelBlur);
           $input.focus();
@@ -117,7 +117,7 @@ export function metricSegment($compile: any, $sce: any, templateSrv: TemplateSrv
         return value;
       };
 
-      $scope.matcher = function (item: string) {
+      $scope.matcher = function(item: string) {
         if (linkMode) {
           return false;
         }
@@ -147,17 +147,17 @@ export function metricSegment($compile: any, $sce: any, templateSrv: TemplateSrv
       });
 
       const typeahead = $input.data('typeahead');
-      typeahead.lookup = function () {
+      typeahead.lookup = function() {
         this.query = this.$element.val() || '';
         const items = this.source(this.query, $.proxy(this.process, this));
         return items ? this.process(items) : items;
       };
 
       if (debounceLookup) {
-        typeahead.lookup = debounce(typeahead.lookup, 500, { leading: true });
+        typeahead.lookup = _.debounce(typeahead.lookup, 500, { leading: true });
       }
 
-      $button.keydown((evt) => {
+      $button.keydown(evt => {
         // trigger typeahead on down arrow or enter key
         if (evt.keyCode === 40 || evt.keyCode === 13) {
           $button.click();
@@ -166,12 +166,12 @@ export function metricSegment($compile: any, $sce: any, templateSrv: TemplateSrv
 
       // LOGZ.IO GRAFANA CHANGE :: Select all field for copy full field name
       // And add tooltip
-      $button.contextmenu((evt) => {
+      $button.contextmenu(evt => {
         // Select full field name
         window.getSelection()?.selectAllChildren(evt.target);
       });
 
-      $button.mouseover((evt) => {
+      $button.mouseover(evt => {
         const button = evt.target as HTMLElement;
         $button.attr('title', button.innerText);
       });
@@ -218,7 +218,7 @@ export function metricSegmentModel(uiSegmentSrv: any) {
         let cachedOptions: any;
 
         $scope.valueToSegment = (value: any) => {
-          const option: any = find($scope.options, { value: value });
+          const option: any = _.find($scope.options, { value: value });
           const segment = {
             cssClass: attrs.cssClass,
             custom: attrs.custom,
@@ -233,14 +233,14 @@ export function metricSegmentModel(uiSegmentSrv: any) {
           if ($scope.options) {
             cachedOptions = $scope.options;
             return Promise.resolve(
-              map($scope.options, (option) => {
+              _.map($scope.options, option => {
                 return { value: option.text };
               })
             );
           } else {
             return $scope.getOptions().then((options: any) => {
               cachedOptions = options;
-              return map(options, (option) => {
+              return _.map(options, option => {
                 if (option.html) {
                   return option;
                 }
@@ -252,7 +252,7 @@ export function metricSegmentModel(uiSegmentSrv: any) {
 
         $scope.onSegmentChange = () => {
           if (cachedOptions) {
-            const option: any = find(cachedOptions, { text: $scope.segment.value });
+            const option: any = _.find(cachedOptions, { text: $scope.segment.value });
             if (option && option.value !== $scope.property) {
               $scope.property = option.value;
             } else if (attrs.custom !== 'false') {

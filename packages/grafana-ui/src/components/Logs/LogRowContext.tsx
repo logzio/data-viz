@@ -1,14 +1,16 @@
-import React, { useRef, useState, useLayoutEffect, useEffect } from 'react';
-import { GrafanaTheme, DataQueryError, LogRowModel, textUtil } from '@grafana/data';
-import { css, cx } from '@emotion/css';
+import React, { useContext, useRef, useState, useLayoutEffect, useEffect } from 'react';
+import { LogRowModel } from '@grafana/data';
+import { css, cx } from 'emotion';
 
 import { Alert } from '../Alert/Alert';
 import { LogRowContextRows, LogRowContextQueryErrors, HasMoreContextRows } from './LogRowContextProvider';
-import { useStyles } from '../../themes/ThemeContext';
+import { GrafanaTheme } from '@grafana/data';
+import { selectThemeVariant } from '../../themes/selectThemeVariant';
+import { DataQueryError } from '@grafana/data';
+import { ThemeContext } from '../../themes/ThemeContext';
 import { CustomScrollbar } from '../CustomScrollbar/CustomScrollbar';
 import { List } from '../List/List';
 import { ClickOutsideWrapper } from '../ClickOutsideWrapper/ClickOutsideWrapper';
-import { LogMessageAnsi } from './LogMessageAnsi';
 
 interface LogRowContextProps {
   row: LogRowModel;
@@ -20,17 +22,48 @@ interface LogRowContextProps {
 }
 
 const getLogRowContextStyles = (theme: GrafanaTheme) => {
+  const gradientTop = selectThemeVariant(
+    {
+      light: theme.palette.white,
+      dark: theme.palette.dark1,
+    },
+    theme.type
+  );
+  const gradientBottom = selectThemeVariant(
+    {
+      light: theme.palette.gray7,
+      dark: theme.palette.dark2,
+    },
+    theme.type
+  );
+
+  const boxShadowColor = selectThemeVariant(
+    {
+      light: theme.palette.gray5,
+      dark: theme.palette.black,
+    },
+    theme.type
+  );
+  const borderColor = selectThemeVariant(
+    {
+      light: theme.palette.gray5,
+      dark: theme.palette.dark9,
+    },
+    theme.type
+  );
+
   return {
     commonStyles: css`
       position: absolute;
       width: calc(100% + 20px);
-      left: -13px;
+      left: -10px;
       height: 250px;
-      z-index: ${theme.zIndex.dropdown};
+      z-index: 2;
       overflow: hidden;
-      background: ${theme.colors.bg1};
-      box-shadow: 0 0 10px ${theme.colors.dropdownShadow};
-      border: 1px solid ${theme.colors.bg2};
+      background: ${theme.colors.bodyBg};
+      background: linear-gradient(180deg, ${gradientTop} 0%, ${gradientBottom} 104.25%);
+      box-shadow: 0px 2px 4px ${boxShadowColor}, 0px 0px 2px ${boxShadowColor};
+      border: 1px solid ${borderColor};
       border-radius: ${theme.border.radius.md};
     `,
     header: css`
@@ -38,7 +71,7 @@ const getLogRowContextStyles = (theme: GrafanaTheme) => {
       padding: 0 10px;
       display: flex;
       align-items: center;
-      background: ${theme.colors.bg2};
+      background: ${borderColor};
     `,
     logs: css`
       height: 220px;
@@ -66,7 +99,8 @@ const LogRowContextGroupHeader: React.FunctionComponent<LogRowContextGroupHeader
   onLoadMoreContext,
   canLoadMoreRows,
 }) => {
-  const { header } = useStyles(getLogRowContextStyles);
+  const theme = useContext(ThemeContext);
+  const { header } = getLogRowContextStyles(theme);
 
   return (
     <div className={header}>
@@ -95,7 +129,7 @@ const LogRowContextGroupHeader: React.FunctionComponent<LogRowContextGroupHeader
   );
 };
 
-export const LogRowContextGroup: React.FunctionComponent<LogRowContextGroupProps> = ({
+const LogRowContextGroup: React.FunctionComponent<LogRowContextGroupProps> = ({
   row,
   rows,
   error,
@@ -104,7 +138,8 @@ export const LogRowContextGroup: React.FunctionComponent<LogRowContextGroupProps
   canLoadMoreRows,
   onLoadMoreContext,
 }) => {
-  const { commonStyles, logs } = useStyles(getLogRowContextStyles);
+  const theme = useContext(ThemeContext);
+  const { commonStyles, logs } = getLogRowContextStyles(theme);
   const [scrollTop, setScrollTop] = useState(0);
   const listContainerRef = useRef<HTMLDivElement>() as React.RefObject<HTMLDivElement>;
 
@@ -112,7 +147,7 @@ export const LogRowContextGroup: React.FunctionComponent<LogRowContextGroupProps
     if (shouldScrollToBottom && listContainerRef.current) {
       setScrollTop(listContainerRef.current.offsetHeight);
     }
-  }, [shouldScrollToBottom]);
+  });
 
   const headerProps = {
     row,
@@ -131,14 +166,14 @@ export const LogRowContextGroup: React.FunctionComponent<LogRowContextGroupProps
             {!error && (
               <List
                 items={rows}
-                renderItem={(item) => {
+                renderItem={item => {
                   return (
                     <div
                       className={css`
                         padding: 5px 0;
                       `}
                     >
-                      {typeof item === 'string' && textUtil.hasAnsiCodes(item) ? <LogMessageAnsi value={item} /> : item}
+                      {item}
                     </div>
                   );
                 }}
@@ -162,23 +197,24 @@ export const LogRowContext: React.FunctionComponent<LogRowContextProps> = ({
   onLoadMoreContext,
   hasMoreContextRows,
 }) => {
+  const handleEscKeyDown = (e: KeyboardEvent): void => {
+    if (e.keyCode === 27) {
+      onOutsideClick();
+    }
+  };
+
   useEffect(() => {
-    const handleEscKeyDown = (e: KeyboardEvent): void => {
-      if (e.keyCode === 27) {
-        onOutsideClick();
-      }
-    };
     document.addEventListener('keydown', handleEscKeyDown, false);
     return () => {
       document.removeEventListener('keydown', handleEscKeyDown, false);
     };
-  }, [onOutsideClick]);
+  }, []);
 
   return (
     <ClickOutsideWrapper onClick={onOutsideClick}>
       {/* e.stopPropagation is necessary so the log details doesn't open when clicked on log line in context
        * and/or when context log line is being highlighted */}
-      <div onClick={(e) => e.stopPropagation()}>
+      <div onClick={e => e.stopPropagation()}>
         {context.after && (
           <LogRowContextGroup
             rows={context.after}

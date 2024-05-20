@@ -1,6 +1,5 @@
 import { PanelModel } from 'app/features/dashboard/state';
 
-export const hiddenReducerTypes = ['percent_diff', 'percent_diff_abs'];
 export class ThresholdMapper {
   static alertToGraphThresholds(panel: PanelModel) {
     if (!panel.alert) {
@@ -15,17 +14,16 @@ export class ThresholdMapper {
 
       const evaluator = condition.evaluator;
       const thresholds: any[] = (panel.thresholds = []);
-      const visible = hiddenReducerTypes.indexOf(condition.reducer?.type) === -1;
 
       switch (evaluator.type) {
         case 'gt': {
           const value = evaluator.params[0];
-          thresholds.push({ value: value, op: 'gt', visible });
+          thresholds.push({ value: value, op: 'gt' });
           break;
         }
         case 'lt': {
           const value = evaluator.params[0];
-          thresholds.push({ value: value, op: 'lt', visible });
+          thresholds.push({ value: value, op: 'lt' });
           break;
         }
         case 'outside_range': {
@@ -33,11 +31,11 @@ export class ThresholdMapper {
           const value2 = evaluator.params[1];
 
           if (value1 > value2) {
-            thresholds.push({ value: value1, op: 'gt', visible });
-            thresholds.push({ value: value2, op: 'lt', visible });
+            thresholds.push({ value: value1, op: 'gt' });
+            thresholds.push({ value: value2, op: 'lt' });
           } else {
-            thresholds.push({ value: value1, op: 'lt', visible });
-            thresholds.push({ value: value2, op: 'gt', visible });
+            thresholds.push({ value: value1, op: 'lt' });
+            thresholds.push({ value: value2, op: 'gt' });
           }
 
           break;
@@ -47,11 +45,11 @@ export class ThresholdMapper {
           const value2 = evaluator.params[1];
 
           if (value1 > value2) {
-            thresholds.push({ value: value1, op: 'lt', visible });
-            thresholds.push({ value: value2, op: 'gt', visible });
+            thresholds.push({ value: value1, op: 'lt' });
+            thresholds.push({ value: value2, op: 'gt' });
           } else {
-            thresholds.push({ value: value1, op: 'gt', visible });
-            thresholds.push({ value: value2, op: 'lt', visible });
+            thresholds.push({ value: value1, op: 'gt' });
+            thresholds.push({ value: value2, op: 'lt' });
           }
           break;
         }

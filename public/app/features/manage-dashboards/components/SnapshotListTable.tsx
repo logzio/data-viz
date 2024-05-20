@@ -1,46 +1,58 @@
-import React, { FC, useState, useCallback } from 'react';
+import React, { FC, useState, useCallback, useEffect } from 'react';
 import { ConfirmModal, Button, LinkButton } from '@grafana/ui';
-import { getBackendSrv, locationService } from '@grafana/runtime';
+import { getBackendSrv } from '@grafana/runtime'; // LOGZ.IO GRAFANA CHANGE :: DEV-20896 Use logzio provider
+import { logzioServices } from '@grafana/data';
+import { noop } from 'rxjs';
 import { Snapshot } from '../types';
-import useAsync from 'react-use/lib/useAsync';
 
-export function getSnapshots() {
-  return getBackendSrv()
-    .get('/api/dashboard/snapshots')
-    .then((result: Snapshot[]) => {
-      return result.map((snapshot) => ({
-        ...snapshot,
-        url: `/dashboard/snapshot/${snapshot.key}`,
-      }));
-    });
+interface Props {
+  url: string;
 }
-export const SnapshotListTable: FC = () => {
+
+export const SnapshotListTable: FC<Props> = ({ url }) => {
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [removeSnapshot, setRemoveSnapshot] = useState<Snapshot | undefined>();
-  const currentPath = locationService.getLocation().pathname;
-  const fullUrl = window.location.href;
-  const baseUrl = fullUrl.substr(0, fullUrl.indexOf(currentPath));
 
-  useAsync(async () => {
-    const response = await getSnapshots();
-    setSnapshots(response);
-  }, [setSnapshots]);
+  const getSnapshots = useCallback(async () => {
+    await getBackendSrv()
+      .get('/api/dashboard/snapshots')
+      .then(async (result: Snapshot[]) => {
+        // LOGZ.IO GRAFANA CHANGE :: DEV-20896 Change snapshot-url and add href path
+        // const absUrl = window.location.href;
+        // const baseUrl = absUrl.replace(url, '');
+        // LOGZ.IO GRAFANA CHANGE :: END
+
+        const logzioUrl = await logzioServices.shareUrlService.getLogzioGrafanaUrl({
+          productUrl: window.location.origin,
+          hash: '/dashboard/grafana-snapshot',
+        });
+
+        const snapshots = result.map(snapshot => ({
+          ...snapshot,
+          url: snapshot.externalUrl || `${logzioUrl}dashboard/snapshot/${snapshot.key}`,
+        }));
+        setSnapshots(snapshots);
+      });
+  }, []);
 
   const doRemoveSnapshot = useCallback(
     async (snapshot: Snapshot) => {
-      const filteredSnapshots = snapshots.filter((ss) => ss.key !== snapshot.key);
-      setSnapshots(filteredSnapshots);
+      setSnapshots(snapshots.filter(ss => ss.key !== snapshot.key));
       await getBackendSrv()
         .delete(`/api/snapshots/${snapshot.key}`)
-        .catch(() => {
-          setSnapshots(snapshots);
+        .then(noop, () => {
+          setSnapshots(snapshots.concat(snapshot));
         });
     },
     [snapshots]
   );
 
+  useEffect(() => {
+    getSnapshots();
+  }, []);
+
   return (
-    <div>
+    <div className="page-container page-body">
       <table className="filter-table">
         <thead>
           <tr>
@@ -56,20 +68,24 @@ export const SnapshotListTable: FC = () => {
           </tr>
         </thead>
         <tbody>
-          {snapshots.map((snapshot) => {
-            const url = snapshot.externalUrl || snapshot.url;
-            const fullUrl = snapshot.externalUrl || `${baseUrl}${snapshot.url}`;
+          {snapshots.map((snapshot, key) => {
             return (
-              <tr key={snapshot.key}>
+              <tr key={key}>
                 <td>
-                  <a href={url}>{snapshot.name}</a>
+                  {/*LOGZ.IO GRAFANA CHANGE :: DEV-20896 Add target parent */}
+                  <a target="_parent" href={snapshot.url}>
+                    {snapshot.name}
+                  </a>{' '}
                 </td>
                 <td>
-                  <a href={url}>{fullUrl}</a>
+                  {/*LOGZ.IO GRAFANA CHANGE :: DEV-20896 Add target parent */}
+                  <a target="_parent" href={snapshot.url}>
+                    {snapshot.url}
+                  </a>{' '}
                 </td>
                 <td>{snapshot.external && <span className="query-keyword">External</span>}</td>
                 <td className="text-center">
-                  <LinkButton href={url} variant="secondary" size="sm" icon="eye">
+                  <LinkButton href={snapshot.url} variant="secondary" size="sm" icon="eye">
                     View
                   </LinkButton>
                 </td>

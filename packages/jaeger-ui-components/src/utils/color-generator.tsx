@@ -62,7 +62,7 @@ class ColorGenerator {
   /**
    * Retrieve the RGB values associated with a key. Adds the key and associates
    * it with a color if the key is not recognized.
-   * @returns {number[]} An array of three ints [0, 255] representing a color.
+   * @return {number[]} An array of three ints [0, 255] representing a color.
    */
   getRgbColorByKey(key: string): [number, number, number] {
     const i = this._getColorIndex(key);

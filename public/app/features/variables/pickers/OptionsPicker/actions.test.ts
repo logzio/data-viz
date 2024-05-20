@@ -1,12 +1,13 @@
 import { reduxTester } from '../../../../../test/core/redux/reduxTester';
-import { getRootReducer, RootReducerType } from '../../state/helpers';
+import { getRootReducer } from '../../state/helpers';
+import { TemplatingState } from '../../state/reducers';
 import { initialVariableModelState, QueryVariableModel, VariableRefresh, VariableSort } from '../../types';
 import {
   hideOptions,
-  initialState,
   moveOptionsHighlight,
   showOptions,
   toggleOption,
+  toggleTag,
   updateOptionsAndFilter,
   updateSearchQuery,
 } from './reducer';
@@ -14,7 +15,7 @@ import {
   commitChangesToVariable,
   filterOrSearchOptions,
   navigateOptions,
-  openOptions,
+  toggleAndFetchTag,
   toggleOptionByHighlight,
 } from './actions';
 import { NavigationKey } from '../types';
@@ -22,8 +23,7 @@ import { toVariablePayload } from '../../state/types';
 import { addVariable, changeVariableProp, setCurrentVariableValue } from '../../state/sharedReducer';
 import { variableAdapters } from '../../adapters';
 import { createQueryVariableAdapter } from '../../query/adapter';
-import { locationService } from '@grafana/runtime';
-import { queryBuilder } from '../../shared/testing/builders';
+import { updateLocation } from 'app/core/actions';
 
 const datasource = {
   metricFindQuery: jest.fn(() => Promise.resolve([])),
@@ -37,10 +37,6 @@ jest.mock('@grafana/runtime', () => {
     getDataSourceSrv: jest.fn(() => ({
       get: () => datasource,
     })),
-    locationService: {
-      partial: jest.fn(),
-      getSearchObject: () => ({}),
-    },
   };
 });
 
@@ -57,7 +53,7 @@ describe('options picker actions', () => {
       const clearOthers = false;
       const key = NavigationKey.cancel;
 
-      const tester = await reduxTester<RootReducerType>()
+      const tester = await reduxTester<{ templating: TemplatingState }>()
         .givenRootReducer(getRootReducer())
         .whenActionIsDispatched(addVariable(toVariablePayload(variable, { global: false, index: 0, model: variable })))
         .whenActionIsDispatched(showOptions(variable))
@@ -67,6 +63,7 @@ describe('options picker actions', () => {
         ...createOption(['A']),
         selected: true,
         value: ['A'],
+        tags: [] as any[],
       };
 
       tester.thenDispatchedActionsShouldEqual(
@@ -89,7 +86,7 @@ describe('options picker actions', () => {
       const clearOthers = false;
       const key = NavigationKey.select;
 
-      const tester = await reduxTester<RootReducerType>()
+      const tester = await reduxTester<{ templating: TemplatingState }>()
         .givenRootReducer(getRootReducer())
         .whenActionIsDispatched(addVariable(toVariablePayload(variable, { global: false, index: 0, model: variable })))
         .whenActionIsDispatched(showOptions(variable))
@@ -112,7 +109,7 @@ describe('options picker actions', () => {
       const clearOthers = true;
       const key = NavigationKey.select;
 
-      const tester = await reduxTester<RootReducerType>()
+      const tester = await reduxTester<{ templating: TemplatingState }>()
         .givenRootReducer(getRootReducer())
         .whenActionIsDispatched(addVariable(toVariablePayload(variable, { global: false, index: 0, model: variable })))
         .whenActionIsDispatched(showOptions(variable))
@@ -131,7 +128,7 @@ describe('options picker actions', () => {
       const clearOthers = true;
       const key = NavigationKey.select;
 
-      const tester = await reduxTester<RootReducerType>()
+      const tester = await reduxTester<{ templating: TemplatingState }>()
         .givenRootReducer(getRootReducer())
         .whenActionIsDispatched(addVariable(toVariablePayload(variable, { global: false, index: 0, model: variable })))
         .whenActionIsDispatched(showOptions(variable))
@@ -152,7 +149,7 @@ describe('options picker actions', () => {
       const clearOthers = true;
       const key = NavigationKey.select;
 
-      const tester = await reduxTester<RootReducerType>()
+      const tester = await reduxTester<{ templating: TemplatingState }>()
         .givenRootReducer(getRootReducer())
         .whenActionIsDispatched(addVariable(toVariablePayload(variable, { global: false, index: 0, model: variable })))
         .whenActionIsDispatched(showOptions(variable))
@@ -174,7 +171,7 @@ describe('options picker actions', () => {
       const clearOthers = false;
       const key = NavigationKey.selectAndClose;
 
-      const tester = await reduxTester<RootReducerType>()
+      const tester = await reduxTester<{ templating: TemplatingState }>()
         .givenRootReducer(getRootReducer())
         .whenActionIsDispatched(addVariable(toVariablePayload(variable, { global: false, index: 0, model: variable })))
         .whenActionIsDispatched(showOptions(variable))
@@ -188,6 +185,7 @@ describe('options picker actions', () => {
         ...createOption(['B']),
         selected: true,
         value: ['B'],
+        tags: [] as any[],
       };
 
       tester.thenDispatchedActionsShouldEqual(
@@ -195,9 +193,9 @@ describe('options picker actions', () => {
         setCurrentVariableValue(toVariablePayload(variable, { option })),
         changeVariableProp(toVariablePayload(variable, { propName: 'queryValue', propValue: '' })),
         hideOptions(),
-        setCurrentVariableValue(toVariablePayload(variable, { option }))
+        setCurrentVariableValue(toVariablePayload(variable, { option })),
+        updateLocation({ query: { 'var-Constant': ['B'] } })
       );
-      expect(locationService.partial).toHaveBeenLastCalledWith({ 'var-Constant': ['B'] });
     });
   });
 
@@ -207,7 +205,7 @@ describe('options picker actions', () => {
       const variable = createMultiVariable({ options, current: createOption(['A'], ['A'], true), includeAll: false });
       const filter = 'A';
 
-      const tester = await reduxTester<RootReducerType>()
+      const tester = await reduxTester<{ templating: TemplatingState }>()
         .givenRootReducer(getRootReducer())
         .whenActionIsDispatched(addVariable(toVariablePayload(variable, { global: false, index: 0, model: variable })))
         .whenActionIsDispatched(showOptions(variable))
@@ -217,107 +215,12 @@ describe('options picker actions', () => {
     });
   });
 
-  describe('when openOptions is dispatched and there is no picker state yet', () => {
-    it('then correct actions are dispatched', async () => {
-      const variable = queryBuilder()
-        .withId('query0')
-        .withName('query0')
-        .withMulti()
-        .withCurrent(['A', 'C'])
-        .withOptions('A', 'B', 'C')
-        .build();
-
-      const preloadedState: any = {
-        templating: {
-          variables: {
-            [variable.id]: { ...variable },
-          },
-          optionsPicker: { ...initialState },
-        },
-      };
-
-      const tester = await reduxTester<RootReducerType>({ preloadedState })
-        .givenRootReducer(getRootReducer())
-        .whenAsyncActionIsDispatched(openOptions(variable, undefined));
-
-      tester.thenDispatchedActionsShouldEqual(showOptions(variable));
-    });
-  });
-
-  describe('when openOptions is dispatched and picker.id is same as variable.id', () => {
-    it('then correct actions are dispatched', async () => {
-      const variable = queryBuilder()
-        .withId('query0')
-        .withName('query0')
-        .withMulti()
-        .withCurrent(['A', 'C'])
-        .withOptions('A', 'B', 'C')
-        .build();
-
-      const preloadedState: any = {
-        templating: {
-          variables: {
-            [variable.id]: { ...variable },
-          },
-          optionsPicker: { ...initialState, id: variable.id },
-        },
-      };
-
-      const tester = await reduxTester<RootReducerType>({ preloadedState })
-        .givenRootReducer(getRootReducer())
-        .whenAsyncActionIsDispatched(openOptions(variable, undefined));
-
-      tester.thenDispatchedActionsShouldEqual(showOptions(variable));
-    });
-  });
-
-  describe('when openOptions is dispatched and picker.id is not the same as variable.id', () => {
-    it('then correct actions are dispatched', async () => {
-      const variableInPickerState = queryBuilder()
-        .withId('query1')
-        .withName('query1')
-        .withMulti()
-        .withCurrent(['A', 'C'])
-        .withOptions('A', 'B', 'C')
-        .build();
-
-      const variable = queryBuilder()
-        .withId('query0')
-        .withName('query0')
-        .withMulti()
-        .withCurrent(['A'])
-        .withOptions('A', 'B', 'C')
-        .build();
-
-      const preloadedState: any = {
-        templating: {
-          variables: {
-            [variable.id]: { ...variable },
-            [variableInPickerState.id]: { ...variableInPickerState },
-          },
-          optionsPicker: { ...initialState, id: variableInPickerState.id },
-        },
-      };
-
-      const tester = await reduxTester<RootReducerType>({ preloadedState })
-        .givenRootReducer(getRootReducer())
-        .whenAsyncActionIsDispatched(openOptions(variable, undefined));
-
-      tester.thenDispatchedActionsShouldEqual(
-        setCurrentVariableValue({ type: 'query', id: 'query1', data: { option: undefined } }),
-        changeVariableProp({ type: 'query', id: 'query1', data: { propName: 'queryValue', propValue: '' } }),
-        hideOptions(),
-        showOptions(variable)
-      );
-    });
-  });
-
   describe('when commitChangesToVariable is dispatched with no changes', () => {
     it('then correct actions are dispatched', async () => {
       const options = [createOption('A', 'A', true), createOption('B'), createOption('C')];
       const variable = createMultiVariable({ options, current: createOption(['A'], ['A'], true), includeAll: false });
 
-      const tester = await reduxTester<RootReducerType>()
+      const tester = await reduxTester<{ templating: TemplatingState }>()
         .givenRootReducer(getRootReducer())
         .whenActionIsDispatched(addVariable(toVariablePayload(variable, { global: false, index: 0, model: variable })))
         .whenActionIsDispatched(showOptions(variable))
@@ -327,6 +230,7 @@ describe('options picker actions', () => {
         ...createOption(['A']),
         selected: true,
         value: ['A'] as any[],
+        tags: [] as any[],
       };
 
       tester.thenDispatchedActionsShouldEqual(
@@ -343,7 +247,7 @@ describe('options picker actions', () => {
       const variable = createMultiVariable({ options, current: createOption(['A'], ['A'], true), includeAll: false });
       const clearOthers = false;
 
-      const tester = await reduxTester<RootReducerType>()
+      const tester = await reduxTester<{ templating: TemplatingState }>()
         .givenRootReducer(getRootReducer())
         .whenActionIsDispatched(addVariable(toVariablePayload(variable, { global: false, index: 0, model: variable })))
         .whenActionIsDispatched(showOptions(variable))
@@ -355,15 +259,16 @@ describe('options picker actions', () => {
         ...createOption([]),
         selected: true,
         value: [],
+        tags: [] as any[],
       };
 
       tester.thenDispatchedActionsShouldEqual(
         setCurrentVariableValue(toVariablePayload(variable, { option })),
         changeVariableProp(toVariablePayload(variable, { propName: 'queryValue', propValue: '' })),
         hideOptions(),
-        setCurrentVariableValue(toVariablePayload(variable, { option }))
+        setCurrentVariableValue(toVariablePayload(variable, { option })),
+        updateLocation({ query: { 'var-Constant': [] } })
       );
-      expect(locationService.partial).toHaveBeenLastCalledWith({ 'var-Constant': [] });
     });
   });
 
@@ -373,7 +278,7 @@ describe('options picker actions', () => {
       const variable = createMultiVariable({ options, current: createOption(['A'], ['A'], true), includeAll: false });
       const clearOthers = false;
 
-      const tester = await reduxTester<RootReducerType>()
+      const tester = await reduxTester<{ templating: TemplatingState }>()
         .givenRootReducer(getRootReducer())
         .whenActionIsDispatched(addVariable(toVariablePayload(variable, { global: false, index: 0, model: variable })))
         .whenActionIsDispatched(showOptions(variable))
@@ -386,15 +291,16 @@ describe('options picker actions', () => {
         ...createOption([]),
         selected: true,
         value: [],
+        tags: [] as any[],
       };
 
       tester.thenDispatchedActionsShouldEqual(
         setCurrentVariableValue(toVariablePayload(variable, { option })),
         changeVariableProp(toVariablePayload(variable, { propName: 'queryValue', propValue: 'C' })),
         hideOptions(),
-        setCurrentVariableValue(toVariablePayload(variable, { option }))
+        setCurrentVariableValue(toVariablePayload(variable, { option })),
+        updateLocation({ query: { 'var-Constant': [] } })
       );
-      expect(locationService.partial).toHaveBeenLastCalledWith({ 'var-Constant': [] });
     });
   });
 
@@ -404,7 +310,7 @@ describe('options picker actions', () => {
       const variable = createMultiVariable({ options, current: createOption(['A'], ['A'], true), includeAll: false });
       const clearOthers = false;
 
-      const tester = await reduxTester<RootReducerType>()
+      const tester = await reduxTester<{ templating: TemplatingState }>()
         .givenRootReducer(getRootReducer())
         .whenActionIsDispatched(addVariable(toVariablePayload(variable, { global: false, index: 0, model: variable })))
         .whenActionIsDispatched(showOptions(variable))
@@ -423,7 +329,7 @@ describe('options picker actions', () => {
       const variable = createMultiVariable({ options, current: createOption(['A'], ['A'], true), includeAll: false });
       const clearOthers = false;
 
-      const tester = await reduxTester<RootReducerType>()
+      const tester = await reduxTester<{ templating: TemplatingState }>()
         .givenRootReducer(getRootReducer())
         .whenActionIsDispatched(addVariable(toVariablePayload(variable, { global: false, index: 0, model: variable })))
         .whenActionIsDispatched(showOptions(variable))
@@ -447,6 +353,53 @@ describe('options picker actions', () => {
       );
     });
   });
+
+  describe('when toggleAndFetchTag is dispatched with values', () => {
+    it('then correct actions are dispatched', async () => {
+      const options = [createOption('A'), createOption('B'), createOption('C')];
+      const tag = createTag('tag', []);
+      const variable = createMultiVariable({
+        options,
+        current: createOption(['A'], ['A'], true),
+        includeAll: false,
+        tags: [tag],
+      });
+
+      const tester = await reduxTester<{ templating: TemplatingState }>()
+        .givenRootReducer(getRootReducer())
+        .whenActionIsDispatched(addVariable(toVariablePayload(variable, { global: false, index: 0, model: variable })))
+        .whenActionIsDispatched(showOptions(variable))
+        .whenAsyncActionIsDispatched(toggleAndFetchTag(tag), true);
+
+      tester.thenDispatchedActionsShouldEqual(toggleTag(tag));
+    });
+  });
+
+  describe('when toggleAndFetchTag is dispatched without values', () => {
+    it('then correct actions are dispatched', async () => {
+      const options = [createOption('A'), createOption('B'), createOption('C')];
+      const tag = createTag('tag');
+      const values = [createMetric('b')];
+      const variable = createMultiVariable({
+        options,
+        current: createOption(['A'], ['A'], true),
+        includeAll: false,
+        tags: [tag],
+      });
+
+      datasource.metricFindQuery.mockReset();
+      // @ts-ignore strict null error TS2345: Argument of type '() => Promise<{ value: string; text: string; }[]>' is not assignable to parameter of type '() => Promise<never[]>'
+      datasource.metricFindQuery.mockImplementation(() => Promise.resolve(values));
+
+      const tester = await reduxTester<{ templating: TemplatingState }>()
+        .givenRootReducer(getRootReducer())
+        .whenActionIsDispatched(addVariable(toVariablePayload(variable, { global: false, index: 0, model: variable })))
+        .whenActionIsDispatched(showOptions(variable))
+        .whenAsyncActionIsDispatched(toggleAndFetchTag(tag), true);
+
+      tester.thenDispatchedActionsShouldEqual(toggleTag({ ...tag, values: ['b'] }));
+    });
+  });
 });
 
 function createMultiVariable(extend?: Partial<QueryVariableModel>): QueryVariableModel {
@@ -462,7 +415,11 @@ function createMultiVariable(extend?: Partial<QueryVariableModel>): QueryVariabl
     datasource: 'datasource',
     definition: '',
     sort: VariableSort.alphabeticalAsc,
-    refresh: VariableRefresh.never,
+    tags: [],
+    tagsQuery: 'tags-query',
+    tagValuesQuery: '',
+    useTags: true,
+    refresh: VariableRefresh.onDashboardLoad,
     regex: '',
     multi: true,
     includeAll: true,
@@ -483,5 +440,13 @@ function createMetric(value: string | string[]) {
   return {
     value: value,
     text: value,
+  };
+}
+
+function createTag(name: string, values?: any[]) {
+  return {
+    selected: false,
+    text: name,
+    values,
   };
 }

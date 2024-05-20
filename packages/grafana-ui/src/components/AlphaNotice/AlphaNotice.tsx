@@ -1,5 +1,5 @@
 import React, { FC, useContext } from 'react';
-import { css, cx } from '@emotion/css';
+import { css, cx } from 'emotion';
 import { ThemeContext } from '../../index';
 import { PluginState } from '@grafana/data';
 import { Icon } from '../Icon/Icon';
@@ -17,13 +17,13 @@ export const AlphaNotice: FC<Props> = ({ state, text, className }) => {
   const styles = cx(
     className,
     css`
-      background: ${theme.colors.primary.transparent};
-      color: ${theme.colors.text.secondary};
+      background: linear-gradient(to bottom, ${theme.palette.blue85}, ${theme.palette.blue77});
+      color: ${theme.palette.gray7};
       white-space: nowrap;
       border-radius: 3px;
       text-shadow: none;
-      font-size: ${theme.typography.size.sm};
-      padding: 0 8px;
+      font-size: 13px;
+      padding: 4px 8px;
       cursor: help;
       display: inline-block;
     `

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import React, { ReactElement } from 'react';
+import React from 'react';
 
 export type TooltipPlacement =
   | 'top'
@@ -28,11 +28,11 @@ export type TooltipPlacement =
   | 'rightTop'
   | 'rightBottom';
 export type PopoverProps = {
-  children: ReactElement;
-  content: ReactElement;
+  content?: React.ReactNode;
   arrowPointAtCenter?: boolean;
   overlayClassName?: string;
   placement?: TooltipPlacement;
+  children?: React.ReactNode;
 };
 
 export const UIPopover: React.ComponentType<PopoverProps> = function UIPopover(props: PopoverProps) {
@@ -45,11 +45,12 @@ export const UIPopover: React.ComponentType<PopoverProps> = function UIPopover(p
   );
 };
 
+type RenderFunction = () => React.ReactNode;
 export type TooltipProps = {
-  title: string | ReactElement;
+  title?: React.ReactNode | RenderFunction;
   getPopupContainer?: (triggerNode: Element) => HTMLElement;
   overlayClassName?: string;
-  children: ReactElement;
+  children?: React.ReactNode;
   placement?: TooltipPlacement;
   mouseLeaveDelay?: number;
   arrowPointAtCenter?: boolean;

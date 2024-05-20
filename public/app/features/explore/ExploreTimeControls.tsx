@@ -3,7 +3,7 @@ import React, { Component } from 'react';
 
 // Types
 import { ExploreId } from 'app/types';
-import { TimeRange, TimeZone, RawTimeRange, dateTimeForTimeZone, dateMath } from '@grafana/data';
+import { TimeRange, TimeZone, RawTimeRange, dateTimeForTimeZone } from '@grafana/data';
 
 // State
 
@@ -42,13 +42,7 @@ export class ExploreTimeControls extends Component<Props> {
   onMoveBack = () => this.onMoveTimePicker(-1);
 
   onChangeTimePicker = (timeRange: TimeRange) => {
-    const adjustedFrom = dateMath.isMathString(timeRange.raw.from) ? timeRange.raw.from : timeRange.from;
-    const adjustedTo = dateMath.isMathString(timeRange.raw.to) ? timeRange.raw.to : timeRange.to;
-
-    this.props.onChangeTime({
-      from: adjustedFrom,
-      to: adjustedTo,
-    });
+    this.props.onChangeTime(timeRange.raw);
   };
 
   onZoom = () => {

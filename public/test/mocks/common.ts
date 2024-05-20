@@ -24,7 +24,7 @@ export function createNavModel(title: string, ...tabs: string[]): NavModel {
   const node: NavModelItem = {
     id: title,
     text: title,
-    icon: 'exclamation-triangle',
+    icon: 'fa fa-fw fa-warning',
     subTitle: 'subTitle',
     url: title,
     children: [],

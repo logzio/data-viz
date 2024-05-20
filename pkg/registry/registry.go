@@ -16,16 +16,8 @@ type Descriptor struct {
 
 var services []*Descriptor
 
-func RegisterServiceWithPriority(instance Service, priority Priority) {
-	Register(&Descriptor{
-		Name:         reflect.TypeOf(instance).Elem().Name(),
-		Instance:     instance,
-		InitPriority: priority,
-	})
-}
-
 func RegisterService(instance Service) {
-	Register(&Descriptor{
+	services = append(services, &Descriptor{
 		Name:         reflect.TypeOf(instance).Elem().Name(),
 		Instance:     instance,
 		InitPriority: Medium,
@@ -33,30 +25,7 @@ func RegisterService(instance Service) {
 }
 
 func Register(descriptor *Descriptor) {
-	if descriptor == nil {
-		return
-	}
-	// Overwrite any existing equivalent service
-	for i, svc := range services {
-		if svc.Name == descriptor.Name {
-			services[i] = descriptor
-			return
-		}
-	}
-
 	services = append(services, descriptor)
-}
-
-// GetService gets the registered service descriptor with a certain name.
-// If none is found, nil is returned.
-func GetService(name string) *Descriptor {
-	for _, svc := range services {
-		if svc.Name == name {
-			return svc
-		}
-	}
-
-	return nil
 }
 
 func GetServices() []*Descriptor {
@@ -75,10 +44,6 @@ var overrides []OverrideServiceFunc
 
 func RegisterOverride(fn OverrideServiceFunc) {
 	overrides = append(overrides, fn)
-}
-
-func ClearOverrides() {
-	overrides = nil
 }
 
 func getServicesWithOverrides() []*Descriptor {
@@ -105,6 +70,7 @@ func getServicesWithOverrides() []*Descriptor {
 // Service interface is the lowest common shape that services
 // are expected to fulfill to be started within Grafana.
 type Service interface {
+
 	// Init is called by Grafana main process which gives the service
 	// the possibility do some initial work before its started. Things
 	// like adding routes, bus handlers should be done in the Init function
@@ -116,6 +82,7 @@ type Service interface {
 // that might not always be started, ex alerting.
 // This will be called after `Init()`.
 type CanBeDisabled interface {
+
 	// IsDisabled should return a bool saying if it can be started or not.
 	IsDisabled() bool
 }
@@ -132,12 +99,13 @@ type BackgroundService interface {
 // DatabaseMigrator allows the caller to add migrations to
 // the migrator passed as argument
 type DatabaseMigrator interface {
+
 	// AddMigrations allows the service to add migrations to
 	// the database migrator.
 	AddMigration(mg *migrator.Migrator)
 }
 
-// IsDisabled returns whether a service is disabled.
+// IsDisabled takes an service and return true if its disabled
 func IsDisabled(srv Service) bool {
 	canBeDisabled, ok := srv.(CanBeDisabled)
 	return ok && canBeDisabled.IsDisabled()
@@ -146,8 +114,7 @@ func IsDisabled(srv Service) bool {
 type Priority int
 
 const (
-	High       Priority = 100
-	MediumHigh Priority = 75
-	Medium     Priority = 50
-	Low        Priority = 0
+	High   Priority = 100
+	Medium Priority = 50
+	Low    Priority = 0
 )

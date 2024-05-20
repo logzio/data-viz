@@ -1,5 +1,5 @@
-import { Plugin, Editor as CoreEditor } from 'slate-react';
-import { Annotation } from 'slate';
+import { Plugin } from '@grafana/slate-react';
+import { Editor as CoreEditor, Annotation } from 'slate';
 import { v4 as uuidv4 } from 'uuid';
 
 const BRACES: any = {
@@ -12,8 +12,8 @@ const MATCH_MARK = 'brace_match';
 
 export function BracesPlugin(): Plugin {
   return {
-    onKeyDown(event, editor: CoreEditor, next: Function) {
-      const keyEvent = event;
+    onKeyDown(event: Event, editor: CoreEditor, next: Function) {
+      const keyEvent = event as KeyboardEvent;
       const { value } = editor;
 
       switch (keyEvent.key) {
@@ -58,7 +58,11 @@ export function BracesPlugin(): Plugin {
               },
               object: 'annotation',
             } as Annotation;
-            editor.insertText(keyEvent.key).insertText(complement).addAnnotation(matchAnnotation).moveBackward(1);
+            editor
+              .insertText(keyEvent.key)
+              .insertText(complement)
+              .addAnnotation(matchAnnotation)
+              .moveBackward(1);
 
             return true;
           }
@@ -75,11 +79,14 @@ export function BracesPlugin(): Plugin {
           const complement = keyEvent.key;
           const annotationType = `${MATCH_MARK}-${complement}`;
           const annotation = value.annotations.find(
-            (a) => a?.type === annotationType && a.anchor.key === value.anchorText.key
+            a => a?.type === annotationType && a.anchor.key === value.anchorText.key
           );
           if (annotation && nextChar === complement && !value.selection.isExpanded) {
             keyEvent.preventDefault();
-            editor.moveFocusForward(1).removeAnnotation(annotation).moveAnchorForward(1);
+            editor
+              .moveFocusForward(1)
+              .removeAnnotation(annotation)
+              .moveAnchorForward(1);
             return true;
           }
           break;
@@ -93,7 +100,10 @@ export function BracesPlugin(): Plugin {
           if (BRACES[previousChar] && BRACES[previousChar] === nextChar) {
             keyEvent.preventDefault();
             // Remove closing brace if directly following
-            editor.deleteBackward(1).deleteForward(1).focus();
+            editor
+              .deleteBackward(1)
+              .deleteForward(1)
+              .focus();
             return true;
           }
         }

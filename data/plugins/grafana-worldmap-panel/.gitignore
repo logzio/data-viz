@@ -1,0 +1,14 @@
+node_modules
+npm-debug.log
+.DS_Store
+.vscode
+.idea
+
+# LOGZ.IO GRAFANA CHANGE :: Keep dist
+# dist/
+coverage/
+artifacts/
+
+.venv*
+bin/
+build/

@@ -1,11 +1,16 @@
 import React from 'react';
-import { components, OptionProps } from 'react-select';
+
+// Ignoring because I couldn't get @types/react-select work with Torkel's fork
+// @ts-ignore
+import { components } from '@torkelo/react-select';
+// @ts-ignore
+import { OptionProps } from '@torkelo/react-select/lib/components/Option';
 
 export interface Props {
   children: Element;
 }
 
-export const NoOptionsMessage = (props: OptionProps<any, any>) => {
+export const NoOptionsMessage = (props: OptionProps<any>) => {
   const { children } = props;
   return (
     <components.Option {...props}>

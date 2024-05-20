@@ -1,10 +1,12 @@
 import React from 'react';
 import PageHeader from './PageHeader';
-import { render, screen } from '@testing-library/react';
+import { shallow, ShallowWrapper } from 'enzyme';
 
 describe('PageHeader', () => {
+  let wrapper: ShallowWrapper<PageHeader>;
+
   describe('when the nav tree has a node with a title', () => {
-    it('should render the title', async () => {
+    beforeAll(() => {
       const nav = {
         main: {
           icon: 'folder-open',
@@ -15,15 +17,17 @@ describe('PageHeader', () => {
         },
         node: {},
       };
+      wrapper = shallow(<PageHeader model={nav as any} />);
+    });
 
-      render(<PageHeader model={nav as any} />);
-
-      expect(screen.getByRole('heading', { name: 'node' })).toBeInTheDocument();
+    it('should render the title', () => {
+      const title = wrapper.find('.page-header__title');
+      expect(title.text()).toBe('node');
     });
   });
 
   describe('when the nav tree has a node with breadcrumbs and a title', () => {
-    it('should render the title with breadcrumbs first and then title last', async () => {
+    beforeAll(() => {
       const nav = {
         main: {
           icon: 'folder-open',
@@ -35,11 +39,15 @@ describe('PageHeader', () => {
         },
         node: {},
       };
+      wrapper = shallow(<PageHeader model={nav as any} />);
+    });
 
-      render(<PageHeader model={nav as any} />);
+    it('should render the title with breadcrumbs first and then title last', () => {
+      const title = wrapper.find('.page-header__title');
+      expect(title.text()).toBe('Parent / child');
 
-      expect(screen.getByRole('heading', { name: 'Parent / child' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Parent' })).toBeInTheDocument();
+      const parentLink = wrapper.find('.page-header__title > a.text-link');
+      expect(parentLink.prop('href')).toBe('parentUrl');
     });
   });
 });

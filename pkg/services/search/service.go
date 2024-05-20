@@ -43,7 +43,6 @@ type FindPersistedDashboardsQuery struct {
 	Limit        int64
 	Page         int64
 	Permission   models.PermissionType
-	Sort         SortOption
 
 	Filters []interface{}
 
@@ -60,8 +59,8 @@ type SearchService struct {
 func (s *SearchService) Init() error {
 	s.Bus.AddHandler(s.searchHandler)
 	s.sortOptions = map[string]SortOption{
-		SortAlphaAsc.Name:  SortAlphaAsc,
-		SortAlphaDesc.Name: SortAlphaDesc,
+		sortAlphaAsc.Name:  sortAlphaAsc,
+		sortAlphaDesc.Name: sortAlphaDesc,
 	}
 
 	return nil
@@ -82,7 +81,9 @@ func (s *SearchService) searchHandler(query *Query) error {
 	}
 
 	if sortOpt, exists := s.sortOptions[query.Sort]; exists {
-		dashboardQuery.Sort = sortOpt
+		for _, filter := range sortOpt.Filter {
+			dashboardQuery.Filters = append(dashboardQuery.Filters, filter)
+		}
 	}
 
 	if err := bus.Dispatch(&dashboardQuery); err != nil {
@@ -126,7 +127,7 @@ func setStarredDashboards(userID int64, hits []*Hit) error {
 	}
 
 	for _, dashboard := range hits {
-		if _, ok := query.Result[dashboard.ID]; ok {
+		if _, ok := query.Result[dashboard.Id]; ok {
 			dashboard.IsStarred = true
 		}
 	}

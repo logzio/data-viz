@@ -2,74 +2,68 @@ package elasticsearch
 
 import (
 	"fmt"
-	"regexp"
 	"strconv"
 
-	"github.com/Masterminds/semver"
 	"github.com/grafana/grafana/pkg/components/simplejson"
-	"github.com/grafana/grafana/pkg/plugins"
+	"github.com/grafana/grafana/pkg/tsdb"
 	es "github.com/grafana/grafana/pkg/tsdb/elasticsearch/client"
-	"github.com/grafana/grafana/pkg/tsdb/interval"
 )
 
 type timeSeriesQuery struct {
 	client             es.Client
-	tsdbQuery          plugins.DataQuery
-	intervalCalculator interval.Calculator
+	tsdbQuery          *tsdb.TsdbQuery
+	intervalCalculator tsdb.IntervalCalculator
 }
 
-var newTimeSeriesQuery = func(client es.Client, dataQuery plugins.DataQuery,
-	intervalCalculator interval.Calculator) *timeSeriesQuery {
+var newTimeSeriesQuery = func(client es.Client, tsdbQuery *tsdb.TsdbQuery, intervalCalculator tsdb.IntervalCalculator) *timeSeriesQuery {
 	return &timeSeriesQuery{
 		client:             client,
-		tsdbQuery:          dataQuery,
+		tsdbQuery:          tsdbQuery,
 		intervalCalculator: intervalCalculator,
 	}
 }
 
-// nolint:staticcheck // plugins.DataQueryResult deprecated
-func (e *timeSeriesQuery) execute() (plugins.DataResponse, error) {
+func (e *timeSeriesQuery) execute() (*tsdb.Response, error) {
 	tsQueryParser := newTimeSeriesQueryParser()
 	queries, err := tsQueryParser.parse(e.tsdbQuery)
 	if err != nil {
-		return plugins.DataResponse{}, err
+		return nil, err
 	}
 
 	ms := e.client.MultiSearch()
 
 	from := fmt.Sprintf("%d", e.tsdbQuery.TimeRange.GetFromAsMsEpoch())
 	to := fmt.Sprintf("%d", e.tsdbQuery.TimeRange.GetToAsMsEpoch())
-	result := plugins.DataResponse{
-		Results: make(map[string]plugins.DataQueryResult),
+	result := &tsdb.Response{
+		Results: make(map[string]*tsdb.QueryResult),
 	}
 	for _, q := range queries {
 		if err := e.processQuery(q, ms, from, to, result); err != nil {
-			return plugins.DataResponse{}, err
+			return nil, err
 		}
 	}
 
 	req, err := ms.Build()
 	if err != nil {
-		return plugins.DataResponse{}, err
+		return nil, err
 	}
 
 	res, err := e.client.ExecuteMultisearch(req)
 	if err != nil {
-		return plugins.DataResponse{}, err
+		return nil, err
 	}
 
 	rp := newResponseParser(res.Responses, queries, res.DebugInfo)
 	return rp.getTimeSeries()
 }
 
-// nolint:staticcheck // plugins.DataQueryResult deprecated
 func (e *timeSeriesQuery) processQuery(q *Query, ms *es.MultiSearchRequestBuilder, from, to string,
-	result plugins.DataResponse) error {
+	result *tsdb.Response) error {
 	minInterval, err := e.client.GetMinInterval(q.Interval)
 	if err != nil {
 		return err
 	}
-	interval := e.intervalCalculator.Calculate(*e.tsdbQuery.TimeRange, minInterval)
+	interval := e.intervalCalculator.Calculate(e.tsdbQuery.TimeRange, minInterval)
 
 	b := ms.Search(interval)
 	b.Size(0)
@@ -82,8 +76,8 @@ func (e *timeSeriesQuery) processQuery(q *Query, ms *es.MultiSearchRequestBuilde
 
 	if len(q.BucketAggs) == 0 {
 		if len(q.Metrics) == 0 || q.Metrics[0].Type != "raw_document" {
-			result.Results[q.RefID] = plugins.DataQueryResult{
-				RefID:       q.RefID,
+			result.Results[q.RefID] = &tsdb.QueryResult{
+				RefId:       q.RefID,
 				Error:       fmt.Errorf("invalid query, missing metrics and aggregations"),
 				ErrorString: "invalid query, missing metrics and aggregations",
 			}
@@ -100,9 +94,6 @@ func (e *timeSeriesQuery) processQuery(q *Query, ms *es.MultiSearchRequestBuilde
 
 	// iterate backwards to create aggregations bottom-down
 	for _, bucketAgg := range q.BucketAggs {
-		bucketAgg.Settings = simplejson.NewFromAny(
-			bucketAgg.generateSettingsForDSL(),
-		)
 		switch bucketAgg.Type {
 		case dateHistType:
 			aggBuilder = addDateHistogramAgg(aggBuilder, bucketAgg, from, to)
@@ -153,7 +144,7 @@ func (e *timeSeriesQuery) processQuery(q *Query, ms *es.MultiSearchRequestBuilde
 					}
 
 					aggBuilder.Pipeline(m.ID, m.Type, bucketPaths, func(a *es.PipelineAggregation) {
-						a.Settings = m.generateSettingsForDSL(e.client.GetVersion())
+						a.Settings = m.Settings.MustMap()
 					})
 				} else {
 					continue
@@ -174,7 +165,7 @@ func (e *timeSeriesQuery) processQuery(q *Query, ms *es.MultiSearchRequestBuilde
 						}
 
 						aggBuilder.Pipeline(m.ID, m.Type, bucketPath, func(a *es.PipelineAggregation) {
-							a.Settings = m.generateSettingsForDSL(e.client.GetVersion())
+							a.Settings = m.Settings.MustMap()
 						})
 					}
 				} else {
@@ -183,73 +174,12 @@ func (e *timeSeriesQuery) processQuery(q *Query, ms *es.MultiSearchRequestBuilde
 			}
 		} else {
 			aggBuilder.Metric(m.ID, m.Type, m.Field, func(a *es.MetricAggregation) {
-				a.Settings = m.generateSettingsForDSL(e.client.GetVersion())
+				a.Settings = m.Settings.MustMap()
 			})
 		}
 	}
 
 	return nil
-}
-
-func setFloatPath(settings *simplejson.Json, path ...string) {
-	if stringValue, err := settings.GetPath(path...).String(); err == nil {
-		if value, err := strconv.ParseFloat(stringValue, 64); err == nil {
-			settings.SetPath(path, value)
-		}
-	}
-}
-
-func setIntPath(settings *simplejson.Json, path ...string) {
-	if stringValue, err := settings.GetPath(path...).String(); err == nil {
-		if value, err := strconv.ParseInt(stringValue, 10, 64); err == nil {
-			settings.SetPath(path, value)
-		}
-	}
-}
-
-// Casts values to float when required by Elastic's query DSL
-func (metricAggregation MetricAgg) generateSettingsForDSL(version *semver.Version) map[string]interface{} {
-	switch metricAggregation.Type {
-	case "moving_avg":
-		setFloatPath(metricAggregation.Settings, "window")
-		setFloatPath(metricAggregation.Settings, "predict")
-		setFloatPath(metricAggregation.Settings, "settings", "alpha")
-		setFloatPath(metricAggregation.Settings, "settings", "beta")
-		setFloatPath(metricAggregation.Settings, "settings", "gamma")
-		setFloatPath(metricAggregation.Settings, "settings", "period")
-	case "serial_diff":
-		setFloatPath(metricAggregation.Settings, "lag")
-	}
-
-	if isMetricAggregationWithInlineScriptSupport(metricAggregation.Type) {
-		scriptValue, err := metricAggregation.Settings.GetPath("script").String()
-		if err != nil {
-			// the script is stored using the old format : `script:{inline: "value"}` or is not set
-			scriptValue, err = metricAggregation.Settings.GetPath("script", "inline").String()
-		}
-
-		constraint, _ := semver.NewConstraint(">=5.6.0")
-
-		if err == nil {
-			if constraint.Check(version) {
-				metricAggregation.Settings.SetPath([]string{"script"}, scriptValue)
-			} else {
-				metricAggregation.Settings.SetPath([]string{"script"}, map[string]interface{}{"inline": scriptValue})
-			}
-		}
-	}
-
-	return metricAggregation.Settings.MustMap()
-}
-
-func (bucketAgg BucketAgg) generateSettingsForDSL() map[string]interface{} {
-	// TODO: This might also need to be applied to other bucket aggregations and other fields.
-	switch bucketAgg.Type {
-	case "date_histogram":
-		setIntPath(bucketAgg.Settings, "min_doc_count")
-	}
-
-	return bucketAgg.Settings.MustMap()
 }
 
 func addDateHistogramAgg(aggBuilder es.AggBuilder, bucketAgg *BucketAgg, timeFrom, timeTo string) es.AggBuilder {
@@ -328,27 +258,15 @@ func addTermsAgg(aggBuilder es.AggBuilder, bucketAgg *BucketAgg, metrics []*Metr
 		}
 
 		if orderBy, err := bucketAgg.Settings.Get("orderBy").String(); err == nil {
-			/*
-			   The format for extended stats and percentiles is {metricId}[bucket_path]
-			   for everything else it's just {metricId}, _count, _term, or _key
-			*/
-			metricIdRegex := regexp.MustCompile(`^(\d+)`)
-			metricId := metricIdRegex.FindString(orderBy)
+			a.Order[orderBy] = bucketAgg.Settings.Get("order").MustString("desc")
 
-			if len(metricId) > 0 {
+			if _, err := strconv.Atoi(orderBy); err == nil {
 				for _, m := range metrics {
-					if m.ID == metricId {
-						if m.Type == "count" {
-							a.Order["_count"] = bucketAgg.Settings.Get("order").MustString("desc")
-						} else {
-							a.Order[orderBy] = bucketAgg.Settings.Get("order").MustString("desc")
-							b.Metric(m.ID, m.Type, m.Field, nil)
-						}
+					if m.ID == orderBy {
+						b.Metric(m.ID, m.Type, m.Field, nil)
 						break
 					}
 				}
-			} else {
-				a.Order[orderBy] = bucketAgg.Settings.Get("order").MustString("desc")
 			}
 		}
 
@@ -395,7 +313,7 @@ func newTimeSeriesQueryParser() *timeSeriesQueryParser {
 	return &timeSeriesQueryParser{}
 }
 
-func (p *timeSeriesQueryParser) parse(tsdbQuery plugins.DataQuery) ([]*Query, error) {
+func (p *timeSeriesQueryParser) parse(tsdbQuery *tsdb.TsdbQuery) ([]*Query, error) {
 	queries := make([]*Query, 0)
 	for _, q := range tsdbQuery.Queries {
 		model := q.Model
@@ -413,7 +331,7 @@ func (p *timeSeriesQueryParser) parse(tsdbQuery plugins.DataQuery) ([]*Query, er
 			return nil, err
 		}
 		alias := model.Get("alias").MustString("")
-		interval := model.Get("interval").MustString("")
+		interval := strconv.FormatInt(q.IntervalMs, 10) + "ms"
 
 		queries = append(queries, &Query{
 			TimeField:  timeField,
@@ -422,7 +340,7 @@ func (p *timeSeriesQueryParser) parse(tsdbQuery plugins.DataQuery) ([]*Query, er
 			Metrics:    metrics,
 			Alias:      alias,
 			Interval:   interval,
-			RefID:      q.RefID,
+			RefID:      q.RefId,
 		})
 	}
 

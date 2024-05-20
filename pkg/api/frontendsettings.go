@@ -1,7 +1,6 @@
 package api
 
 import (
-	"errors"
 	"strconv"
 
 	"github.com/grafana/grafana/pkg/models"
@@ -15,11 +14,11 @@ import (
 	"github.com/grafana/grafana/pkg/setting"
 )
 
-func (hs *HTTPServer) getFSDataSources(c *models.ReqContext, enabledPlugins *plugins.EnabledPlugins) (map[string]interface{}, error) {
+func getFSDataSources(c *models.ReqContext, enabledPlugins *plugins.EnabledPlugins) (map[string]interface{}, error) {
 	orgDataSources := make([]*models.DataSource, 0)
 
 	if c.OrgId != 0 {
-		query := models.GetDataSourcesQuery{OrgId: c.OrgId, DataSourceLimit: hs.Cfg.DataSourceLimit}
+		query := models.GetDataSourcesQuery{OrgId: c.OrgId}
 		err := bus.Dispatch(&query)
 
 		if err != nil {
@@ -32,7 +31,7 @@ func (hs *HTTPServer) getFSDataSources(c *models.ReqContext, enabledPlugins *plu
 		}
 
 		if err := bus.Dispatch(&dsFilterQuery); err != nil {
-			if !errors.Is(err, bus.ErrHandlerNotFound) {
+			if err != bus.ErrHandlerNotFound {
 				return nil, err
 			}
 
@@ -107,17 +106,16 @@ func (hs *HTTPServer) getFSDataSources(c *models.ReqContext, enabledPlugins *plu
 		dataSources[ds.Name] = dsMap
 	}
 
-	// LOGZ.IO GRAFANA CHANGE
 	log.Debugf("Org %d - datasource count : %d", c.OrgId, len(dataSources))
 
 	// add data sources that are built in (meaning they are not added via data sources page, nor have any entry in
 	// the datasource table)
-	for _, ds := range hs.PluginManager.DataSources() {
+	for _, ds := range plugins.DataSources {
 		if ds.BuiltIn {
 			dataSources[ds.Name] = map[string]interface{}{
 				"type": ds.Type,
 				"name": ds.Name,
-				"meta": hs.PluginManager.GetDataSource(ds.Id),
+				"meta": plugins.DataSources[ds.Id],
 			}
 		}
 	}
@@ -127,11 +125,10 @@ func (hs *HTTPServer) getFSDataSources(c *models.ReqContext, enabledPlugins *plu
 
 // getFrontendSettingsMap returns a json object with all the settings needed for front end initialisation.
 func (hs *HTTPServer) getFrontendSettingsMap(c *models.ReqContext) (map[string]interface{}, error) {
-	enabledPlugins, err := hs.PluginManager.GetEnabledPlugins(c.OrgId)
+	enabledPlugins, err := plugins.GetEnabledPlugins(c.OrgId)
 	if err != nil {
 		return nil, err
 	}
-
 	pluginsToPreload := []string{}
 	for _, app := range enabledPlugins.Apps {
 		if app.Preload {
@@ -139,7 +136,7 @@ func (hs *HTTPServer) getFrontendSettingsMap(c *models.ReqContext) (map[string]i
 		}
 	}
 
-	dataSources, err := hs.getFSDataSources(c, enabledPlugins)
+	dataSources, err := getFSDataSources(c, enabledPlugins)
 	if err != nil {
 		return nil, err
 	}
@@ -150,6 +147,7 @@ func (hs *HTTPServer) getFrontendSettingsMap(c *models.ReqContext) (map[string]i
 		if isDefault, _ := dsM["isDefault"].(bool); isDefault {
 			defaultDS = n
 		}
+		delete(dsM, "isDefault")
 
 		meta := dsM["meta"].(*plugins.DataSourcePlugin)
 		if meta.Preload {
@@ -197,16 +195,15 @@ func (hs *HTTPServer) getFrontendSettingsMap(c *models.ReqContext) (map[string]i
 		"datasources":                dataSources,
 		"minRefreshInterval":         setting.MinRefreshInterval,
 		"panels":                     panels,
-		"appUrl":                     hs.Cfg.AppURL,
-		"appSubUrl":                  hs.Cfg.AppSubURL,
+		"appUrl":                     setting.AppUrl,
+		"appSubUrl":                  setting.AppSubUrl,
 		"allowOrgCreate":             (setting.AllowUserOrgCreate && c.IsSignedIn) || c.IsGrafanaAdmin,
 		"authProxyEnabled":           setting.AuthProxyEnabled,
-		"ldapEnabled":                hs.Cfg.LDAPEnabled,
+		"ldapEnabled":                setting.LDAPEnabled,
 		"alertingEnabled":            setting.AlertingEnabled,
 		"alertingErrorOrTimeout":     setting.AlertingErrorOrTimeout,
 		"alertingNoDataOrNullValues": setting.AlertingNoDataOrNullValues,
 		"alertingMinInterval":        setting.AlertingMinInterval,
-		"liveEnabled":                hs.Cfg.LiveMaxConnections != 0,
 		"autoAssignOrg":              setting.AutoAssignOrg,
 		"verifyEmailEnabled":         setting.VerifyEmailEnabled,
 		"sigV4AuthEnabled":           setting.SigV4AuthEnabled,
@@ -229,8 +226,8 @@ func (hs *HTTPServer) getFrontendSettingsMap(c *models.ReqContext) (map[string]i
 			"commit":        commit,
 			"buildstamp":    buildstamp,
 			"edition":       hs.License.Edition(),
-			"latestVersion": hs.PluginManager.GrafanaLatestVersion(),
-			"hasUpdate":     hs.PluginManager.GrafanaHasUpdate(),
+			"latestVersion": plugins.GrafanaLatestVersion,
+			"hasUpdate":     plugins.GrafanaHasUpdate,
 			"env":           setting.Env,
 			"isEnterprise":  hs.License.HasValidLicense(),
 		},
@@ -242,24 +239,10 @@ func (hs *HTTPServer) getFrontendSettingsMap(c *models.ReqContext) (map[string]i
 			"licenseUrl":      hs.License.LicenseURL(c.SignedInUser),
 			"edition":         hs.License.Edition(),
 		},
-		"featureToggles":                   hs.Cfg.FeatureToggles,
-		"rendererAvailable":                hs.RenderService.IsAvailable(),
-		"rendererVersion":                  hs.RenderService.Version(),
-		"http2Enabled":                     hs.Cfg.Protocol == setting.HTTP2Scheme,
-		"sentry":                           hs.Cfg.Sentry,
-		"pluginCatalogURL":                 hs.Cfg.PluginCatalogURL,
-		"pluginAdminEnabled":               (c.IsGrafanaAdmin || hs.Cfg.PluginAdminExternalManageEnabled) && hs.Cfg.PluginAdminEnabled,
-		"pluginAdminExternalManageEnabled": hs.Cfg.PluginAdminEnabled && hs.Cfg.PluginAdminExternalManageEnabled,
-		"expressionsEnabled":               hs.Cfg.ExpressionsEnabled,
-		"awsAllowedAuthProviders":          hs.Cfg.AWSAllowedAuthProviders,
-		"awsAssumeRoleEnabled":             hs.Cfg.AWSAssumeRoleEnabled,
-		"azure": map[string]interface{}{
-			"cloud":                  hs.Cfg.Azure.Cloud,
-			"managedIdentityEnabled": hs.Cfg.Azure.ManagedIdentityEnabled,
-		},
-		"caching": map[string]bool{
-			"enabled": hs.Cfg.SectionWithEnvOverrides("caching").Key("enabled").MustBool(true),
-		},
+		"featureToggles":    hs.Cfg.FeatureToggles,
+		"rendererAvailable": hs.RenderService.IsAvailable(),
+		"http2Enabled":      hs.Cfg.Protocol == setting.HTTP2Scheme,
+		"marketplaceUrl":    hs.Cfg.MarketplaceURL,
 	}
 
 	return jsonObj, nil
@@ -268,40 +251,28 @@ func (hs *HTTPServer) getFrontendSettingsMap(c *models.ReqContext) (map[string]i
 func getPanelSort(id string) int {
 	sort := 100
 	switch id {
-	case "timeseries":
-		sort = 1
-	case "barchart":
-		sort = 2
-	case "stat":
-		sort = 3
-	case "gauge":
-		sort = 4
-	case "bargauge":
-		sort = 5
-	case "table":
-		sort = 6
-	case "singlestat":
-		sort = 7
-	case "piechart":
-		sort = 8
-	case "state-timeline":
-		sort = 9
-	case "heatmap":
-		sort = 10
-	case "status-history":
-		sort = 11
-	case "histogram":
-		sort = 12
 	case "graph":
-		sort = 13
+		sort = 1
+	case "stat":
+		sort = 2
+	case "gauge":
+		sort = 3
+	case "bargauge":
+		sort = 4
+	case "table":
+		sort = 5
+	case "singlestat":
+		sort = 6
 	case "text":
-		sort = 14
+		sort = 7
+	case "heatmap":
+		sort = 8
 	case "alertlist":
-		sort = 15
+		sort = 9
 	case "dashlist":
-		sort = 16
+		sort = 10
 	case "news":
-		sort = 17
+		sort = 10
 	}
 	return sort
 }

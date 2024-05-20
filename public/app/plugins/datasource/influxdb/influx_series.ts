@@ -1,4 +1,4 @@
-import { each, map, includes, flatten, keys } from 'lodash';
+import _ from 'lodash';
 import TableModel from 'app/core/table_model';
 import { FieldType, QueryResultMeta, TimeSeries, TableData } from '@grafana/data';
 
@@ -25,9 +25,9 @@ export default class InfluxSeries {
       return output;
     }
 
-    each(this.series, (series) => {
+    _.each(this.series, series => {
       const columns = series.columns.length;
-      const tags = map(series.tags, (value, key) => {
+      const tags = _.map(series.tags, (value, key) => {
         return key + ': ' + value;
       });
 
@@ -90,14 +90,13 @@ export default class InfluxSeries {
   getAnnotations() {
     const list: any[] = [];
 
-    each(this.series, (series) => {
+    _.each(this.series, series => {
       let titleCol: any = null;
       let timeCol: any = null;
-      let timeEndCol: any = null;
       const tagsCol: any = [];
       let textCol: any = null;
 
-      each(series.columns, (column, index) => {
+      _.each(series.columns, (column, index) => {
         if (column === 'time') {
           timeCol = index;
           return;
@@ -109,16 +108,12 @@ export default class InfluxSeries {
           titleCol = index;
           return;
         }
-        if (includes((this.annotation.tagsColumn || '').replace(' ', '').split(','), column)) {
+        if (_.includes((this.annotation.tagsColumn || '').replace(' ', '').split(','), column)) {
           tagsCol.push(index);
           return;
         }
         if (column === this.annotation.textColumn) {
           textCol = index;
-          return;
-        }
-        if (column === this.annotation.timeEndColumn) {
-          timeEndCol = index;
           return;
         }
         // legacy case
@@ -127,14 +122,13 @@ export default class InfluxSeries {
         }
       });
 
-      each(series.values, (value) => {
+      _.each(series.values, value => {
         const data = {
           annotation: this.annotation,
           time: +new Date(value[timeCol]),
           title: value[titleCol],
-          timeEnd: value[timeEndCol],
           // Remove empty values, then split in different tags for comma separated values
-          tags: flatten(
+          tags: _.flatten(
             tagsCol
               .filter((t: any) => {
                 return value[t];
@@ -164,7 +158,7 @@ export default class InfluxSeries {
       return table;
     }
 
-    each(this.series, (series: any, seriesIndex: number) => {
+    _.each(this.series, (series: any, seriesIndex: number) => {
       if (seriesIndex === 0) {
         j = 0;
         // Check that the first column is indeed 'time'
@@ -173,7 +167,7 @@ export default class InfluxSeries {
           table.columns.push({ text: 'Time', type: FieldType.time });
           j++;
         }
-        each(keys(series.tags), (key) => {
+        _.each(_.keys(series.tags), key => {
           table.columns.push({ text: key });
         });
         for (; j < series.columns.length; j++) {

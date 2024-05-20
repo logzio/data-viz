@@ -41,12 +41,17 @@ exports[`Render should render teams table 1`] = `
       <div
         className="gf-form gf-form--grow"
       >
-        <FilterInput
+        <Component
+          inputClassName="gf-form-input"
+          labelClassName="gf-form--has-input-icon gf-form--grow"
           onChange={[Function]}
           placeholder="Search teams"
           value=""
         />
       </div>
+      <div
+        className="page-action-bar__spacer"
+      />
       <LinkButton
         className=""
         href="org/teams/new"
@@ -127,7 +132,7 @@ exports[`Render should render teams table 1`] = `
             <td
               className="text-right"
             >
-              <DeleteButton
+              <Component
                 disabled={false}
                 onConfirm={[Function]}
                 size="sm"
@@ -179,7 +184,7 @@ exports[`Render should render teams table 1`] = `
             <td
               className="text-right"
             >
-              <DeleteButton
+              <Component
                 disabled={false}
                 onConfirm={[Function]}
                 size="sm"
@@ -231,7 +236,7 @@ exports[`Render should render teams table 1`] = `
             <td
               className="text-right"
             >
-              <DeleteButton
+              <Component
                 disabled={false}
                 onConfirm={[Function]}
                 size="sm"
@@ -283,7 +288,7 @@ exports[`Render should render teams table 1`] = `
             <td
               className="text-right"
             >
-              <DeleteButton
+              <Component
                 disabled={false}
                 onConfirm={[Function]}
                 size="sm"
@@ -335,7 +340,7 @@ exports[`Render should render teams table 1`] = `
             <td
               className="text-right"
             >
-              <DeleteButton
+              <Component
                 disabled={false}
                 onConfirm={[Function]}
                 size="sm"
@@ -371,12 +376,17 @@ exports[`Render when feature toggle editorsCanAdmin is turned on and signedin us
       <div
         className="gf-form gf-form--grow"
       >
-        <FilterInput
+        <Component
+          inputClassName="gf-form-input"
+          labelClassName="gf-form--has-input-icon gf-form--grow"
           onChange={[Function]}
           placeholder="Search teams"
           value=""
         />
       </div>
+      <div
+        className="page-action-bar__spacer"
+      />
       <LinkButton
         className=" disabled"
         href="#"
@@ -457,7 +467,7 @@ exports[`Render when feature toggle editorsCanAdmin is turned on and signedin us
             <td
               className="text-right"
             >
-              <DeleteButton
+              <Component
                 disabled={true}
                 onConfirm={[Function]}
                 size="sm"
@@ -493,12 +503,17 @@ exports[`Render when feature toggle editorsCanAdmin is turned on and signedin us
       <div
         className="gf-form gf-form--grow"
       >
-        <FilterInput
+        <Component
+          inputClassName="gf-form-input"
+          labelClassName="gf-form--has-input-icon gf-form--grow"
           onChange={[Function]}
           placeholder="Search teams"
           value=""
         />
       </div>
+      <div
+        className="page-action-bar__spacer"
+      />
       <LinkButton
         className=""
         href="org/teams/new"
@@ -579,7 +594,7 @@ exports[`Render when feature toggle editorsCanAdmin is turned on and signedin us
             <td
               className="text-right"
             >
-              <DeleteButton
+              <Component
                 disabled={true}
                 onConfirm={[Function]}
                 size="sm"

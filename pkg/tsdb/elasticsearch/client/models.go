@@ -5,7 +5,8 @@ import (
 	"net/http"
 
 	"github.com/grafana/grafana/pkg/components/simplejson"
-	"github.com/grafana/grafana/pkg/tsdb/interval"
+
+	"github.com/grafana/grafana/pkg/tsdb"
 )
 
 type response struct {
@@ -31,13 +32,13 @@ type SearchDebugInfo struct {
 
 // SearchRequest represents a search request
 type SearchRequest struct {
-	Index       	  string
-	Interval    	  interval.Interval
-	Size        	  int
-	Sort        	  map[string]interface{}
-	Query       	  *Query
-	Aggs        	  AggArray
-	CustomProps 	  map[string]interface{}
+	Index             string
+	Interval          tsdb.Interval
+	Size              int
+	Sort              map[string]interface{}
+	Query             *Query
+	Aggs              AggArray
+	CustomProps       map[string]interface{}
 	LogzioExtraParams *LogzioExtraParams // LOGZ.IO GRAFANA CHANGE :: DEV-19067 - rate function support
 }
 
@@ -101,6 +102,11 @@ type Query struct {
 // BoolQuery represents a bool query
 type BoolQuery struct {
 	Filters []Filter
+}
+
+// NewBoolQuery create a new bool query
+func NewBoolQuery() *BoolQuery {
+	return &BoolQuery{Filters: make([]Filter, 0)}
 }
 
 // MarshalJSON returns the JSON encoding of the boolean query.
@@ -287,10 +293,8 @@ type MetricAggregation struct {
 
 // MarshalJSON returns the JSON encoding of the metric aggregation
 func (a *MetricAggregation) MarshalJSON() ([]byte, error) {
-	root := map[string]interface{}{}
-
-	if a.Field != "" {
-		root["field"] = a.Field
+	root := map[string]interface{}{
+		"field": a.Field,
 	}
 
 	for k, v := range a.Settings {

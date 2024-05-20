@@ -6,15 +6,17 @@ import (
 
 	"github.com/grafana/grafana/pkg/bus"
 	"github.com/grafana/grafana/pkg/models"
+
+	"github.com/grafana/grafana/pkg/setting"
 )
 
-func (ss *SQLStore) addPreferencesQueryAndCommandHandlers() {
+func (ss *SqlStore) addPreferencesQueryAndCommandHandlers() {
 	bus.AddHandler("sql", GetPreferences)
 	bus.AddHandler("sql", ss.GetPreferencesWithDefaults)
 	bus.AddHandler("sql", SavePreferences)
 }
 
-func (ss *SQLStore) GetPreferencesWithDefaults(query *models.GetPreferencesWithDefaultsQuery) error {
+func (ss *SqlStore) GetPreferencesWithDefaults(query *models.GetPreferencesWithDefaultsQuery) error {
 	params := make([]interface{}, 0)
 	filter := ""
 
@@ -40,7 +42,7 @@ func (ss *SQLStore) GetPreferencesWithDefaults(query *models.GetPreferencesWithD
 	}
 
 	res := &models.Preferences{
-		Theme:           ss.Cfg.DefaultTheme,
+		Theme:           setting.DefaultTheme,
 		Timezone:        ss.Cfg.DateFormats.DefaultTimezone,
 		HomeDashboardId: 0,
 	}

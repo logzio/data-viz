@@ -1,7 +1,8 @@
-import React, { FunctionComponent } from 'react';
-import { css, cx } from '@emotion/css';
+import React, { FunctionComponent, useContext } from 'react';
+import { css, cx } from 'emotion';
+
+import { ThemeContext } from '../../themes/ThemeContext';
 import { GrafanaTheme } from '@grafana/data';
-import { useStyles } from '../../themes/ThemeContext';
 
 const getStyles = (theme: GrafanaTheme) => ({
   logsStatsRow: css`
@@ -57,7 +58,8 @@ export interface Props {
 }
 
 export const LogLabelStatsRow: FunctionComponent<Props> = ({ active, count, proportion, value }) => {
-  const style = useStyles(getStyles);
+  const theme = useContext(ThemeContext);
+  const style = getStyles(theme);
   const percent = `${Math.round(proportion * 100)}%`;
   const barStyle = { width: percent };
   const className = active ? cx([style.logsStatsRow, style.logsStatsRowActive]) : cx([style.logsStatsRow]);

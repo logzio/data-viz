@@ -1,47 +1,49 @@
-import { GrafanaTheme2, createTheme } from '@grafana/data';
 //@ts-ignore
 import { create } from '@storybook/theming/create';
-import '../src/components/Icon/iconBundle';
+import lightTheme from '../src/themes/light';
+import darkTheme from '../src/themes/dark';
+import ThemeCommons from '../src/themes/default';
+import { GrafanaTheme } from '@grafana/data';
 
-const createStorybookTheme = (theme: GrafanaTheme2) => {
+const createTheme = (theme: GrafanaTheme) => {
   return create({
     base: theme.name.includes('Light') ? 'light' : 'dark',
 
-    colorPrimary: theme.colors.primary.main,
-    colorSecondary: theme.colors.error.main,
+    colorPrimary: theme.palette.brandPrimary,
+    colorSecondary: theme.palette.brandPrimary,
 
     // UI
-    appBg: theme.colors.background.canvas,
-    appContentBg: theme.colors.background.primary,
-    appBorderColor: theme.colors.border.medium,
-    appBorderRadius: theme.shape.borderRadius(1),
+    appBg: theme.colors.bodyBg,
+    appContentBg: theme.colors.bodyBg,
+    appBorderColor: theme.colors.pageHeaderBorder,
+    appBorderRadius: 4,
 
     // Typography
-    fontBase: theme.typography.fontFamily,
-    fontCode: theme.typography.fontFamilyMonospace,
+    fontBase: ThemeCommons.typography.fontFamily.sansSerif,
+    fontCode: ThemeCommons.typography.fontFamily.monospace,
 
     // Text colors
-    textColor: theme.colors.text.primary,
-    textInverseColor: theme.colors.background.primary,
+    textColor: theme.colors.text,
+    textInverseColor: 'rgba(255,255,255,0.9)',
 
     // Toolbar default and active colors
-    barTextColor: theme.colors.text.primary,
-    barSelectedColor: theme.colors.emphasize(theme.colors.primary.text),
-    barBg: theme.colors.background.primary,
+    barTextColor: theme.colors.formInputBorderActive,
+    barSelectedColor: theme.palette.brandPrimary,
+    barBg: theme.colors.pageHeaderBg,
 
     // Form colors
-    inputBg: theme.components.input.background,
-    inputBorder: theme.components.input.borderColor,
-    inputTextColor: theme.components.input.text,
-    inputBorderRadius: theme.shape.borderRadius(1),
+    inputBg: theme.colors.formInputBg,
+    inputBorder: theme.colors.formInputBorder,
+    inputTextColor: theme.colors.formInputText,
+    inputBorderRadius: 4,
 
     brandTitle: 'Grafana UI',
     brandUrl: './',
-    brandImage: 'public/img/grafana_icon.svg',
+    brandImage: './grafana_icon.svg',
   });
 };
 
-const GrafanaLight = createStorybookTheme(createTheme({ colors: { mode: 'light' } }));
-const GrafanaDark = createStorybookTheme(createTheme({ colors: { mode: 'dark' } }));
+const GrafanaLight = createTheme(lightTheme);
+const GrafanaDark = createTheme(darkTheme);
 
 export { GrafanaLight, GrafanaDark };

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 )
 
@@ -16,12 +15,10 @@ func hello(w http.ResponseWriter, r *http.Request) {
 
 	line := fmt.Sprintf("webbhook: -> %s", string(body))
 	fmt.Println(line)
-	if _, err := io.WriteString(w, line); err != nil {
-		log.Printf("Failed to write: %v", err)
-	}
+	io.WriteString(w, line)
 }
 
 func main() {
 	http.HandleFunc("/", hello)
-	log.Fatal(http.ListenAndServe(":3010", nil))
+	http.ListenAndServe(":3010", nil)
 }

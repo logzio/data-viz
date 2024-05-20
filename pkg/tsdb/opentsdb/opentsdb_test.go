@@ -4,170 +4,163 @@ import (
 	"testing"
 
 	"github.com/grafana/grafana/pkg/components/simplejson"
-	"github.com/grafana/grafana/pkg/plugins"
-	"github.com/stretchr/testify/require"
+	"github.com/grafana/grafana/pkg/tsdb"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestOpenTsdbExecutor(t *testing.T) {
-	exec := &OpenTsdbExecutor{}
+	Convey("OpenTsdb query testing", t, func() {
+		exec := &OpenTsdbExecutor{}
 
-	t.Run("Build metric with downsampling enabled", func(t *testing.T) {
-		query := plugins.DataSubQuery{
-			Model: simplejson.New(),
-		}
+		Convey("Build metric with downsampling enabled", func() {
+			query := &tsdb.Query{
+				Model: simplejson.New(),
+			}
 
-		query.Model.Set("metric", "cpu.average.percent")
-		query.Model.Set("aggregator", "avg")
-		query.Model.Set("disableDownsampling", false)
-		query.Model.Set("downsampleInterval", "")
-		query.Model.Set("downsampleAggregator", "avg")
-		query.Model.Set("downsampleFillPolicy", "none")
+			query.Model.Set("metric", "cpu.average.percent")
+			query.Model.Set("aggregator", "avg")
+			query.Model.Set("disableDownsampling", false)
+			query.Model.Set("downsampleInterval", "")
+			query.Model.Set("downsampleAggregator", "avg")
+			query.Model.Set("downsampleFillPolicy", "none")
 
-		metric := exec.buildMetric(query)
+			metric := exec.buildMetric(query)
 
-		require.Len(t, metric, 3)
-		require.Equal(t, "cpu.average.percent", metric["metric"])
-		require.Equal(t, "avg", metric["aggregator"])
-		require.Equal(t, "1m-avg", metric["downsample"])
-	})
+			So(len(metric), ShouldEqual, 3)
+			So(metric["metric"], ShouldEqual, "cpu.average.percent")
+			So(metric["aggregator"], ShouldEqual, "avg")
+			So(metric["downsample"], ShouldEqual, "1m-avg")
+		})
 
-	t.Run("Build metric with downsampling disabled", func(t *testing.T) {
-		query := plugins.DataSubQuery{
-			Model: simplejson.New(),
-		}
+		Convey("Build metric with downsampling disabled", func() {
+			query := &tsdb.Query{
+				Model: simplejson.New(),
+			}
 
-		query.Model.Set("metric", "cpu.average.percent")
-		query.Model.Set("aggregator", "avg")
-		query.Model.Set("disableDownsampling", true)
-		query.Model.Set("downsampleInterval", "")
-		query.Model.Set("downsampleAggregator", "avg")
-		query.Model.Set("downsampleFillPolicy", "none")
+			query.Model.Set("metric", "cpu.average.percent")
+			query.Model.Set("aggregator", "avg")
+			query.Model.Set("disableDownsampling", true)
+			query.Model.Set("downsampleInterval", "")
+			query.Model.Set("downsampleAggregator", "avg")
+			query.Model.Set("downsampleFillPolicy", "none")
 
-		metric := exec.buildMetric(query)
+			metric := exec.buildMetric(query)
 
-		require.Len(t, metric, 2)
-		require.Equal(t, "cpu.average.percent", metric["metric"])
-		require.Equal(t, "avg", metric["aggregator"])
-	})
+			So(len(metric), ShouldEqual, 2)
+			So(metric["metric"], ShouldEqual, "cpu.average.percent")
+			So(metric["aggregator"], ShouldEqual, "avg")
+		})
 
-	t.Run("Build metric with downsampling enabled with params", func(t *testing.T) {
-		query := plugins.DataSubQuery{
-			Model: simplejson.New(),
-		}
+		Convey("Build metric with downsampling enabled with params", func() {
+			query := &tsdb.Query{
+				Model: simplejson.New(),
+			}
 
-		query.Model.Set("metric", "cpu.average.percent")
-		query.Model.Set("aggregator", "avg")
-		query.Model.Set("disableDownsampling", false)
-		query.Model.Set("downsampleInterval", "5m")
-		query.Model.Set("downsampleAggregator", "sum")
-		query.Model.Set("downsampleFillPolicy", "null")
+			query.Model.Set("metric", "cpu.average.percent")
+			query.Model.Set("aggregator", "avg")
+			query.Model.Set("disableDownsampling", false)
+			query.Model.Set("downsampleInterval", "5m")
+			query.Model.Set("downsampleAggregator", "sum")
+			query.Model.Set("downsampleFillPolicy", "null")
 
-		metric := exec.buildMetric(query)
+			metric := exec.buildMetric(query)
 
-		require.Len(t, metric, 3)
-		require.Equal(t, "cpu.average.percent", metric["metric"])
-		require.Equal(t, "avg", metric["aggregator"])
-		require.Equal(t, "5m-sum-null", metric["downsample"])
-	})
+			So(len(metric), ShouldEqual, 3)
+			So(metric["metric"], ShouldEqual, "cpu.average.percent")
+			So(metric["aggregator"], ShouldEqual, "avg")
+			So(metric["downsample"], ShouldEqual, "5m-sum-null")
+		})
 
-	t.Run("Build metric with tags with downsampling disabled", func(t *testing.T) {
-		query := plugins.DataSubQuery{
-			Model: simplejson.New(),
-		}
+		Convey("Build metric with tags with downsampling disabled", func() {
+			query := &tsdb.Query{
+				Model: simplejson.New(),
+			}
 
-		query.Model.Set("metric", "cpu.average.percent")
-		query.Model.Set("aggregator", "avg")
-		query.Model.Set("disableDownsampling", true)
-		query.Model.Set("downsampleInterval", "5m")
-		query.Model.Set("downsampleAggregator", "sum")
-		query.Model.Set("downsampleFillPolicy", "null")
+			query.Model.Set("metric", "cpu.average.percent")
+			query.Model.Set("aggregator", "avg")
+			query.Model.Set("disableDownsampling", true)
+			query.Model.Set("downsampleInterval", "5m")
+			query.Model.Set("downsampleAggregator", "sum")
+			query.Model.Set("downsampleFillPolicy", "null")
 
-		tags := simplejson.New()
-		tags.Set("env", "prod")
-		tags.Set("app", "grafana")
-		query.Model.Set("tags", tags.MustMap())
+			tags := simplejson.New()
+			tags.Set("env", "prod")
+			tags.Set("app", "grafana")
+			query.Model.Set("tags", tags.MustMap())
 
-		metric := exec.buildMetric(query)
+			metric := exec.buildMetric(query)
 
-		require.Len(t, metric, 3)
-		require.Equal(t, "cpu.average.percent", metric["metric"])
-		require.Equal(t, "avg", metric["aggregator"])
-		require.Nil(t, metric["downsample"])
+			So(len(metric), ShouldEqual, 3)
+			So(metric["metric"], ShouldEqual, "cpu.average.percent")
+			So(metric["aggregator"], ShouldEqual, "avg")
+			So(metric["downsample"], ShouldEqual, nil)
+			So(len(metric["tags"].(map[string]interface{})), ShouldEqual, 2)
+			So(metric["tags"].(map[string]interface{})["env"], ShouldEqual, "prod")
+			So(metric["tags"].(map[string]interface{})["app"], ShouldEqual, "grafana")
+			So(metric["tags"].(map[string]interface{})["ip"], ShouldEqual, nil)
+		})
 
-		metricTags := metric["tags"].(map[string]interface{})
-		require.Len(t, metricTags, 2)
-		require.Equal(t, "prod", metricTags["env"])
-		require.Equal(t, "grafana", metricTags["app"])
-		require.Nil(t, metricTags["ip"])
-	})
+		Convey("Build metric with rate enabled but counter disabled", func() {
+			query := &tsdb.Query{
+				Model: simplejson.New(),
+			}
 
-	t.Run("Build metric with rate enabled but counter disabled", func(t *testing.T) {
-		query := plugins.DataSubQuery{
-			Model: simplejson.New(),
-		}
+			query.Model.Set("metric", "cpu.average.percent")
+			query.Model.Set("aggregator", "avg")
+			query.Model.Set("disableDownsampling", true)
+			query.Model.Set("shouldComputeRate", true)
+			query.Model.Set("isCounter", false)
 
-		query.Model.Set("metric", "cpu.average.percent")
-		query.Model.Set("aggregator", "avg")
-		query.Model.Set("disableDownsampling", true)
-		query.Model.Set("shouldComputeRate", true)
-		query.Model.Set("isCounter", false)
+			tags := simplejson.New()
+			tags.Set("env", "prod")
+			tags.Set("app", "grafana")
+			query.Model.Set("tags", tags.MustMap())
 
-		tags := simplejson.New()
-		tags.Set("env", "prod")
-		tags.Set("app", "grafana")
-		query.Model.Set("tags", tags.MustMap())
+			metric := exec.buildMetric(query)
 
-		metric := exec.buildMetric(query)
+			So(len(metric), ShouldEqual, 5)
+			So(metric["metric"], ShouldEqual, "cpu.average.percent")
+			So(metric["aggregator"], ShouldEqual, "avg")
+			So(len(metric["tags"].(map[string]interface{})), ShouldEqual, 2)
+			So(metric["tags"].(map[string]interface{})["env"], ShouldEqual, "prod")
+			So(metric["tags"].(map[string]interface{})["app"], ShouldEqual, "grafana")
+			So(metric["tags"].(map[string]interface{})["ip"], ShouldEqual, nil)
+			So(metric["rate"], ShouldEqual, true)
+			So(metric["rateOptions"].(map[string]interface{})["counter"], ShouldEqual, false)
+		})
 
-		require.Len(t, metric, 5)
-		require.Equal(t, "cpu.average.percent", metric["metric"])
-		require.Equal(t, "avg", metric["aggregator"])
+		Convey("Build metric with rate and counter enabled", func() {
+			query := &tsdb.Query{
+				Model: simplejson.New(),
+			}
 
-		metricTags := metric["tags"].(map[string]interface{})
-		require.Len(t, metricTags, 2)
-		require.Equal(t, "prod", metricTags["env"])
-		require.Equal(t, "grafana", metricTags["app"])
-		require.Nil(t, metricTags["ip"])
+			query.Model.Set("metric", "cpu.average.percent")
+			query.Model.Set("aggregator", "avg")
+			query.Model.Set("disableDownsampling", true)
+			query.Model.Set("shouldComputeRate", true)
+			query.Model.Set("isCounter", true)
+			query.Model.Set("counterMax", 45)
+			query.Model.Set("counterResetValue", 60)
 
-		require.True(t, metric["rate"].(bool))
-		require.False(t, metric["rateOptions"].(map[string]interface{})["counter"].(bool))
-	})
+			tags := simplejson.New()
+			tags.Set("env", "prod")
+			tags.Set("app", "grafana")
+			query.Model.Set("tags", tags.MustMap())
 
-	t.Run("Build metric with rate and counter enabled", func(t *testing.T) {
-		query := plugins.DataSubQuery{
-			Model: simplejson.New(),
-		}
+			metric := exec.buildMetric(query)
 
-		query.Model.Set("metric", "cpu.average.percent")
-		query.Model.Set("aggregator", "avg")
-		query.Model.Set("disableDownsampling", true)
-		query.Model.Set("shouldComputeRate", true)
-		query.Model.Set("isCounter", true)
-		query.Model.Set("counterMax", 45)
-		query.Model.Set("counterResetValue", 60)
-
-		tags := simplejson.New()
-		tags.Set("env", "prod")
-		tags.Set("app", "grafana")
-		query.Model.Set("tags", tags.MustMap())
-
-		metric := exec.buildMetric(query)
-
-		require.Len(t, metric, 5)
-		require.Equal(t, "cpu.average.percent", metric["metric"])
-		require.Equal(t, "avg", metric["aggregator"])
-
-		metricTags := metric["tags"].(map[string]interface{})
-		require.Len(t, metricTags, 2)
-		require.Equal(t, "prod", metricTags["env"])
-		require.Equal(t, "grafana", metricTags["app"])
-		require.Nil(t, metricTags["ip"])
-
-		require.True(t, metric["rate"].(bool))
-		metricRateOptions := metric["rateOptions"].(map[string]interface{})
-		require.Len(t, metricRateOptions, 3)
-		require.True(t, metricRateOptions["counter"].(bool))
-		require.Equal(t, float64(45), metricRateOptions["counterMax"])
-		require.Equal(t, float64(60), metricRateOptions["resetValue"])
+			So(len(metric), ShouldEqual, 5)
+			So(metric["metric"], ShouldEqual, "cpu.average.percent")
+			So(metric["aggregator"], ShouldEqual, "avg")
+			So(len(metric["tags"].(map[string]interface{})), ShouldEqual, 2)
+			So(metric["tags"].(map[string]interface{})["env"], ShouldEqual, "prod")
+			So(metric["tags"].(map[string]interface{})["app"], ShouldEqual, "grafana")
+			So(metric["tags"].(map[string]interface{})["ip"], ShouldEqual, nil)
+			So(metric["rate"], ShouldEqual, true)
+			So(len(metric["rateOptions"].(map[string]interface{})), ShouldEqual, 3)
+			So(metric["rateOptions"].(map[string]interface{})["counter"], ShouldEqual, true)
+			So(metric["rateOptions"].(map[string]interface{})["counterMax"], ShouldEqual, 45)
+			So(metric["rateOptions"].(map[string]interface{})["resetValue"], ShouldEqual, 60)
+		})
 	})
 }

@@ -7,32 +7,36 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
-	"github.com/grafana/grafana-plugin-sdk-go/backend"
-	"github.com/grafana/grafana-plugin-sdk-go/data"
 	"github.com/grafana/grafana/pkg/components/simplejson"
+	"github.com/grafana/grafana/pkg/tsdb"
 	"github.com/grafana/grafana/pkg/util/errutil"
 )
 
-func (e *cloudWatchExecutor) executeAnnotationQuery(ctx context.Context, model *simplejson.Json, query backend.DataQuery, pluginCtx backend.PluginContext) (*backend.QueryDataResponse, error) {
-	result := backend.NewQueryDataResponse()
+func (e *cloudWatchExecutor) executeAnnotationQuery(ctx context.Context, queryContext *tsdb.TsdbQuery) (*tsdb.Response, error) {
+	result := &tsdb.Response{
+		Results: make(map[string]*tsdb.QueryResult),
+	}
+	firstQuery := queryContext.Queries[0]
+	queryResult := &tsdb.QueryResult{Meta: simplejson.New(), RefId: firstQuery.RefId}
 
-	usePrefixMatch := model.Get("prefixMatching").MustBool(false)
-	region := model.Get("region").MustString("")
-	namespace := model.Get("namespace").MustString("")
-	metricName := model.Get("metricName").MustString("")
-	dimensions := model.Get("dimensions").MustMap()
-	statistics, err := parseStatistics(model)
+	parameters := firstQuery.Model
+	usePrefixMatch := parameters.Get("prefixMatching").MustBool(false)
+	region := parameters.Get("region").MustString("")
+	namespace := parameters.Get("namespace").MustString("")
+	metricName := parameters.Get("metricName").MustString("")
+	dimensions := parameters.Get("dimensions").MustMap()
+	statistics, err := parseStatistics(parameters)
 	if err != nil {
 		return nil, err
 	}
-	period := int64(model.Get("period").MustInt(0))
+	period := int64(parameters.Get("period").MustInt(0))
 	if period == 0 && !usePrefixMatch {
 		period = 300
 	}
-	actionPrefix := model.Get("actionPrefix").MustString("")
-	alarmNamePrefix := model.Get("alarmNamePrefix").MustString("")
+	actionPrefix := parameters.Get("actionPrefix").MustString("")
+	alarmNamePrefix := parameters.Get("alarmNamePrefix").MustString("")
 
-	cli, err := e.getCWClient(region, pluginCtx)
+	cli, err := e.getCWClient(region)
 	if err != nil {
 		return nil, err
 	}
@@ -85,12 +89,21 @@ func (e *cloudWatchExecutor) executeAnnotationQuery(ctx context.Context, model *
 		}
 	}
 
+	startTime, err := queryContext.TimeRange.ParseFrom()
+	if err != nil {
+		return nil, err
+	}
+	endTime, err := queryContext.TimeRange.ParseTo()
+	if err != nil {
+		return nil, err
+	}
+
 	annotations := make([]map[string]string, 0)
 	for _, alarmName := range alarmNames {
 		params := &cloudwatch.DescribeAlarmHistoryInput{
 			AlarmName:  alarmName,
-			StartDate:  aws.Time(query.TimeRange.From),
-			EndDate:    aws.Time(query.TimeRange.To),
+			StartDate:  aws.Time(startTime),
+			EndDate:    aws.Time(endTime),
 			MaxRecords: aws.Int64(100),
 		}
 		resp, err := cli.DescribeAlarmHistory(params)
@@ -107,36 +120,34 @@ func (e *cloudWatchExecutor) executeAnnotationQuery(ctx context.Context, model *
 		}
 	}
 
-	respD := result.Responses[query.RefID]
-	respD.Frames = append(respD.Frames, transformAnnotationToTable(annotations, query))
-	result.Responses[query.RefID] = respD
-
+	transformAnnotationToTable(annotations, queryResult)
+	result.Results[firstQuery.RefId] = queryResult
 	return result, err
 }
 
-func transformAnnotationToTable(annotations []map[string]string, query backend.DataQuery) *data.Frame {
-	frame := data.NewFrame(query.RefID,
-		data.NewField("time", nil, []string{}),
-		data.NewField("title", nil, []string{}),
-		data.NewField("tags", nil, []string{}),
-		data.NewField("text", nil, []string{}),
-	)
-
-	for _, a := range annotations {
-		frame.AppendRow(a["time"], a["title"], a["tags"], a["text"])
+func transformAnnotationToTable(data []map[string]string, result *tsdb.QueryResult) {
+	table := &tsdb.Table{
+		Columns: make([]tsdb.TableColumn, 4),
+		Rows:    make([]tsdb.RowValues, 0),
 	}
+	table.Columns[0].Text = "time"
+	table.Columns[1].Text = "title"
+	table.Columns[2].Text = "tags"
+	table.Columns[3].Text = "text"
 
-	frame.Meta = &data.FrameMeta{
-		Custom: map[string]interface{}{
-			"rowCount": len(annotations),
-		},
+	for _, r := range data {
+		values := make([]interface{}, 4)
+		values[0] = r["time"]
+		values[1] = r["title"]
+		values[2] = r["tags"]
+		values[3] = r["text"]
+		table.Rows = append(table.Rows, values)
 	}
-
-	return frame
+	result.Tables = append(result.Tables, table)
+	result.Meta.Set("rowCount", len(data))
 }
 
-func filterAlarms(alarms *cloudwatch.DescribeAlarmsOutput, namespace string, metricName string,
-	dimensions map[string]interface{}, statistics []string, period int64) []*string {
+func filterAlarms(alarms *cloudwatch.DescribeAlarmsOutput, namespace string, metricName string, dimensions map[string]interface{}, statistics []string, period int64) []*string {
 	alarmNames := make([]*string, 0)
 
 	for _, alarm := range alarms.MetricAlarms {

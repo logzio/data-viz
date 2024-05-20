@@ -1,61 +1,62 @@
 // Libraries
-import React, { FC, HTMLAttributes, useEffect } from 'react';
+import React, { Component, HTMLAttributes } from 'react';
 import { getTitleFromNavModel } from 'app/core/selectors/navModel';
 
 // Components
 import PageHeader from '../PageHeader/PageHeader';
 import { Footer } from '../Footer/Footer';
-import { PageContents } from './PageContents';
-import { CustomScrollbar, useStyles2 } from '@grafana/ui';
-import { GrafanaTheme2, NavModel } from '@grafana/data';
+import PageContents from './PageContents';
+import { CustomScrollbar } from '@grafana/ui';
+import { NavModel } from '@grafana/data';
+import { isEqual } from 'lodash';
 import { Branding } from '../Branding/Branding';
-import { css, cx } from '@emotion/css';
 
 interface Props extends HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
-  navModel?: NavModel;
+  navModel: NavModel;
 }
 
-export interface PageType extends FC<Props> {
-  Header: typeof PageHeader;
-  Contents: typeof PageContents;
-}
+class Page extends Component<Props> {
+  static Header = PageHeader;
+  static Contents = PageContents;
 
-export const Page: PageType = ({ navModel, children, className, ...otherProps }) => {
-  const styles = useStyles2(getStyles);
+  componentDidMount() {
+    this.updateTitle();
+  }
 
-  useEffect(() => {
-    if (navModel) {
-      const title = getTitleFromNavModel(navModel);
-      document.title = title ? `${title} - ${Branding.AppTitle}` : Branding.AppTitle;
-    } else {
-      document.title = Branding.AppTitle;
+  componentDidUpdate(prevProps: Props) {
+    if (!isEqual(prevProps.navModel, this.props.navModel)) {
+      this.updateTitle();
     }
-  }, [navModel]);
+  }
 
-  return (
-    <div {...otherProps} className={cx(styles.wrapper, className)}>
-      <CustomScrollbar autoHeightMin={'100%'}>
-        <div className="page-scrollbar-content">
-          {navModel && <PageHeader model={navModel} />}
-          {children}
-          <Footer />
-        </div>
-      </CustomScrollbar>
-    </div>
-  );
-};
+  updateTitle = () => {
+    const title = this.getPageTitle;
+    document.title = title ? title + ' - ' + Branding.AppTitle : Branding.AppTitle;
+  };
 
-Page.Header = PageHeader;
-Page.Contents = PageContents;
+  get getPageTitle() {
+    const { navModel } = this.props;
+    if (navModel) {
+      return getTitleFromNavModel(navModel) || undefined;
+    }
+    return undefined;
+  }
+
+  render() {
+    const { navModel, children, ...otherProps } = this.props;
+    return (
+      <div {...otherProps} className="page-scrollbar-wrapper">
+        <CustomScrollbar autoHeightMin={'100%'} className="custom-scrollbar--page">
+          <div className="page-scrollbar-content">
+            <PageHeader model={navModel} />
+            {children}
+            <Footer />
+          </div>
+        </CustomScrollbar>
+      </div>
+    );
+  }
+}
 
 export default Page;
-
-const getStyles = (theme: GrafanaTheme2) => ({
-  wrapper: css`
-    bottom: 0;
-    position: absolute;
-    top: 0;
-    width: 100%;
-  `,
-});

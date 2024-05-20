@@ -1,12 +1,9 @@
 import React from 'react';
 import tinycolor from 'tinycolor2';
-import { debounce } from 'lodash';
+import debounce from 'lodash/debounce';
 
 import { ColorPickerProps } from './ColorPickerPopover';
-import { Input } from '../Input/Input';
-import { useStyles2 } from '../../themes';
-import { GrafanaTheme2 } from '@grafana/data';
-import { cx, css } from '@emotion/css';
+import { Input } from '../Forms/Legacy/Input/Input';
 
 interface ColorInputState {
   previousColor: string;
@@ -15,7 +12,6 @@ interface ColorInputState {
 
 interface ColorInputProps extends ColorPickerProps {
   style?: React.CSSProperties;
-  className?: string;
 }
 
 class ColorInput extends React.PureComponent<ColorInputProps, ColorInputState> {
@@ -70,41 +66,31 @@ class ColorInput extends React.PureComponent<ColorInputProps, ColorInputState> {
   render() {
     const { value } = this.state;
     return (
-      <Input
-        className={this.props.className}
-        value={value}
-        onChange={this.onChange}
-        onBlur={this.onBlur}
-        addonBefore={<ColorPreview color={this.props.color} />}
-      />
+      <div
+        style={{
+          display: 'flex',
+          ...this.props.style,
+        }}
+      >
+        <div
+          style={{
+            background: this.props.color,
+            width: '35px',
+            height: '35px',
+            flexGrow: 0,
+            borderRadius: '3px 0 0 3px',
+          }}
+        />
+        <div
+          style={{
+            flexGrow: 1,
+          }}
+        >
+          <Input className="gf-form-input" value={value} onChange={this.onChange} onBlur={this.onBlur} />
+        </div>
+      </div>
     );
   }
 }
 
 export default ColorInput;
-
-interface ColorPreviewProps {
-  color: string;
-}
-
-const ColorPreview = ({ color }: ColorPreviewProps) => {
-  const styles = useStyles2(getColorPreviewStyles);
-
-  return (
-    <div
-      className={cx(
-        styles,
-        css`
-          background-color: ${color};
-        `
-      )}
-    />
-  );
-};
-
-const getColorPreviewStyles = (theme: GrafanaTheme2) => css`
-  height: 100%;
-  width: ${theme.spacing.gridSize * 4}px;
-  border-radius: ${theme.shape.borderRadius()} 0 0 ${theme.shape.borderRadius()};
-  border: 1px solid ${theme.colors.border.medium};
-`;

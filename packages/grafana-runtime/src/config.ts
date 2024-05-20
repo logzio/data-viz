@@ -1,25 +1,19 @@
-import { merge } from 'lodash';
+import merge from 'lodash/merge';
+import { getTheme } from '@grafana/ui';
 import {
   BuildInfo,
-  createTheme,
   DataSourceInstanceSettings,
   FeatureToggles,
-  logzioConfigs, // LOGZ.IO GRAFANA CHANGE :: DEV-20247 Use logzio provider
   GrafanaConfig,
   GrafanaTheme,
-  GrafanaTheme2,
+  GrafanaThemeType,
   LicenseInfo,
   PanelPluginMeta,
+  logzioConfigs, // LOGZ.IO GRAFANA CHANGE :: DEV-20247 Use logzio provider
   systemDateFormats,
   SystemDateFormatSettings,
 } from '@grafana/data';
-
 import { changeDatasourceLogos } from './changeDatasourceLogos.logzio'; // LOGZ.IO GRAFANA CHANGE :: DEV-19985: add datasource logos
-
-export interface AzureSettings {
-  cloud?: string;
-  managedIdentityEnabled: boolean;
-}
 
 export class GrafanaBootConfig implements GrafanaConfig {
   datasources: { [str: string]: DataSourceInstanceSettings } = {};
@@ -57,46 +51,23 @@ export class GrafanaBootConfig implements GrafanaConfig {
   viewersCanEdit = false;
   editorsCanAdmin = false;
   disableSanitizeHtml = false;
-  liveEnabled = true;
   theme: GrafanaTheme;
-  theme2: GrafanaTheme2;
   pluginsToPreload: string[] = [];
   featureToggles: FeatureToggles = {
+    live: false,
+    expressions: false,
     meta: false,
     ngalert: false,
-    reportVariables: false,
-    accesscontrol: false,
-    trimDefaults: false,
+    traceToLogs: false,
   };
   licenseInfo: LicenseInfo = {} as LicenseInfo;
   rendererAvailable = false;
-  rendererVersion = '';
   http2Enabled = false;
   dateFormats?: SystemDateFormatSettings;
-  sentry = {
-    enabled: false,
-    dsn: '',
-    customEndpoint: '',
-    sampleRate: 1,
-  };
-  pluginCatalogURL = 'https://grafana.com/grafana/plugins/';
-  pluginAdminEnabled = false;
-  pluginAdminExternalManageEnabled = false;
-  expressionsEnabled = false;
-  customTheme?: any;
-  awsAllowedAuthProviders: string[] = [];
-  awsAssumeRoleEnabled = false;
-  azure: AzureSettings = {
-    managedIdentityEnabled: false,
-  };
-  caching = {
-    enabled: false,
-  };
+  marketplaceUrl?: string;
 
   constructor(options: GrafanaBootConfig) {
-    const mode = options.bootData.user.lightTheme ? 'light' : 'dark';
-    this.theme2 = createTheme({ colors: { mode } });
-    this.theme = this.theme2.v1;
+    this.theme = options.bootData.user.lightTheme ? getTheme(GrafanaThemeType.Light) : getTheme(GrafanaThemeType.Dark);
 
     const defaults = {
       datasources: {},

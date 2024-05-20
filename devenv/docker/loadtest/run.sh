@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#/bin/bash
 
 PWD=$(pwd)
 
@@ -9,11 +9,10 @@ run() {
   testcase='auth_token_test'
   slowQuery=''
   out=''
-  apiKey=''
 
-  while getopts ":d:u:v:c:s:o:k:" o; do
+  while getopts ":d:u:v:c:s:o:" o; do
     case "${o}" in
-        d)
+				d)
             duration=${OPTARG}
             ;;
         u)
@@ -28,18 +27,14 @@ run() {
         s)
             slowQuery=${OPTARG}
             ;;
-        o)  
-            out=${OPTARG}
-            ;;
-        k)
-            apiKey=${OPTARG}
+        o)  out=${OPTARG}
             ;;
 
     esac
 	done
 	shift $((OPTIND-1))
 
-  docker run -t --network=host -v $PWD:/src -e URL=$url -e SLOW_QUERY=$slowQuery -e K6_OUT=$out -e API_KEY=$apiKey --rm -i loadimpact/k6:master run --vus $vus --duration $duration src/$testcase.js
+  docker run -t --network=host -v $PWD:/src -e URL=$url -e SLOW_QUERY=$slowQuery -e K6_OUT=$out --rm -i loadimpact/k6:master run --vus $vus --duration $duration src/$testcase.js
 }
 
 run "$@"

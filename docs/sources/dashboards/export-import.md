@@ -1,7 +1,10 @@
 +++
 title = "Export and import"
 keywords = ["grafana", "dashboard", "documentation", "export", "import"]
+type = "docs"
 aliases = ["/docs/grafana/latest/reference/export_import/"]
+[menu.docs]
+parent = "dashboard_features"
 weight = 800
 +++
 
@@ -15,7 +18,7 @@ Dashboards are exported in Grafana JSON format, and contain everything you need 
 
 The export feature is accessed in the share window which you open by clicking the share button in the dashboard menu.
 
-{{< figure src="/static/img/docs/export/export-modal.png" max-width="800px" >}}
+{{< docs-imagebox img="/img/docs/export/export-modal.png" max-width="800px" >}}
 
 ### Making a dashboard portable
 
@@ -25,16 +28,16 @@ add template variables for things like a metric prefix (use constant variable) a
 A template variable of the type `Constant` will automatically be hidden in
 the dashboard, and will also be added as a required input when the dashboard is imported.
 
-## Import dashboard
+## Importing a dashboard
 
-To import a dashboard click the + icon in the side menu, and then click **Import**.
+To import a dashboard click the + icon in the side menu, and then click **Import**. 
 
-{{< figure src="/static/img/docs/v70/import_step1.png" max-width="700px" >}}
+{{< docs-imagebox img="/img/docs/v70/import_step1.png" max-width="700px" >}}
 
 From here you can upload a dashboard JSON file, paste a [Grafana.com](https://grafana.com) dashboard
 URL or paste dashboard JSON text directly into the text area.
 
-{{< figure src="/static/img/docs/v70/import_step2_grafana.com.png"  max-width="700px" >}}
+{{< docs-imagebox img="/img/docs/v70/import_step2_grafana.com.png"  max-width="700px" >}}
 
 In step 2 of the import process Grafana will let you change the name of the dashboard, pick what
 data source you want the dashboard to use and specify any metric prefixes (if the dashboard use any).
@@ -43,7 +46,7 @@ data source you want the dashboard to use and specify any metric prefixes (if th
 
 Find dashboards for common server applications at [Grafana.com/dashboards](https://grafana.com/dashboards).
 
-{{< figure src="/static/img/docs/v50/gcom_dashboard_list.png" max-width="700px" >}}
+{{< docs-imagebox img="/img/docs/v50/gcom_dashboard_list.png" max-width="700px" >}}
 
 ## Import and sharing with Grafana 2.x or 3.0
 

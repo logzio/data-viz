@@ -2,10 +2,13 @@
 title = "What's new in Grafana v4.6"
 description = "Feature and improvement highlights for Grafana v4.6"
 keywords = ["grafana", "new", "documentation", "4.6", "release notes"]
+type = "docs"
 aliases = ["/docs/grafana/latest/guides/whats-new-in-v4-6/"]
-weight = -13
-[_build]
-list = false
+[menu.docs]
+name = "Version 4.6"
+identifier = "v4.6"
+parent = "whatsnew"
+weight = -5
 +++
 
 # What's new in Grafana v4.6
@@ -14,7 +17,7 @@ Grafana v4.6 brings many enhancements to Annotations, Cloudwatch and Prometheus.
 
 ### Annotations
 
-{{< figure src="/static/img/docs/v46/add_annotation_region.png"  max-width= "800px" >}}
+{{< docs-imagebox img="/img/docs/v46/add_annotation_region.png"  max-width= "800px" >}}
 
 You can now add annotation events and regions right from the graph panel! Just hold Ctrl/Cmd+Click or drag region to open the **Add Annotation** view. The
 [Annotations]({{< relref "../dashboards/annotations.md" >}}) documentation is updated to include details on this new exciting feature.
@@ -23,14 +26,14 @@ You can now add annotation events and regions right from the graph panel! Just h
 
 Cloudwatch now supports alerting. Set up alert rules for any Cloudwatch metric!
 
-{{< figure src="/static/img/docs/v46/cloudwatch_alerting.png"  max-width= "800px" >}}
+{{< docs-imagebox img="/img/docs/v46/cloudwatch_alerting.png"  max-width= "800px" >}}
 
 ### Postgres
 
 Grafana v4.6 now ships with a built-in data source plugin for Postgres. Have logs or metric data in Postgres? You can now visualize that data and
 define alert rules on it like any of our other data sources.
 
-{{< figure src="/static/img/docs/v46/postgres_table_query.png"  max-width= "800px" >}}
+{{< docs-imagebox img="/img/docs/v46/postgres_table_query.png"  max-width= "800px" >}}
 
 ### Prometheus
 

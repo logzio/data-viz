@@ -23,7 +23,3 @@ input:-webkit-autofill {
 input:not(:-webkit-autofill) {
   animation-name: onAutoFillCancel;
 }
-
-div[data-slate-editor] {
-  -webkit-user-modify: read-write !important;
-}

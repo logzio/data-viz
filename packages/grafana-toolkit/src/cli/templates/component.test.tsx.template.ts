@@ -1,6 +1,6 @@
 export const testTpl = `
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { shallow } from 'enzyme';
 import { <%= name %> } from './<%= name %>';
 
 

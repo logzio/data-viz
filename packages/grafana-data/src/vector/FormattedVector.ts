@@ -1,15 +1,10 @@
 import { Vector } from '../types/vector';
 import { DisplayProcessor } from '../types';
 import { formattedValueToString } from '../valueFormats';
-import { FunctionalVector } from './FunctionalVector';
+import { vectorToArray } from './vectorToArray';
 
-/**
- * @public
- */
-export class FormattedVector<T = any> extends FunctionalVector<string> {
-  constructor(private source: Vector<T>, private formatter: DisplayProcessor) {
-    super();
-  }
+export class FormattedVector<T = any> implements Vector<string> {
+  constructor(private source: Vector<T>, private formatter: DisplayProcessor) {}
 
   get length() {
     return this.source.length;
@@ -18,5 +13,13 @@ export class FormattedVector<T = any> extends FunctionalVector<string> {
   get(index: number): string {
     const v = this.source.get(index);
     return formattedValueToString(this.formatter(v));
+  }
+
+  toArray(): string[] {
+    return vectorToArray(this);
+  }
+
+  toJSON(): string[] {
+    return this.toArray();
   }
 }

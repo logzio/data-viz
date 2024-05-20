@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
+var (
 	incorrectSettings = "./testdata/test-configs/incorrect-settings"
 	brokenYaml        = "./testdata/test-configs/broken-yaml"
 	emptyFolder       = "./testdata/test-configs/empty_folder"
@@ -19,38 +19,36 @@ const (
 
 func TestConfigReader(t *testing.T) {
 	t.Run("Broken yaml should return error", func(t *testing.T) {
-		reader := newConfigReader(log.New("test logger"), nil)
+		reader := newConfigReader(log.New("test logger"))
 		_, err := reader.readConfig(brokenYaml)
 		require.Error(t, err)
 	})
 
 	t.Run("Skip invalid directory", func(t *testing.T) {
-		cfgProvider := newConfigReader(log.New("test logger"), nil)
+		cfgProvider := newConfigReader(log.New("test logger"))
 		cfg, err := cfgProvider.readConfig(emptyFolder)
 		require.NoError(t, err)
 		require.Len(t, cfg, 0)
 	})
 
 	t.Run("Unknown app plugin should return error", func(t *testing.T) {
-		cfgProvider := newConfigReader(log.New("test logger"), fakePluginManager{})
+		cfgProvider := newConfigReader(log.New("test logger"))
 		_, err := cfgProvider.readConfig(unknownApp)
 		require.Error(t, err)
-		require.Equal(t, "app plugin not installed: \"nonexisting\"", err.Error())
+		require.Equal(t, "app plugin not installed: nonexisting", err.Error())
 	})
 
 	t.Run("Read incorrect properties", func(t *testing.T) {
-		cfgProvider := newConfigReader(log.New("test logger"), nil)
+		cfgProvider := newConfigReader(log.New("test logger"))
 		_, err := cfgProvider.readConfig(incorrectSettings)
 		require.Error(t, err)
 		require.Equal(t, "app item 1 in configuration doesn't contain required field type", err.Error())
 	})
 
 	t.Run("Can read correct properties", func(t *testing.T) {
-		pm := fakePluginManager{
-			apps: map[string]*plugins.AppPlugin{
-				"test-plugin":   {},
-				"test-plugin-2": {},
-			},
+		plugins.Apps = map[string]*plugins.AppPlugin{
+			"test-plugin":   {},
+			"test-plugin-2": {},
 		}
 
 		err := os.Setenv("ENABLE_PLUGIN_VAR", "test-plugin")
@@ -59,7 +57,7 @@ func TestConfigReader(t *testing.T) {
 			_ = os.Unsetenv("ENABLE_PLUGIN_VAR")
 		})
 
-		cfgProvider := newConfigReader(log.New("test logger"), pm)
+		cfgProvider := newConfigReader(log.New("test logger"))
 		cfg, err := cfgProvider.readConfig(correctProperties)
 		require.NoError(t, err)
 		require.Len(t, cfg, 1)
@@ -85,15 +83,4 @@ func TestConfigReader(t *testing.T) {
 			require.Equal(t, tc.ExpectedEnabled, app.Enabled)
 		}
 	})
-}
-
-type fakePluginManager struct {
-	plugins.Manager
-
-	apps map[string]*plugins.AppPlugin
-}
-
-func (pm fakePluginManager) IsAppInstalled(id string) bool {
-	_, exists := pm.apps[id]
-	return exists
 }

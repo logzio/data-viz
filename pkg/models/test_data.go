@@ -2,10 +2,10 @@ package models
 
 import "time"
 
-type InsertSQLTestDataCommand struct {
+type InsertSqlTestDataCommand struct {
 }
 
-type SQLTestData struct {
+type SqlTestData struct {
 	Id           int64
 	Metric1      string
 	Metric2      string

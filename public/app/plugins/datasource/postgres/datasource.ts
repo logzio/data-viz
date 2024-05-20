@@ -1,37 +1,36 @@
-import { map as _map } from 'lodash';
+import _ from 'lodash';
+import { Observable, of } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { BackendDataSourceResponse, DataSourceWithBackend, FetchResponse, getBackendSrv } from '@grafana/runtime';
-import { AnnotationEvent, DataSourceInstanceSettings, MetricFindValue, ScopedVars } from '@grafana/data';
+import { getBackendSrv } from '@grafana/runtime';
+import { DataQueryResponse, ScopedVars } from '@grafana/data';
 
 import ResponseParser from './response_parser';
-import PostgresQueryModel from 'app/plugins/datasource/postgres/postgres_query_model';
+import PostgresQuery from 'app/plugins/datasource/postgres/postgres_query';
 import { getTemplateSrv, TemplateSrv } from 'app/features/templating/template_srv';
 import { getTimeSrv, TimeSrv } from 'app/features/dashboard/services/TimeSrv';
 //Types
-import { PostgresOptions, PostgresQuery, PostgresQueryForInterpolation } from './types';
+import { PostgresMetricFindValue, PostgresQueryForInterpolation } from './types';
 import { getSearchFilterScopedVar } from '../../../features/variables/utils';
 
-export class PostgresDatasource extends DataSourceWithBackend<PostgresQuery, PostgresOptions> {
+export class PostgresDatasource {
   id: any;
   name: any;
   jsonData: any;
   responseParser: ResponseParser;
-  queryModel: PostgresQueryModel;
+  queryModel: PostgresQuery;
   interval: string;
 
   constructor(
-    instanceSettings: DataSourceInstanceSettings<PostgresOptions>,
+    instanceSettings: { name: any; id?: any; jsonData?: any },
     private readonly templateSrv: TemplateSrv = getTemplateSrv(),
     private readonly timeSrv: TimeSrv = getTimeSrv()
   ) {
-    super(instanceSettings);
     this.name = instanceSettings.name;
     this.id = instanceSettings.id;
     this.jsonData = instanceSettings.jsonData;
     this.responseParser = new ResponseParser();
-    this.queryModel = new PostgresQueryModel({});
-    const settingsData = instanceSettings.jsonData || ({} as PostgresOptions);
-    this.interval = settingsData.timeInterval || '1m';
+    this.queryModel = new PostgresQuery({});
+    this.interval = (instanceSettings.jsonData || {}).timeInterval || '1m';
   }
 
   interpolateVariable = (value: string | string[], variable: { multi: any; includeAll: any }) => {
@@ -47,7 +46,7 @@ export class PostgresDatasource extends DataSourceWithBackend<PostgresQuery, Pos
       return value;
     }
 
-    const quotedValues = _map(value, (v) => {
+    const quotedValues = _.map(value, v => {
       return this.queryModel.quoteLiteral(v);
     });
     return quotedValues.join(',');
@@ -59,7 +58,7 @@ export class PostgresDatasource extends DataSourceWithBackend<PostgresQuery, Pos
   ): PostgresQueryForInterpolation[] {
     let expandedQueries = queries;
     if (queries && queries.length > 0) {
-      expandedQueries = queries.map((query) => {
+      expandedQueries = queries.map(query => {
         const expandedQuery = {
           ...query,
           datasource: this.name,
@@ -72,21 +71,40 @@ export class PostgresDatasource extends DataSourceWithBackend<PostgresQuery, Pos
     return expandedQueries;
   }
 
-  filterQuery(query: PostgresQuery): boolean {
-    return !query.hide;
+  query(options: any): Observable<DataQueryResponse> {
+    const queries = _.filter(options.targets, target => {
+      return target.hide !== true;
+    }).map(target => {
+      const queryModel = new PostgresQuery(target, this.templateSrv, options.scopedVars);
+
+      return {
+        refId: target.refId,
+        intervalMs: options.intervalMs,
+        maxDataPoints: options.maxDataPoints,
+        datasourceId: this.id,
+        rawSql: queryModel.render(this.interpolateVariable),
+        format: target.format,
+      };
+    });
+
+    if (queries.length === 0) {
+      return of({ data: [] });
+    }
+
+    return getBackendSrv()
+      .fetch({
+        url: '/api/tsdb/query',
+        method: 'POST',
+        data: {
+          from: options.range.from.valueOf().toString(),
+          to: options.range.to.valueOf().toString(),
+          queries: queries,
+        },
+      })
+      .pipe(map(this.responseParser.processQueryResult));
   }
 
-  applyTemplateVariables(target: PostgresQuery, scopedVars: ScopedVars): Record<string, any> {
-    const queryModel = new PostgresQueryModel(target, this.templateSrv, scopedVars);
-    return {
-      refId: target.refId,
-      datasourceId: this.id,
-      rawSql: queryModel.render(this.interpolateVariable as any),
-      format: target.format,
-    };
-  }
-
-  async annotationQuery(options: any): Promise<AnnotationEvent[]> {
+  annotationQuery(options: any) {
     if (!options.annotation.rawQuery) {
       return Promise.reject({
         message: 'Query missing in annotation definition',
@@ -101,26 +119,23 @@ export class PostgresDatasource extends DataSourceWithBackend<PostgresQuery, Pos
     };
 
     return getBackendSrv()
-      .fetch<BackendDataSourceResponse>({
-        url: '/api/ds/query',
+      .fetch({
+        url: '/api/tsdb/query',
         method: 'POST',
         data: {
           from: options.range.from.valueOf().toString(),
           to: options.range.to.valueOf().toString(),
           queries: [query],
         },
-        requestId: options.annotation.name,
       })
-      .pipe(
-        map(
-          async (res: FetchResponse<BackendDataSourceResponse>) =>
-            await this.responseParser.transformAnnotationResponse(options, res.data)
-        )
-      )
+      .pipe(map((data: any) => this.responseParser.transformAnnotationResponse(options, data)))
       .toPromise();
   }
 
-  metricFindQuery(query: string, optionalOptions: any): Promise<MetricFindValue[]> {
+  metricFindQuery(
+    query: string,
+    optionalOptions: { variable?: any; searchFilter?: string }
+  ): Promise<PostgresMetricFindValue[]> {
     let refId = 'tempvar';
     if (optionalOptions && optionalOptions.variable && optionalOptions.variable.name) {
       refId = optionalOptions.variable.name;
@@ -140,37 +155,33 @@ export class PostgresDatasource extends DataSourceWithBackend<PostgresQuery, Pos
     };
 
     const range = this.timeSrv.timeRange();
+    const data = {
+      queries: [interpolatedQuery],
+      from: range.from.valueOf().toString(),
+      to: range.to.valueOf().toString(),
+    };
 
     return getBackendSrv()
-      .fetch<BackendDataSourceResponse>({
-        url: '/api/ds/query',
+      .fetch({
+        url: '/api/tsdb/query',
         method: 'POST',
-        data: {
-          from: range.from.valueOf().toString(),
-          to: range.to.valueOf().toString(),
-          queries: [interpolatedQuery],
-        },
-        requestId: refId,
+        data: data,
       })
-      .pipe(
-        map((rsp) => {
-          return this.responseParser.transformMetricFindResponse(rsp);
-        })
-      )
+      .pipe(map((data: any) => this.responseParser.parseMetricFindQueryResult(refId, data)))
       .toPromise();
   }
 
-  getVersion(): Promise<any> {
+  getVersion() {
     return this.metricFindQuery("SELECT current_setting('server_version_num')::int/100", {});
   }
 
-  getTimescaleDBVersion(): Promise<any> {
+  getTimescaleDBVersion() {
     return this.metricFindQuery("SELECT extversion FROM pg_extension WHERE extname = 'timescaledb'", {});
   }
 
-  testDatasource(): Promise<any> {
+  testDatasource() {
     return this.metricFindQuery('SELECT 1', {})
-      .then(() => {
+      .then((res: any) => {
         return { status: 'success', message: 'Database Connection OK' };
       })
       .catch((err: any) => {
@@ -189,7 +200,7 @@ export class PostgresDatasource extends DataSourceWithBackend<PostgresQuery, Pos
     if (target.rawQuery) {
       rawSql = target.rawSql;
     } else {
-      const query = new PostgresQueryModel(target);
+      const query = new PostgresQuery(target);
       rawSql = query.buildQuery();
     }
 

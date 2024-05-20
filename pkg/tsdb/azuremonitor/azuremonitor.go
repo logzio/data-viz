@@ -6,77 +6,52 @@ import (
 	"net/http"
 	"regexp"
 
-	"github.com/grafana/grafana/pkg/infra/httpclient"
 	"github.com/grafana/grafana/pkg/infra/log"
 	"github.com/grafana/grafana/pkg/models"
-	"github.com/grafana/grafana/pkg/plugins"
-	"github.com/grafana/grafana/pkg/registry"
-	"github.com/grafana/grafana/pkg/setting"
+	"github.com/grafana/grafana/pkg/tsdb"
 )
-
-const timeSeries = "time_series"
 
 var (
-	azlog           = log.New("tsdb.azuremonitor")
-	legendKeyFormat = regexp.MustCompile(`\{\{\s*(.+?)\s*\}\}`)
+	azlog           log.Logger
+	legendKeyFormat *regexp.Regexp
 )
-
-func init() {
-	registry.Register(&registry.Descriptor{
-		Name:         "AzureMonitorService",
-		InitPriority: registry.Low,
-		Instance:     &Service{},
-	})
-}
-
-type Service struct {
-	PluginManager      plugins.Manager     `inject:""`
-	HTTPClientProvider httpclient.Provider `inject:""`
-	Cfg                *setting.Cfg        `inject:""`
-}
-
-func (s *Service) Init() error {
-	return nil
-}
 
 // AzureMonitorExecutor executes queries for the Azure Monitor datasource - all four services
 type AzureMonitorExecutor struct {
-	httpClient    *http.Client
-	dsInfo        *models.DataSource
-	pluginManager plugins.Manager
-	cfg           *setting.Cfg
+	httpClient *http.Client
+	dsInfo     *models.DataSource
 }
 
 // NewAzureMonitorExecutor initializes a http client
-//nolint: staticcheck // plugins.DataPlugin deprecated
-func (s *Service) NewExecutor(dsInfo *models.DataSource) (plugins.DataPlugin, error) {
-	httpClient, err := dsInfo.GetHTTPClient(s.HTTPClientProvider)
+func NewAzureMonitorExecutor(dsInfo *models.DataSource) (tsdb.TsdbQueryEndpoint, error) {
+	httpClient, err := dsInfo.GetHttpClient()
 	if err != nil {
 		return nil, err
 	}
 
 	return &AzureMonitorExecutor{
-		httpClient:    httpClient,
-		dsInfo:        dsInfo,
-		pluginManager: s.PluginManager,
-		cfg:           s.Cfg,
+		httpClient: httpClient,
+		dsInfo:     dsInfo,
 	}, nil
+}
+
+func init() {
+	azlog = log.New("tsdb.azuremonitor")
+	tsdb.RegisterTsdbQueryEndpoint("grafana-azure-monitor-datasource", NewAzureMonitorExecutor)
+	legendKeyFormat = regexp.MustCompile(`\{\{\s*(.+?)\s*\}\}`)
 }
 
 // Query takes in the frontend queries, parses them into the query format
 // expected by chosen Azure Monitor service (Azure Monitor, App Insights etc.)
 // executes the queries against the API and parses the response into
 // the right format
-//nolint: staticcheck // plugins.DataPlugin deprecated
-func (e *AzureMonitorExecutor) DataQuery(ctx context.Context, dsInfo *models.DataSource,
-	tsdbQuery plugins.DataQuery) (plugins.DataResponse, error) {
+func (e *AzureMonitorExecutor) Query(ctx context.Context, dsInfo *models.DataSource, tsdbQuery *tsdb.TsdbQuery) (*tsdb.Response, error) {
 	var err error
 
-	var azureMonitorQueries []plugins.DataSubQuery
-	var applicationInsightsQueries []plugins.DataSubQuery
-	var azureLogAnalyticsQueries []plugins.DataSubQuery
-	var insightsAnalyticsQueries []plugins.DataSubQuery
-	var azureResourceGraphQueries []plugins.DataSubQuery
+	var azureMonitorQueries []*tsdb.Query
+	var applicationInsightsQueries []*tsdb.Query
+	var azureLogAnalyticsQueries []*tsdb.Query
+	var insightsAnalyticsQueries []*tsdb.Query
 
 	for _, query := range tsdbQuery.Queries {
 		queryType := query.Model.Get("queryType").MustString("")
@@ -90,70 +65,49 @@ func (e *AzureMonitorExecutor) DataQuery(ctx context.Context, dsInfo *models.Dat
 			azureLogAnalyticsQueries = append(azureLogAnalyticsQueries, query)
 		case "Insights Analytics":
 			insightsAnalyticsQueries = append(insightsAnalyticsQueries, query)
-		case "Azure Resource Graph":
-			azureResourceGraphQueries = append(azureResourceGraphQueries, query)
 		default:
-			return plugins.DataResponse{}, fmt.Errorf("alerting not supported for %q", queryType)
+			return nil, fmt.Errorf("Alerting not supported for %s", queryType)
 		}
 	}
 
 	azDatasource := &AzureMonitorDatasource{
-		httpClient:    e.httpClient,
-		dsInfo:        e.dsInfo,
-		pluginManager: e.pluginManager,
-		cfg:           e.cfg,
+		httpClient: e.httpClient,
+		dsInfo:     e.dsInfo,
 	}
 
 	aiDatasource := &ApplicationInsightsDatasource{
-		httpClient:    e.httpClient,
-		dsInfo:        e.dsInfo,
-		pluginManager: e.pluginManager,
-		cfg:           e.cfg,
+		httpClient: e.httpClient,
+		dsInfo:     e.dsInfo,
 	}
 
 	alaDatasource := &AzureLogAnalyticsDatasource{
-		httpClient:    e.httpClient,
-		dsInfo:        e.dsInfo,
-		pluginManager: e.pluginManager,
-		cfg:           e.cfg,
+		httpClient: e.httpClient,
+		dsInfo:     e.dsInfo,
 	}
 
 	iaDatasource := &InsightsAnalyticsDatasource{
-		httpClient:    e.httpClient,
-		dsInfo:        e.dsInfo,
-		pluginManager: e.pluginManager,
-		cfg:           e.cfg,
+		httpClient: e.httpClient,
+		dsInfo:     e.dsInfo,
 	}
 
-	argDatasource := &AzureResourceGraphDatasource{
-		httpClient:    e.httpClient,
-		dsInfo:        e.dsInfo,
-		pluginManager: e.pluginManager,
-	}
-
-	azResult, err := azDatasource.executeTimeSeriesQuery(ctx, azureMonitorQueries, *tsdbQuery.TimeRange)
+	azResult, err := azDatasource.executeTimeSeriesQuery(ctx, azureMonitorQueries, tsdbQuery.TimeRange)
 	if err != nil {
-		return plugins.DataResponse{}, err
+		return nil, err
 	}
 
-	aiResult, err := aiDatasource.executeTimeSeriesQuery(ctx, applicationInsightsQueries, *tsdbQuery.TimeRange)
+	aiResult, err := aiDatasource.executeTimeSeriesQuery(ctx, applicationInsightsQueries, tsdbQuery.TimeRange)
 	if err != nil {
-		return plugins.DataResponse{}, err
+		return nil, err
 	}
 
-	alaResult, err := alaDatasource.executeTimeSeriesQuery(ctx, azureLogAnalyticsQueries, *tsdbQuery.TimeRange)
+	alaResult, err := alaDatasource.executeTimeSeriesQuery(ctx, azureLogAnalyticsQueries, tsdbQuery.TimeRange)
 	if err != nil {
-		return plugins.DataResponse{}, err
+		return nil, err
 	}
 
-	iaResult, err := iaDatasource.executeTimeSeriesQuery(ctx, insightsAnalyticsQueries, *tsdbQuery.TimeRange)
+	iaResult, err := iaDatasource.executeTimeSeriesQuery(ctx, insightsAnalyticsQueries, tsdbQuery.TimeRange)
 	if err != nil {
-		return plugins.DataResponse{}, err
-	}
-
-	argResult, err := argDatasource.executeTimeSeriesQuery(ctx, azureResourceGraphQueries, *tsdbQuery.TimeRange)
-	if err != nil {
-		return plugins.DataResponse{}, err
+		return nil, err
 	}
 
 	for k, v := range aiResult.Results {
@@ -166,10 +120,6 @@ func (e *AzureMonitorExecutor) DataQuery(ctx context.Context, dsInfo *models.Dat
 
 	for k, v := range iaResult.Results {
 		azResult.Results[k] = v
-	}
-
-	for k, v := range argResult.Responses {
-		azResult.Results[k] = plugins.DataQueryResult{Error: v.Error, Dataframes: plugins.NewDecodedDataFrames(v.Frames)}
 	}
 
 	return azResult, nil

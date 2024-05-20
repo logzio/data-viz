@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -15,21 +16,13 @@ func main() {
 		origin = "http://localhost:9090/"
 	}
 
-	sleepDurationStr := os.Getenv("SLEEP_DURATION")
-	if sleepDurationStr == "" {
-		sleepDurationStr = "60s"
-	}
-
-	sleep, err := time.ParseDuration(sleepDurationStr)
-	if err != nil {
-		log.Fatalf("failed to parse SLEEP_DURATION: %v", err)
-	}
+	sleep := time.Minute
 
 	originURL, _ := url.Parse(origin)
 	proxy := httputil.NewSingleHostReverseProxy(originURL)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("sleeping for %s then proxying request: url '%s', headers: '%v'", sleep.String(), r.RequestURI, r.Header)
+		fmt.Printf("sleeping for %s then proxying request: %s", sleep.String(), r.RequestURI)
 		<-time.After(sleep)
 		proxy.ServeHTTP(w, r)
 	})

@@ -1,12 +1,12 @@
 import React from 'react';
 import renderer from 'react-test-renderer';
 import { ColorPicker } from './ColorPicker';
-import { ColorSwatch } from './ColorSwatch';
+import { ColorPickerTrigger } from './ColorPickerTrigger';
 
 describe('ColorPicker', () => {
   it('renders ColorPickerTrigger component by default', () => {
     expect(
-      renderer.create(<ColorPicker color="#EAB839" onChange={() => {}} />).root.findByType(ColorSwatch)
+      renderer.create(<ColorPicker color="#EAB839" onChange={() => {}} />).root.findByType(ColorPickerTrigger)
     ).toBeTruthy();
   });
 

@@ -1,19 +1,18 @@
 import React, { PureComponent } from 'react';
 
-import { difference } from 'lodash';
+import difference from 'lodash/difference';
 
 import { Select } from '../Select/Select';
 
 import { fieldReducers, SelectableValue } from '@grafana/data';
 
-export interface Props {
+interface Props {
   placeholder?: string;
   onChange: (stats: string[]) => void;
   stats: string[];
   allowMultiple?: boolean;
   defaultStat?: string;
   className?: string;
-  width?: number;
   menuPlacement?: 'auto' | 'bottom' | 'top';
 }
 
@@ -35,10 +34,10 @@ export class StatsPicker extends PureComponent<Props> {
 
     const current = fieldReducers.list(stats);
     if (current.length !== stats.length) {
-      const found = current.map((v) => v.id);
+      const found = current.map(v => v.id);
       const notFound = difference(stats, found);
       console.warn('Unknown stats', notFound, stats);
-      onChange(current.map((stat) => stat.id));
+      onChange(current.map(stat => stat.id));
     }
 
     // Make sure there is only one
@@ -56,14 +55,14 @@ export class StatsPicker extends PureComponent<Props> {
   onSelectionChange = (item: SelectableValue<string>) => {
     const { onChange } = this.props;
     if (Array.isArray(item)) {
-      onChange(item.map((v) => v.value));
+      onChange(item.map(v => v.value));
     } else {
       onChange(item && item.value ? [item.value] : []);
     }
   };
 
   render() {
-    const { stats, allowMultiple, defaultStat, placeholder, className, menuPlacement, width } = this.props;
+    const { stats, allowMultiple, defaultStat, placeholder, className, menuPlacement } = this.props;
 
     const select = fieldReducers.selectOptions(stats);
     return (
@@ -72,7 +71,6 @@ export class StatsPicker extends PureComponent<Props> {
         className={className}
         isClearable={!defaultStat}
         isMulti={allowMultiple}
-        width={width}
         isSearchable={true}
         options={select.options}
         placeholder={placeholder}

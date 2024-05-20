@@ -1,22 +1,15 @@
 package plugins
 
 import (
-	"errors"
-
 	"github.com/grafana/grafana/pkg/bus"
 	"github.com/grafana/grafana/pkg/infra/log"
 	"github.com/grafana/grafana/pkg/models"
-	"github.com/grafana/grafana/pkg/plugins"
 )
 
 // Provision scans a directory for provisioning config files
 // and provisions the app in those files.
-func Provision(configDirectory string, pluginManager plugins.Manager) error {
-	logger := log.New("provisioning.plugins")
-	ap := PluginProvisioner{
-		log:         logger,
-		cfgProvider: newConfigReader(logger, pluginManager),
-	}
+func Provision(configDirectory string) error {
+	ap := newAppProvisioner(log.New("provisioning.plugins"))
 	return ap.applyChanges(configDirectory)
 }
 
@@ -25,6 +18,13 @@ func Provision(configDirectory string, pluginManager plugins.Manager) error {
 type PluginProvisioner struct {
 	log         log.Logger
 	cfgProvider configReader
+}
+
+func newAppProvisioner(log log.Logger) PluginProvisioner {
+	return PluginProvisioner{
+		log:         log,
+		cfgProvider: newConfigReader(log),
+	}
 }
 
 func (ap *PluginProvisioner) apply(cfg *pluginsAsConfig) error {
@@ -42,7 +42,7 @@ func (ap *PluginProvisioner) apply(cfg *pluginsAsConfig) error {
 		query := &models.GetPluginSettingByIdQuery{OrgId: app.OrgID, PluginId: app.PluginID}
 		err := bus.Dispatch(query)
 		if err != nil {
-			if !errors.Is(err, models.ErrPluginSettingNotFound) {
+			if err != models.ErrPluginSettingNotFound {
 				return err
 			}
 		} else {

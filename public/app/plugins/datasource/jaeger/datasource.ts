@@ -1,24 +1,24 @@
 import {
-  DataQueryRequest,
-  DataQueryResponse,
-  DataSourceApi,
-  DataSourceInstanceSettings,
   dateMath,
   DateTime,
-  FieldType,
   MutableDataFrame,
+  DataSourceApi,
+  DataSourceInstanceSettings,
+  DataQueryRequest,
+  DataQueryResponse,
+  DataQuery,
+  FieldType,
 } from '@grafana/data';
-import { BackendSrvRequest, getBackendSrv } from '@grafana/runtime';
-import { serializeParams } from 'app/core/utils/fetch';
+import { getBackendSrv, BackendSrvRequest } from '@grafana/runtime';
+import { Observable, from, of } from 'rxjs';
+import { map } from 'rxjs/operators';
+
 import { getTimeSrv, TimeSrv } from 'app/features/dashboard/services/TimeSrv';
-import { Observable, of } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
-import { createTableFrame, createTraceFrame } from './responseTransform';
-import { createGraphFrames } from './graphTransform';
-import { JaegerQuery } from './types';
-import { identity, omit, pick, pickBy } from 'lodash';
-import { convertTagsLogfmt } from './util';
-import { ALL_OPERATIONS_KEY } from './components/SearchForm';
+import { serializeParams } from 'app/core/utils/fetch';
+
+export type JaegerQuery = {
+  query: string;
+} & DataQuery;
 
 export class JaegerDatasource extends DataSourceApi<JaegerQuery> {
   constructor(private instanceSettings: DataSourceInstanceSettings, private readonly timeSrv: TimeSrv = getTimeSrv()) {
@@ -33,86 +33,51 @@ export class JaegerDatasource extends DataSourceApi<JaegerQuery> {
   query(options: DataQueryRequest<JaegerQuery>): Observable<DataQueryResponse> {
     // At this moment we expect only one target. In case we somehow change the UI to be able to show multiple
     // traces at one we need to change this.
-    const target = options.targets[0];
-    if (!target) {
-      return of({ data: [emptyTraceDataFrame] });
-    }
-
-    if (target.queryType !== 'search' && target.query) {
-      return this._request(`/api/traces/${encodeURIComponent(target.query)}`).pipe(
-        map((response) => {
-          const traceData = response?.data?.data?.[0];
-          if (!traceData) {
-            return { data: [emptyTraceDataFrame] };
-          }
+    const id = options.targets[0]?.query;
+    if (id) {
+      // TODO: this api is internal, used in jaeger ui. Officially they have gRPC api that should be used.
+      return this._request(`/api/traces/${encodeURIComponent(id)}`).pipe(
+        map(response => {
           return {
-            data: [createTraceFrame(traceData), ...createGraphFrames(traceData)],
+            data: [
+              new MutableDataFrame({
+                fields: [
+                  {
+                    name: 'trace',
+                    type: FieldType.trace,
+                    values: response?.data?.data || [],
+                  },
+                ],
+                meta: {
+                  preferredVisualisationType: 'trace',
+                },
+              }),
+            ],
           };
         })
       );
+    } else {
+      return of({
+        data: [
+          new MutableDataFrame({
+            fields: [
+              {
+                name: 'trace',
+                type: FieldType.trace,
+                values: [],
+              },
+            ],
+            meta: {
+              preferredVisualisationType: 'trace',
+            },
+          }),
+        ],
+      });
     }
-
-    let jaegerQuery = pick(target, ['operation', 'service', 'tags', 'minDuration', 'maxDuration', 'limit']);
-    // remove empty properties
-    jaegerQuery = pickBy(jaegerQuery, identity);
-    if (jaegerQuery.tags) {
-      jaegerQuery = { ...jaegerQuery, tags: convertTagsLogfmt(jaegerQuery.tags) };
-    }
-
-    if (jaegerQuery.operation === ALL_OPERATIONS_KEY) {
-      jaegerQuery = omit(jaegerQuery, 'operation');
-    }
-
-    // TODO: this api is internal, used in jaeger ui. Officially they have gRPC api that should be used.
-    return this._request(`/api/traces`, {
-      ...jaegerQuery,
-      ...this.getTimeRange(),
-      lookback: 'custom',
-    }).pipe(
-      map((response) => {
-        return {
-          data: [createTableFrame(response.data.data, this.instanceSettings)],
-        };
-      })
-    );
   }
 
   async testDatasource(): Promise<any> {
-    return this._request('/api/services')
-      .pipe(
-        map((res) => {
-          const values: any[] = res?.data?.data || [];
-          const testResult =
-            values.length > 0
-              ? { status: 'success', message: 'Data source connected and services found.' }
-              : {
-                  status: 'error',
-                  message:
-                    'Data source connected, but no services received. Verify that Jaeger is configured properly.',
-                };
-          return testResult;
-        }),
-        catchError((err: any) => {
-          let message = 'Jaeger: ';
-          if (err.statusText) {
-            message += err.statusText;
-          } else {
-            message += 'Cannot connect to Jaeger';
-          }
-
-          if (err.status) {
-            message += `. ${err.status}`;
-          }
-
-          if (err.data && err.data.message) {
-            message += `. ${err.data.message}`;
-          } else if (err.data) {
-            message += `. ${JSON.stringify(err.data)}`;
-          }
-          return of({ status: 'error', message: message });
-        })
-      )
-      .toPromise();
+    return true;
   }
 
   getTimeRange(): { start: number; end: number } {
@@ -124,18 +89,20 @@ export class JaegerDatasource extends DataSourceApi<JaegerQuery> {
   }
 
   getQueryDisplayText(query: JaegerQuery) {
-    return query.query || '';
+    return query.query;
   }
 
   private _request(apiUrl: string, data?: any, options?: Partial<BackendSrvRequest>): Observable<Record<string, any>> {
+    // Hack for proxying metadata requests
+    const baseUrl = `/api/datasources/proxy/${this.instanceSettings.id}`;
     const params = data ? serializeParams(data) : '';
-    const url = `${this.instanceSettings.url}${apiUrl}${params.length ? `?${params}` : ''}`;
+    const url = `${baseUrl}${apiUrl}${params.length ? `?${params}` : ''}`;
     const req = {
       ...options,
       url,
     };
 
-    return getBackendSrv().fetch(req);
+    return from(getBackendSrv().datasourceRequest(req));
   }
 }
 
@@ -145,16 +112,3 @@ function getTime(date: string | DateTime, roundUp: boolean) {
   }
   return date.valueOf() * 1000;
 }
-
-const emptyTraceDataFrame = new MutableDataFrame({
-  fields: [
-    {
-      name: 'trace',
-      type: FieldType.trace,
-      values: [],
-    },
-  ],
-  meta: {
-    preferredVisualisationType: 'trace',
-  },
-});

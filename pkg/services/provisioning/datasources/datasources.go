@@ -43,13 +43,13 @@ func (dc *DatasourceProvisioner) apply(cfg *configs) error {
 	}
 
 	for _, ds := range cfg.Datasources {
-		cmd := &models.GetDataSourceQuery{OrgId: ds.OrgID, Name: ds.Name}
+		cmd := &models.GetDataSourceByNameQuery{OrgId: ds.OrgID, Name: ds.Name}
 		err := bus.Dispatch(cmd)
-		if err != nil && !errors.Is(err, models.ErrDataSourceNotFound) {
+		if err != nil && err != models.ErrDataSourceNotFound {
 			return err
 		}
 
-		if errors.Is(err, models.ErrDataSourceNotFound) {
+		if err == models.ErrDataSourceNotFound {
 			dc.log.Info("inserting datasource from configuration ", "name", ds.Name, "uid", ds.UID)
 			insertCmd := createInsertCommand(ds)
 			if err := bus.Dispatch(insertCmd); err != nil {
@@ -84,7 +84,7 @@ func (dc *DatasourceProvisioner) applyChanges(configPath string) error {
 
 func (dc *DatasourceProvisioner) deleteDatasources(dsToDelete []*deleteDatasourceConfig) error {
 	for _, ds := range dsToDelete {
-		cmd := &models.DeleteDataSourceCommand{OrgID: ds.OrgID, Name: ds.Name}
+		cmd := &models.DeleteDataSourceByNameCommand{OrgId: ds.OrgID, Name: ds.Name}
 		if err := bus.Dispatch(cmd); err != nil {
 			return err
 		}

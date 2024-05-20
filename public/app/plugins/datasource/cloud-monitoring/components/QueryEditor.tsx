@@ -1,22 +1,27 @@
 import React, { PureComponent } from 'react';
-import { css } from '@emotion/css';
-import { ExploreQueryFieldProps } from '@grafana/data';
-import { Button, Select } from '@grafana/ui';
-import { MetricQueryEditor, SLOQueryEditor, QueryEditorRow } from './';
-import { CloudMonitoringQuery, MetricQuery, QueryType, SLOQuery, EditorMode } from '../types';
-import { SELECT_WIDTH, QUERY_TYPES } from '../constants';
+import appEvents from 'app/core/app_events';
+import { CoreEvents } from 'app/types';
+import { MetricQueryEditor, QueryTypeSelector, SLOQueryEditor, Help } from './';
+import { CloudMonitoringQuery, MetricQuery, QueryType, SLOQuery } from '../types';
 import { defaultQuery } from './MetricQueryEditor';
-import { defaultQuery as defaultSLOQuery } from './SLO/SLOQueryEditor';
-import { toOption } from '../functions';
+import { defaultQuery as defaultSLOQuery } from './SLOQueryEditor';
+import { toOption, formatCloudMonitoringError } from '../functions';
 import CloudMonitoringDatasource from '../datasource';
+import { ExploreQueryFieldProps } from '@grafana/data';
 
 export type Props = ExploreQueryFieldProps<CloudMonitoringDatasource, CloudMonitoringQuery>;
 
-export class QueryEditor extends PureComponent<Props> {
+interface State {
+  lastQueryError: string;
+}
+
+export class QueryEditor extends PureComponent<Props, State> {
+  state: State = { lastQueryError: '' };
+
   async UNSAFE_componentWillMount() {
     const { datasource, query } = this.props;
 
-    // Unfortunately, migrations like this need to go UNSAFE_componentWillMount. As soon as there's
+    // Unfortunately, migrations like this need to go componentWillMount. As soon as there's
     // migration hook for this module.ts, we can do the migrations there instead.
     if (!this.props.query.hasOwnProperty('metricQuery')) {
       const { hide, refId, datasource, key, queryType, maxLines, metric, ...metricQuery } = this.props.query as any;
@@ -33,6 +38,24 @@ export class QueryEditor extends PureComponent<Props> {
     }
   }
 
+  componentDidMount() {
+    appEvents.on(CoreEvents.dsRequestError, this.onDataError.bind(this));
+    appEvents.on(CoreEvents.dsRequestResponse, this.onDataResponse.bind(this));
+  }
+
+  componentWillUnmount() {
+    appEvents.off(CoreEvents.dsRequestResponse, this.onDataResponse.bind(this));
+    appEvents.on(CoreEvents.dsRequestError, this.onDataError.bind(this));
+  }
+
+  onDataResponse() {
+    this.setState({ lastQueryError: '' });
+  }
+
+  onDataError(error: any) {
+    this.setState({ lastQueryError: formatCloudMonitoringError(error) });
+  }
+
   onQueryChange(prop: string, value: any) {
     this.props.onChange({ ...this.props.query, [prop]: value });
     this.props.onRunQuery();
@@ -44,56 +67,30 @@ export class QueryEditor extends PureComponent<Props> {
     const sloQuery = { ...defaultSLOQuery(datasource), ...query.sloQuery };
     const queryType = query.queryType || QueryType.METRICS;
     const meta = this.props.data?.series.length ? this.props.data?.series[0].meta : {};
-    const customMetaData = meta?.custom ?? {};
+    const usedAlignmentPeriod = meta?.alignmentPeriod;
     const variableOptionGroup = {
       label: 'Template Variables',
       expanded: false,
-      options: datasource.getVariables().map(toOption),
+      options: datasource.variables.map(toOption),
     };
 
     return (
       <>
-        <QueryEditorRow
-          label="Query type"
-          fillComponent={
-            query.queryType !== QueryType.SLO && (
-              <Button
-                variant="secondary"
-                className={css`
-                  margin-left: auto;
-                `}
-                icon="edit"
-                onClick={() =>
-                  this.onQueryChange('metricQuery', {
-                    ...metricQuery,
-                    editorMode: metricQuery.editorMode === EditorMode.MQL ? EditorMode.Visual : EditorMode.MQL,
-                  })
-                }
-              >
-                {metricQuery.editorMode === EditorMode.MQL ? 'Switch to builder' : 'Edit MQL'}
-              </Button>
-            )
-          }
-        >
-          <Select
-            width={SELECT_WIDTH}
-            value={queryType}
-            options={QUERY_TYPES}
-            onChange={({ value }) => {
-              onChange({ ...query, sloQuery, queryType: value! });
-              onRunQuery();
-            }}
-          />
-        </QueryEditorRow>
+        <QueryTypeSelector
+          value={queryType}
+          templateVariableOptions={variableOptionGroup.options}
+          onChange={(queryType: QueryType) => {
+            onChange({ ...query, sloQuery, queryType });
+            onRunQuery();
+          }}
+        ></QueryTypeSelector>
 
         {queryType === QueryType.METRICS && (
           <MetricQueryEditor
             refId={query.refId}
             variableOptionGroup={variableOptionGroup}
-            customMetaData={customMetaData}
-            onChange={(metricQuery: MetricQuery) => {
-              this.props.onChange({ ...this.props.query, metricQuery });
-            }}
+            usedAlignmentPeriod={usedAlignmentPeriod}
+            onChange={(query: MetricQuery) => this.onQueryChange('metricQuery', query)}
             onRunQuery={onRunQuery}
             datasource={datasource}
             query={metricQuery}
@@ -103,13 +100,17 @@ export class QueryEditor extends PureComponent<Props> {
         {queryType === QueryType.SLO && (
           <SLOQueryEditor
             variableOptionGroup={variableOptionGroup}
-            customMetaData={customMetaData}
+            usedAlignmentPeriod={usedAlignmentPeriod}
             onChange={(query: SLOQuery) => this.onQueryChange('sloQuery', query)}
             onRunQuery={onRunQuery}
             datasource={datasource}
             query={sloQuery}
           ></SLOQueryEditor>
         )}
+        <Help
+          rawQuery={decodeURIComponent(meta?.executedQueryString ?? '')}
+          lastQueryError={this.state.lastQueryError}
+        />
       </>
     );
   }

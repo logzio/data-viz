@@ -19,10 +19,7 @@ import SpanBarRow from './SpanBarRow';
 import SpanTreeOffset from './SpanTreeOffset';
 import ReferencesButton from './ReferencesButton';
 
-jest.mock('./SpanTreeOffset', () => {
-  // eslint-disable-next-line react/display-name
-  return () => <span>SpanTreeOffset</span>;
-});
+jest.mock('./SpanTreeOffset');
 
 describe('<SpanBarRow>', () => {
   const spanID = 'some-id';
@@ -62,6 +59,7 @@ describe('<SpanBarRow>', () => {
   beforeEach(() => {
     props.onDetailToggled.mockReset();
     props.onChildrenToggled.mockReset();
+    SpanTreeOffset.mockReturnValue(() => {});
     wrapper = mount(<SpanBarRow {...props} />);
   });
 

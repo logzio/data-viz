@@ -14,14 +14,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Masterminds/semver"
 	"github.com/grafana/grafana/pkg/components/simplejson"
-	"github.com/grafana/grafana/pkg/infra/httpclient"
 	"github.com/grafana/grafana/pkg/infra/log"
-	"github.com/grafana/grafana/pkg/tsdb/interval"
+	"github.com/grafana/grafana/pkg/tsdb"
 
 	"github.com/grafana/grafana/pkg/models"
-	"github.com/grafana/grafana/pkg/plugins"
 	"golang.org/x/net/context/ctxhttp"
 )
 
@@ -31,13 +28,13 @@ var (
 	clientLog = log.New(loggerName)
 )
 
-var newDatasourceHttpClient = func(httpClientProvider httpclient.Provider, ds *models.DataSource) (*http.Client, error) {
-	return ds.GetHTTPClient(httpClientProvider)
+var newDatasourceHttpClient = func(ds *models.DataSource) (*http.Client, error) {
+	return ds.GetHttpClient()
 }
 
 // Client represents a client which can interact with elasticsearch api
 type Client interface {
-	GetVersion() *semver.Version
+	GetVersion() int
 	GetTimeField() string
 	GetMinInterval(queryInterval string) (time.Duration, error)
 	ExecuteMultisearch(r *MultiSearchRequest) (*MultiSearchResponse, error)
@@ -45,39 +42,9 @@ type Client interface {
 	EnableDebug()
 }
 
-func coerceVersion(v *simplejson.Json) (*semver.Version, error) {
-	versionString, err := v.String()
-
-	if err != nil {
-		versionNumber, err := v.Int()
-		if err != nil {
-			return nil, err
-		}
-
-		switch versionNumber {
-		case 2:
-			return semver.NewVersion("2.0.0")
-		case 5:
-			return semver.NewVersion("5.0.0")
-		case 56:
-			return semver.NewVersion("5.6.0")
-		case 60:
-			return semver.NewVersion("6.0.0")
-		case 70:
-			return semver.NewVersion("7.0.0")
-		default:
-			return nil, fmt.Errorf("elasticsearch version=%d is not supported", versionNumber)
-		}
-	}
-
-	return semver.NewVersion(versionString)
-}
-
 // NewClient creates a new elasticsearch client
-// LOGZ.IO GRAFANA CHANGE :: (ALERTS) DEV-16492 Support external alert evaluation
-var NewClient = func(ctx context.Context, httpClientProvider httpclient.Provider, ds *models.DataSource, timeRange plugins.DataTimeRange, tsdbQuery *plugins.DataQuery) (Client, error) {
-	version, err := coerceVersion(ds.JsonData.Get("esVersion"))
-
+var NewClient = func(ctx context.Context, ds *models.DataSource, timeRange *tsdb.TimeRange, tsdbQuery *tsdb.TsdbQuery) (Client, error) { // LOGZ.IO GRAFANA CHANGE :: (ALERTS) DEV-16492 Support external alert evaluation
+	version, err := ds.JsonData.Get("esVersion").Int()
 	if err != nil {
 		return nil, fmt.Errorf("elasticsearch version is required, err=%v", err)
 	}
@@ -98,33 +65,36 @@ var NewClient = func(ctx context.Context, httpClientProvider httpclient.Provider
 		return nil, err
 	}
 
-	clientLog.Info("Creating new client", "version", version.String(), "timeField", timeField, "indices", strings.Join(indices, ", "))
+	clientLog.Debug("Creating new client", "version", version, "timeField", timeField, "indices", strings.Join(indices, ", "))
 
-	return &baseClientImpl{
-		ctx:                ctx,
-		httpClientProvider: httpClientProvider,
-		ds:                 ds,
-		version:            version,
-		timeField:          timeField,
-		indices:            indices,
-		timeRange:          timeRange,
-		logzIoHeaders:      tsdbQuery.LogzIoHeaders, // LOGZ.IO GRAFANA CHANGE :: (ALERTS) DEV-16492 Support external alert evaluation
-	}, nil
+	switch version {
+	case 2, 5, 56, 60, 70:
+		return &baseClientImpl{
+			ctx:           ctx,
+			ds:            ds,
+			version:       version,
+			timeField:     timeField,
+			indices:       indices,
+			timeRange:     timeRange,
+			logzIoHeaders: tsdbQuery.LogzIoHeaders, // LOGZ.IO GRAFANA CHANGE :: (ALERTS) DEV-16492 Support external alert evaluation
+		}, nil
+	}
+
+	return nil, fmt.Errorf("elasticsearch version=%d is not supported", version)
 }
 
 type baseClientImpl struct {
-	ctx                context.Context
-	httpClientProvider httpclient.Provider
-	ds                 *models.DataSource
-	version            *semver.Version
-	timeField          string
-	indices            []string
-	timeRange          plugins.DataTimeRange
-	debugEnabled       bool
-	logzIoHeaders      *models.LogzIoHeaders // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - add LogzIoHeaders
+	ctx           context.Context
+	ds            *models.DataSource
+	version       int
+	timeField     string
+	indices       []string
+	timeRange     *tsdb.TimeRange
+	debugEnabled  bool
+	logzIoHeaders *models.LogzIoHeaders // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - add LogzIoHeaders
 }
 
-func (c *baseClientImpl) GetVersion() *semver.Version {
+func (c *baseClientImpl) GetVersion() int {
 	return c.version
 }
 
@@ -133,7 +103,7 @@ func (c *baseClientImpl) GetTimeField() string {
 }
 
 func (c *baseClientImpl) GetMinInterval(queryInterval string) (time.Duration, error) {
-	return interval.GetIntervalFrom(c.ds, simplejson.NewFromAny(map[string]interface{}{
+	return tsdb.GetIntervalFrom(c.ds, simplejson.NewFromAny(map[string]interface{}{
 		"interval": queryInterval,
 	}), 5*time.Second)
 }
@@ -145,7 +115,7 @@ func (c *baseClientImpl) getSettings() *simplejson.Json {
 type multiRequest struct {
 	header   map[string]interface{}
 	body     interface{}
-	interval interval.Interval
+	interval tsdb.Interval
 }
 
 func (c *baseClientImpl) executeBatchRequest(uriPath, uriQuery string, requests []*multiRequest) (*response, error) {
@@ -217,11 +187,20 @@ func (c *baseClientImpl) executeRequest(method, uriPath, uriQuery string, body [
 
 	req.Header = c.logzIoHeaders.GetDatasourceQueryHeaders(req.Header) // LOGZ.IO GRAFANA CHANGE :: (ALERTS) DEV-16492 Support external alert evaluation
 
-	// LOGZ.IO GRAFANA CHANGE :: use application/json to interact with query-service
-	// 	req.Header.Set("Content-Type", "application/x-ndjson")
+	req.Header.Set("User-Agent", "Grafana")
 	req.Header.Set("Content-Type", "application/json")
 
-	httpClient, err := newDatasourceHttpClient(c.httpClientProvider, c.ds)
+	if c.ds.BasicAuth {
+		clientLog.Debug("Request configured to use basic authentication")
+		req.SetBasicAuth(c.ds.BasicAuthUser, c.ds.DecryptedBasicAuthPassword())
+	}
+
+	if !c.ds.BasicAuth && c.ds.User != "" {
+		clientLog.Debug("Request configured to use basic authentication")
+		req.SetBasicAuth(c.ds.User, c.ds.DecryptedPassword())
+	}
+
+	httpClient, err := newDatasourceHttpClient(c.ds)
 	if err != nil {
 		return nil, err
 	}
@@ -264,11 +243,7 @@ func (c *baseClientImpl) ExecuteMultisearch(r *MultiSearchRequest) (*MultiSearch
 		return nil, err
 	}
 	res := clientRes.httpResponse
-	defer func() {
-		if err := res.Body.Close(); err != nil {
-			clientLog.Warn("Failed to close response body", "err", err)
-		}
-	}()
+	defer res.Body.Close()
 
 	clientLog.Debug("Received multisearch response", "code", res.StatusCode, "status", res.Status, "content-length", res.ContentLength)
 
@@ -334,19 +309,14 @@ func (c *baseClientImpl) createMultiSearchRequests(searchRequests []*SearchReque
 			interval: searchReq.Interval,
 		}
 
-		if c.version.Major() < 5 {
+		if c.version == 2 {
 			mr.header["search_type"] = "count"
 		}
 
-		// LOGZ.IO GRAFANA CHANGE :: DEV-44969 do not set max_concurrent_shard_requests in query metadata or query params
-		//else {
-		//	allowedVersionRange, _ := semver.NewConstraint(">=5.6.0, <7.0.0")
-		//	if allowedVersionRange.Check(c.version) {
-		//		maxConcurrentShardRequests := c.getSettings().Get("maxConcurrentShardRequests").MustInt(256)
-		//		mr.header["max_concurrent_shard_requests"] = maxConcurrentShardRequests
-		//	}
-		//}
-		// LOGZ.IO end
+		if c.version >= 56 && c.version < 70 {
+			maxConcurrentShardRequests := c.getSettings().Get("maxConcurrentShardRequests").MustInt(256)
+			mr.header["max_concurrent_shard_requests"] = maxConcurrentShardRequests
+		}
 
 		multiRequests = append(multiRequests, &mr)
 	}
@@ -363,12 +333,10 @@ func (c *baseClientImpl) getMultiSearchQueryParameters() string {
 		q.Set("accountsToSearch", c.ds.Database)
 	}
 
-	// LOGZ.IO GRAFANA CHANGE :: DEV-44969 do not set max_concurrent_shard_requests in query metadata or query params
-	//if c.version.Major() >= 7 {
-	//	maxConcurrentShardRequests := c.getSettings().Get("maxConcurrentShardRequests").MustInt(5)
-	//	q.Set("max_concurrent_shard_requests", fmt.Sprintf("%d", maxConcurrentShardRequests))
-	//}
-	// LOG.io end
+	if c.version >= 70 {
+		maxConcurrentShardRequests := c.getSettings().Get("maxConcurrentShardRequests").MustInt(5)
+		q.Set("max_concurrent_shard_requests", fmt.Sprintf("%d", maxConcurrentShardRequests))
+	}
 
 	return q.Encode()
 	// LOGZ.IO GRAFANA CHANGE :: DEV-20400 - end

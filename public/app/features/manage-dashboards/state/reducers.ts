@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { DataSourceInstanceSettings } from '@grafana/data';
+import { DataSourceSelectItem } from '@grafana/data';
 
 export enum DashboardSource {
   Gcom = 0,
@@ -11,7 +11,7 @@ export interface ImportDashboardDTO {
   uid: string;
   gnetId: string;
   constants: string[];
-  dataSources: DataSourceInstanceSettings[];
+  dataSources: DataSourceSelectItem[];
   folder: { id: number; title?: string };
 }
 
@@ -30,6 +30,7 @@ export interface DashboardInput {
 
 export interface DataSourceInput extends DashboardInput {
   pluginId: string;
+  options: DataSourceSelectItem[];
 }
 
 export interface DashboardInputs {
@@ -90,8 +91,8 @@ const importDashboardSlice = createSlice({
     setInputs: (state, action: PayloadAction<any[]>): ImportDashboardState => ({
       ...state,
       inputs: {
-        dataSources: action.payload.filter((p) => p.type === InputType.DataSource),
-        constants: action.payload.filter((p) => p.type === InputType.Constant),
+        dataSources: action.payload.filter(p => p.type === InputType.DataSource),
+        constants: action.payload.filter(p => p.type === InputType.Constant),
       },
     }),
   },

@@ -7,7 +7,7 @@ import {
   setDynamicConfigValue,
   setFieldConfigDefaults,
 } from './fieldOverrides';
-import { ArrayDataFrame, MutableDataFrame, toDataFrame } from '../dataframe';
+import { MutableDataFrame, toDataFrame, ArrayDataFrame } from '../dataframe';
 import {
   DataFrame,
   Field,
@@ -27,7 +27,7 @@ import { FieldConfigOptionsRegistry } from './FieldConfigOptionsRegistry';
 import { getFieldDisplayName } from './fieldState';
 import { ArrayVector } from '../vector';
 import { getDisplayProcessor } from './displayProcessor';
-import { createTheme } from '../themes';
+import { getTestTheme } from '../utils/testdata/testTheme';
 
 const property1: any = {
   id: 'custom.property1', // Match field properties
@@ -66,18 +66,22 @@ export const customFieldRegistry: FieldConfigOptionsRegistry = new Registry<Fiel
 });
 
 locationUtil.initialize({
-  config: { appSubUrl: '/subUrl' } as any,
-  getVariablesUrlParams: (() => {}) as any,
-  getTimeRangeForUrl: (() => {}) as any,
+  getConfig: () => {
+    return { appSubUrl: '/subUrl' } as any;
+  },
+  // @ts-ignore
+  buildParamsFromVariables: () => {},
+  // @ts-ignore
+  getTimeRangeForUrl: () => {},
 });
 
 describe('Global MinMax', () => {
   it('find global min max', () => {
-    const f0 = new ArrayDataFrame<{ title: string; value: number; value2: number | null }>([
-      { title: 'AAA', value: 100, value2: 1234 },
-      { title: 'BBB', value: -20, value2: null },
-      { title: 'CCC', value: 200, value2: 1000 },
-    ]);
+    const f0 = new MutableDataFrame();
+    f0.add({ title: 'AAA', value: 100, value2: 1234 }, true);
+    f0.add({ title: 'BBB', value: -20 }, true);
+    f0.add({ title: 'CCC', value: 200, value2: 1000 }, true);
+    expect(f0.length).toEqual(3);
 
     const minmax = findNumericFieldMinMax([f0]);
     expect(minmax.min).toEqual(-20);
@@ -134,16 +138,15 @@ describe('Global MinMax', () => {
 });
 
 describe('applyFieldOverrides', () => {
-  const f0 = new ArrayDataFrame<{ title: string; value: number; value2: number | null }>([
-    { title: 'AAA', value: 100, value2: 1234 },
-    { title: 'BBB', value: -20, value2: null },
-    { title: 'CCC', value: 200, value2: 1000 },
-  ]);
+  const f0 = new MutableDataFrame();
+  f0.add({ title: 'AAA', value: 100, value2: 1234 }, true);
+  f0.add({ title: 'BBB', value: -20 }, true);
+  f0.add({ title: 'CCC', value: 200, value2: 1000 }, true);
+  expect(f0.length).toEqual(3);
 
   // Hardcode the max value
   f0.fields[1].config.max = 0;
   f0.fields[1].config.decimals = 6;
-  f0.fields[1].config.custom = { value: 1 };
 
   const src: FieldConfigSource = {
     defaults: {
@@ -180,24 +183,25 @@ describe('applyFieldOverrides', () => {
           overrides: [],
         },
         replaceVariables: (value: any) => value,
-        theme: createTheme(),
+        getDataSourceSettingsByUid: undefined as any,
+        theme: getTestTheme(),
         fieldConfigRegistry: new FieldConfigOptionsRegistry(),
       });
 
       expect(withOverrides[0].fields[0].state!.scopedVars).toMatchInlineSnapshot(`
-                                                                                 Object {
-                                                                                   "__field": Object {
-                                                                                     "text": "Field",
-                                                                                     "value": Object {},
-                                                                                   },
-                                                                                   "__series": Object {
-                                                                                     "text": "Series",
-                                                                                     "value": Object {
-                                                                                       "name": "A",
-                                                                                     },
-                                                                                   },
-                                                                                 }
-                                                                                 `);
+        Object {
+          "__field": Object {
+            "text": "Field",
+            "value": Object {},
+          },
+          "__series": Object {
+            "text": "Series",
+            "value": Object {
+              "name": "A",
+            },
+          },
+        }
+      `);
 
       expect(withOverrides[1].fields[0].state!.scopedVars).toMatchInlineSnapshot(`
         Object {
@@ -241,8 +245,9 @@ describe('applyFieldOverrides', () => {
         overrides: [],
       },
       fieldConfigRegistry: customFieldRegistry,
-      replaceVariables: (v) => v,
-      theme: createTheme(),
+      getDataSourceSettingsByUid: undefined as any,
+      replaceVariables: v => v,
+      theme: getTestTheme(),
     })[0];
 
     const outField = processed.fields[0];
@@ -258,7 +263,8 @@ describe('applyFieldOverrides', () => {
       data: [f0], // the frame
       fieldConfig: src as FieldConfigSource, // defaults + overrides
       replaceVariables: (undefined as any) as InterpolateFunction,
-      theme: createTheme(),
+      getDataSourceSettingsByUid: undefined as any,
+      theme: getTestTheme(),
       fieldConfigRegistry: customFieldRegistry,
     })[0];
     const valueColumn = data.fields[1];
@@ -285,16 +291,18 @@ describe('applyFieldOverrides', () => {
       data: [f0], // the frame
       fieldConfig: src as FieldConfigSource, // defaults + overrides
       replaceVariables: (undefined as any) as InterpolateFunction,
-      theme: createTheme(),
+      getDataSourceSettingsByUid: undefined as any,
+      theme: getTestTheme(),
+      autoMinMax: true,
     })[0];
     const valueColumn = data.fields[1];
-    const range = valueColumn.state!.range!;
+    const config = valueColumn.config;
 
     // Keep max from the original setting
-    expect(range.max).toEqual(0);
+    expect(config.max).toEqual(0);
 
     // Don't Automatically pick the min value
-    expect(range.min).toEqual(-20);
+    expect(config.min).toEqual(-20);
   });
 
   it('getLinks should use applied field config', () => {
@@ -307,7 +315,9 @@ describe('applyFieldOverrides', () => {
         replaceVariablesCalls.push(variables);
         return value;
       }) as InterpolateFunction,
-      theme: createTheme(),
+      getDataSourceSettingsByUid: undefined as any,
+      theme: getTestTheme(),
+      autoMinMax: true,
       fieldConfigRegistry: customFieldRegistry,
     })[0];
 
@@ -315,18 +325,6 @@ describe('applyFieldOverrides', () => {
 
     expect(data.fields[1].config.decimals).toEqual(1);
     expect(replaceVariablesCalls[0].__value.value.text).toEqual('100.0');
-  });
-
-  it('creates a deep clone of field config', () => {
-    const data = applyFieldOverrides({
-      data: [f0], // the frame
-      fieldConfig: src as FieldConfigSource, // defaults + overrides
-      replaceVariables: (undefined as any) as InterpolateFunction,
-      theme: createTheme(),
-    })[0];
-
-    expect(data.fields[1].config).not.toBe(f0.fields[1].config);
-    expect(data.fields[1].config.custom).not.toBe(f0.fields[1].config.custom);
   });
 });
 
@@ -538,8 +536,8 @@ describe('setDynamicConfigValue', () => {
 describe('getLinksSupplier', () => {
   it('will replace variables in url and title of the data link', () => {
     locationUtil.initialize({
-      config: {} as any,
-      getVariablesUrlParams: (() => {}) as any,
+      getConfig: () => ({} as any),
+      buildParamsFromVariables: (() => {}) as any,
       getTimeRangeForUrl: (() => {}) as any,
     });
 
@@ -563,7 +561,17 @@ describe('getLinksSupplier', () => {
     });
 
     const replaceSpy = jest.fn();
-    const supplier = getLinksSupplier(f0, f0.fields[0], {}, replaceSpy);
+    const supplier = getLinksSupplier(
+      f0,
+      f0.fields[0],
+      {},
+      replaceSpy,
+      // this is used only for internal links so isn't needed here
+      () => ({} as any),
+      {
+        theme: getTestTheme(),
+      }
+    );
     supplier({});
 
     expect(replaceSpy).toBeCalledTimes(2);
@@ -573,8 +581,8 @@ describe('getLinksSupplier', () => {
 
   it('handles internal links', () => {
     locationUtil.initialize({
-      config: { appSubUrl: '' } as any,
-      getVariablesUrlParams: (() => {}) as any,
+      getConfig: () => ({ appSubUrl: '' } as any),
+      buildParamsFromVariables: (() => {}) as any,
       getTimeRangeForUrl: (() => {}) as any,
     });
 
@@ -592,13 +600,11 @@ describe('getLinksSupplier', () => {
                 title: '',
                 internal: {
                   datasourceUid: '0',
-                  datasourceName: 'testDS',
                   query: '12345',
                 },
               },
             ],
           },
-          display: (v) => ({ numeric: v, text: String(v) }),
         },
       ],
     });
@@ -608,11 +614,11 @@ describe('getLinksSupplier', () => {
       f0.fields[0],
       {},
       // We do not need to interpolate anything for this test
-      (value, vars, format) => value
+      (value, vars, format) => value,
+      uid => ({ name: 'testDS' } as any),
+      { theme: getTestTheme() }
     );
-
     const links = supplier({ valueRowIndex: 0 });
-
     expect(links.length).toBe(1);
     expect(links[0]).toEqual(
       expect.objectContaining({
@@ -676,6 +682,10 @@ describe('applyRawFieldOverrides', () => {
       suffix: undefined,
       text: '1599045551050',
       percent: expect.any(Number),
+      threshold: {
+        color: 'red',
+        value: 80,
+      },
     });
 
     expect(getDisplayValue(frames, frameIndex, 1)).toEqual({
@@ -685,6 +695,10 @@ describe('applyRawFieldOverrides', () => {
       prefix: undefined,
       suffix: undefined,
       text: '3.142',
+      threshold: {
+        color: 'green',
+        value: null,
+      },
     });
 
     expect(getDisplayValue(frames, frameIndex, 2)).toEqual({
@@ -694,24 +708,30 @@ describe('applyRawFieldOverrides', () => {
       prefix: undefined,
       suffix: undefined,
       text: '0',
+      threshold: {
+        color: 'green',
+        value: null,
+      },
     });
 
     expect(getDisplayValue(frames, frameIndex, 3)).toEqual({
-      color: '#F2495C', // red
+      color: '#808080',
       numeric: 0,
       percent: expect.any(Number),
       prefix: undefined,
       suffix: undefined,
-      text: 'False',
+      text: '0',
+      threshold: expect.anything(),
     });
 
     expect(getDisplayValue(frames, frameIndex, 4)).toEqual({
-      color: '#73BF69', // value from classic pallet
+      color: '#808080',
       numeric: NaN,
-      percent: 1,
+      percent: 0,
       prefix: undefined,
       suffix: undefined,
       text: 'A - string',
+      threshold: expect.anything(),
     });
 
     expect(getDisplayValue(frames, frameIndex, 5)).toEqual({
@@ -721,6 +741,7 @@ describe('applyRawFieldOverrides', () => {
       prefix: undefined,
       suffix: undefined,
       text: '2020-09-02 11:19:11',
+      threshold: expect.anything(),
     });
   };
 
@@ -777,25 +798,23 @@ describe('applyRawFieldOverrides', () => {
         fields: [numberAsEpoc, numberWithDecimals, numberAsBoolean, boolean, string, datetime],
       });
 
-      const theme = createTheme();
-
-      dataFrameA.fields[0].display = getDisplayProcessor({ field: dataFrameA.fields[0], theme });
-      dataFrameA.fields[1].display = getDisplayProcessor({ field: dataFrameA.fields[1], theme });
-      dataFrameA.fields[2].display = getDisplayProcessor({ field: dataFrameA.fields[2], theme });
-      dataFrameA.fields[3].display = getDisplayProcessor({ field: dataFrameA.fields[3], theme });
-      dataFrameA.fields[4].display = getDisplayProcessor({ field: dataFrameA.fields[4], theme });
-      dataFrameA.fields[5].display = getDisplayProcessor({ field: dataFrameA.fields[5], theme, timeZone: 'utc' });
+      dataFrameA.fields[0].display = getDisplayProcessor({ field: dataFrameA.fields[0] });
+      dataFrameA.fields[1].display = getDisplayProcessor({ field: dataFrameA.fields[1] });
+      dataFrameA.fields[2].display = getDisplayProcessor({ field: dataFrameA.fields[2] });
+      dataFrameA.fields[3].display = getDisplayProcessor({ field: dataFrameA.fields[3] });
+      dataFrameA.fields[4].display = getDisplayProcessor({ field: dataFrameA.fields[4] });
+      dataFrameA.fields[5].display = getDisplayProcessor({ field: dataFrameA.fields[5], timeZone: 'utc' });
 
       const dataFrameB: DataFrame = toDataFrame({
         fields: [numberAsEpoc, numberWithDecimals, numberAsBoolean, boolean, string, datetime],
       });
 
-      dataFrameB.fields[0].display = getDisplayProcessor({ field: dataFrameB.fields[0], theme });
-      dataFrameB.fields[1].display = getDisplayProcessor({ field: dataFrameB.fields[1], theme });
-      dataFrameB.fields[2].display = getDisplayProcessor({ field: dataFrameB.fields[2], theme });
-      dataFrameB.fields[3].display = getDisplayProcessor({ field: dataFrameB.fields[3], theme });
-      dataFrameB.fields[4].display = getDisplayProcessor({ field: dataFrameB.fields[4], theme });
-      dataFrameB.fields[5].display = getDisplayProcessor({ field: dataFrameB.fields[5], theme, timeZone: 'utc' });
+      dataFrameB.fields[0].display = getDisplayProcessor({ field: dataFrameB.fields[0] });
+      dataFrameB.fields[1].display = getDisplayProcessor({ field: dataFrameB.fields[1] });
+      dataFrameB.fields[2].display = getDisplayProcessor({ field: dataFrameB.fields[2] });
+      dataFrameB.fields[3].display = getDisplayProcessor({ field: dataFrameB.fields[3] });
+      dataFrameB.fields[4].display = getDisplayProcessor({ field: dataFrameB.fields[4] });
+      dataFrameB.fields[5].display = getDisplayProcessor({ field: dataFrameB.fields[5], timeZone: 'utc' });
 
       const data = [dataFrameA, dataFrameB];
       const rawData = applyRawFieldOverrides(data);

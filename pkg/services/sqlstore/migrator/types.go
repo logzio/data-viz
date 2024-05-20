@@ -8,14 +8,14 @@ import (
 )
 
 const (
-	Postgres = "postgres"
-	SQLite   = "sqlite3"
-	MySQL    = "mysql"
+	POSTGRES = "postgres"
+	SQLITE   = "sqlite3"
+	MYSQL    = "mysql"
 	MSSQL    = "mssql"
 )
 
 type Migration interface {
-	SQL(dialect Dialect) string
+	Sql(dialect Dialect) string
 	Id() string
 	SetId(string)
 	GetCondition() MigrationCondition
@@ -76,7 +76,8 @@ var (
 	DB_Integer   = "INTEGER"
 	DB_BigInt    = "BIGINT"
 
-	DB_Set = "SET"
+	DB_Enum = "ENUM"
+	DB_Set  = "SET"
 
 	DB_Char       = "CHAR"
 	DB_Varchar    = "VARCHAR"

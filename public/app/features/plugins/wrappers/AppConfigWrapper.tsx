@@ -1,12 +1,13 @@
 // Libraries
 import React, { PureComponent } from 'react';
-import { cloneDeep, extend } from 'lodash';
+import cloneDeep from 'lodash/cloneDeep';
+import extend from 'lodash/extend';
 
 import { Button } from '@grafana/ui';
 import { PluginMeta, AppPlugin, deprecationWarning } from '@grafana/data';
 import { AngularComponent, getAngularLoader, getBackendSrv } from '@grafana/runtime';
 
-import { css } from '@emotion/css';
+import { css } from 'emotion';
 
 interface Props {
   app: AppPlugin;
@@ -19,12 +20,11 @@ interface State {
 
 export class AppConfigCtrlWrapper extends PureComponent<Props, State> {
   element: HTMLElement | null = null;
-  //@ts-ignore
-  model: PluginMeta;
 
   // Needed for angular scope
   preUpdateHook = () => Promise.resolve();
   postUpdateHook = () => Promise.resolve();
+  model: PluginMeta;
 
   constructor(props: Props) {
     super(props);
@@ -51,11 +51,7 @@ export class AppConfigCtrlWrapper extends PureComponent<Props, State> {
 
     const loader = getAngularLoader();
     const template = '<plugin-component type="app-config-ctrl"></plugin-component>';
-    const scopeProps = {
-      ctrl: this,
-      // used by angular injectorMonkeyPatch to detect this scenario
-      isAppConfigCtrl: true,
-    };
+    const scopeProps = { ctrl: this };
     const angularCtrl = loader.load(this.element, scopeProps, template);
 
     this.setState({ angularCtrl });
@@ -68,7 +64,7 @@ export class AppConfigCtrlWrapper extends PureComponent<Props, State> {
 
     return (
       <div>
-        <div ref={(element) => (this.element = element)} />
+        <div ref={element => (this.element = element)} />
         <br />
         <br />
         {model && (
@@ -115,7 +111,7 @@ export class AppConfigCtrlWrapper extends PureComponent<Props, State> {
         return getBackendSrv().post(`/api/plugins/${pluginId}/settings`, updateCmd);
       })
       .then(this.postUpdateHook)
-      .then((res) => {
+      .then(res => {
         window.location.href = window.location.href;
       });
   };

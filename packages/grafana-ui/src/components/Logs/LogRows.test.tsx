@@ -17,7 +17,6 @@ describe('LogRows', () => {
         showTime={false}
         wrapLogMessage={true}
         timeZone={'utc'}
-        enableLogDetails={true}
       />
     );
 
@@ -40,7 +39,6 @@ describe('LogRows', () => {
         wrapLogMessage={true}
         timeZone={'utc'}
         previewLimit={1}
-        enableLogDetails={true}
       />
     );
 
@@ -70,7 +68,6 @@ describe('LogRows', () => {
         showTime={false}
         wrapLogMessage={true}
         timeZone={'utc'}
-        enableLogDetails={true}
       />
     );
 
@@ -81,7 +78,7 @@ describe('LogRows', () => {
 
   it('renders with default preview limit', () => {
     // PREVIEW_LIMIT * 2 is there because otherwise we just render all rows
-    const rows: LogRowModel[] = range(PREVIEW_LIMIT * 2 + 1).map((num) => makeLog({ uid: num.toString() }));
+    const rows: LogRowModel[] = range(PREVIEW_LIMIT * 2 + 1).map(num => makeLog({ uid: num.toString() }));
     const wrapper = mount(
       <LogRows
         logRows={rows}
@@ -91,7 +88,6 @@ describe('LogRows', () => {
         showTime={false}
         wrapLogMessage={true}
         timeZone={'utc'}
-        enableLogDetails={true}
       />
     );
 
@@ -114,13 +110,27 @@ describe('LogRows', () => {
         wrapLogMessage={true}
         timeZone={'utc'}
         logsSortOrder={LogsSortOrder.Ascending}
-        enableLogDetails={true}
       />
     );
 
-    expect(wrapper.find(LogRow).at(0).text()).toBe('log message 1');
-    expect(wrapper.find(LogRow).at(1).text()).toBe('log message 2');
-    expect(wrapper.find(LogRow).at(2).text()).toBe('log message 3');
+    expect(
+      wrapper
+        .find(LogRow)
+        .at(0)
+        .text()
+    ).toBe('log message 1');
+    expect(
+      wrapper
+        .find(LogRow)
+        .at(1)
+        .text()
+    ).toBe('log message 2');
+    expect(
+      wrapper
+        .find(LogRow)
+        .at(2)
+        .text()
+    ).toBe('log message 3');
   });
   it('renders desc ordered rows if order and function supplied', () => {
     const rows: LogRowModel[] = [
@@ -138,13 +148,27 @@ describe('LogRows', () => {
         wrapLogMessage={true}
         timeZone={'utc'}
         logsSortOrder={LogsSortOrder.Descending}
-        enableLogDetails={true}
       />
     );
 
-    expect(wrapper.find(LogRow).at(0).text()).toBe('log message 3');
-    expect(wrapper.find(LogRow).at(1).text()).toBe('log message 2');
-    expect(wrapper.find(LogRow).at(2).text()).toBe('log message 1');
+    expect(
+      wrapper
+        .find(LogRow)
+        .at(0)
+        .text()
+    ).toBe('log message 3');
+    expect(
+      wrapper
+        .find(LogRow)
+        .at(1)
+        .text()
+    ).toBe('log message 2');
+    expect(
+      wrapper
+        .find(LogRow)
+        .at(2)
+        .text()
+    ).toBe('log message 1');
   });
 });
 
@@ -161,7 +185,6 @@ const makeLog = (overrides: Partial<LogRowModel>): LogRowModel => {
     logLevel: LogLevel.debug,
     entry,
     hasAnsi: false,
-    hasUnescapedContent: false,
     labels: {},
     raw: entry,
     timeFromNow: '',

@@ -57,11 +57,9 @@ function setupController({ hasAccessToExplore } = { hasAccessToExplore: false })
     onAppEvent: jest.fn(),
     $on: jest.fn(),
     colors: [],
-    $parent: {
-      panel: new PanelModel({ type: 'test' }),
-      dashboard: {},
-    },
   };
+
+  MetricsPanelCtrl.prototype.panel = new PanelModel({ type: 'test' });
 
   return new MetricsPanelCtrl(scope, injectorStub);
 }

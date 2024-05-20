@@ -25,14 +25,14 @@ type UsageStatsQuerier interface {
 
 // QueryUsageStats returns usage stats about alert rules
 // configured in Grafana.
-func (e *AlertEngine) QueryUsageStats() (*UsageStats, error) {
+func (ae *AlertEngine) QueryUsageStats() (*UsageStats, error) {
 	cmd := &models.GetAllAlertsQuery{}
-	err := e.Bus.Dispatch(cmd)
+	err := ae.Bus.Dispatch(cmd)
 	if err != nil {
 		return nil, err
 	}
 
-	dsUsage, err := e.mapRulesToUsageStats(cmd.Result)
+	dsUsage, err := ae.mapRulesToUsageStats(cmd.Result)
 	if err != nil {
 		return nil, err
 	}
@@ -42,13 +42,13 @@ func (e *AlertEngine) QueryUsageStats() (*UsageStats, error) {
 	}, nil
 }
 
-func (e *AlertEngine) mapRulesToUsageStats(rules []*models.Alert) (DatasourceAlertUsage, error) {
+func (ae *AlertEngine) mapRulesToUsageStats(rules []*models.Alert) (DatasourceAlertUsage, error) {
 	// map of datasourceId type and frequency
 	typeCount := map[int64]int{}
 	for _, a := range rules {
-		dss, err := e.parseAlertRuleModel(a.Settings)
+		dss, err := ae.parseAlertRuleModel(a.Settings)
 		if err != nil {
-			e.log.Debug("could not parse settings for alert rule", "id", a.Id)
+			ae.log.Debug("could not parse settings for alert rule", "id", a.Id)
 			continue
 		}
 
@@ -61,8 +61,8 @@ func (e *AlertEngine) mapRulesToUsageStats(rules []*models.Alert) (DatasourceAle
 	// map of datsource types and frequency
 	result := map[string]int{}
 	for k, v := range typeCount {
-		query := &models.GetDataSourceQuery{Id: k}
-		err := e.Bus.Dispatch(query)
+		query := &models.GetDataSourceByIdQuery{Id: k}
+		err := ae.Bus.Dispatch(query)
 		if err != nil {
 			return map[string]int{}, nil
 		}
@@ -74,7 +74,7 @@ func (e *AlertEngine) mapRulesToUsageStats(rules []*models.Alert) (DatasourceAle
 	return result, nil
 }
 
-func (e *AlertEngine) parseAlertRuleModel(settings json.Marshaler) ([]int64, error) {
+func (ae *AlertEngine) parseAlertRuleModel(settings json.Marshaler) ([]int64, error) {
 	datasourceIDs := []int64{}
 	model := alertJSONModel{}
 

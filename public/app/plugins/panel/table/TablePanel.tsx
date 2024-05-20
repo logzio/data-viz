@@ -2,15 +2,15 @@ import React, { Component } from 'react';
 
 import { Select, Table } from '@grafana/ui';
 import { DataFrame, FieldMatcherID, getFrameDisplayName, PanelProps, SelectableValue } from '@grafana/data';
-import { PanelOptions } from './models.gen';
-import { css } from '@emotion/css';
+import { Options } from './types';
+import { css } from 'emotion';
 import { config } from 'app/core/config';
 import { FilterItem, TableSortByFieldState } from '@grafana/ui/src/components/Table/types';
 import { dispatch } from '../../../store/store';
 import { applyFilterFromTable } from '../../../features/variables/adhoc/actions';
 import { getDashboardSrv } from '../../../features/dashboard/services/DashboardSrv';
 
-interface Props extends PanelProps<PanelOptions> {}
+interface Props extends PanelProps<Options> {}
 
 export class TablePanel extends Component<Props> {
   constructor(props: Props) {
@@ -25,11 +25,11 @@ export class TablePanel extends Component<Props> {
     const propId = 'custom.width';
 
     // look for existing override
-    const override = overrides.find((o) => o.matcher.id === matcherId && o.matcher.options === fieldDisplayName);
+    const override = overrides.find(o => o.matcher.id === matcherId && o.matcher.options === fieldDisplayName);
 
     if (override) {
       // look for existing property
-      const property = override.properties.find((prop) => prop.id === propId);
+      const property = override.properties.find(prop => prop.id === propId);
       if (property) {
         property.value = width;
       } else {
@@ -67,7 +67,9 @@ export class TablePanel extends Component<Props> {
 
   onCellFilterAdded = (filter: FilterItem) => {
     const { key, value, operator } = filter;
-    const panelModel = getDashboardSrv().getCurrent()?.getPanelById(this.props.id);
+    const panelModel = getDashboardSrv()
+      .getCurrent()
+      .getPanelById(this.props.id);
     const datasource = panelModel?.datasource;
 
     if (!datasource) {
@@ -108,7 +110,7 @@ export class TablePanel extends Component<Props> {
     const hasFields = data.series[0]?.fields.length;
 
     if (!count || !hasFields) {
-      return <div className={tableStyles.noData}>No data</div>;
+      return <div>No data</div>;
     }
 
     if (count > 1) {
@@ -141,13 +143,6 @@ const tableStyles = {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    height: 100%;
-  `,
-  noData: css`
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
     height: 100%;
   `,
   selectWrapper: css`

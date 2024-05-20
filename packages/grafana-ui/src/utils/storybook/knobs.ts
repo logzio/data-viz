@@ -3,7 +3,7 @@ import { getAvailableIcons } from '../../types';
 
 const VISUAL_GROUP = 'Visual options';
 
-export const iconOptions = {
+const iconOptions = {
   None: undefined,
   ...getAvailableIcons().reduce<Record<string, string>>((prev, c) => {
     return {

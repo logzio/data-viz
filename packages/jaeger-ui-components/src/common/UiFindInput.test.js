@@ -14,15 +14,12 @@
 
 import * as React from 'react';
 import { shallow } from 'enzyme';
-// eslint-disable-next-line lodash/import-scope
-import _ from 'lodash';
+import debounceMock from 'lodash/debounce';
 
 import UiFindInput from './UiFindInput';
 import { UIInput } from '../uiElementsContext';
 
-const debounceMock = jest.spyOn(_, 'debounce').mockImplementation((func) => {
-  return Object.assign(func, { cancel: jest.fn(), flush: jest.fn() });
-});
+jest.mock('lodash/debounce');
 
 describe('UiFindInput', () => {
   const flushMock = jest.fn();
@@ -41,7 +38,7 @@ describe('UiFindInput', () => {
   let wrapper;
 
   beforeAll(() => {
-    debounceMock.mockImplementation((fn) => {
+    debounceMock.mockImplementation(fn => {
       function debounceFunction(...args) {
         fn(...args);
       }

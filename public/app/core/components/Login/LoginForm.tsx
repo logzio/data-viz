@@ -3,7 +3,7 @@ import { selectors } from '@grafana/e2e-selectors';
 
 import { FormModel } from './LoginCtrl';
 import { Button, Form, Input, Field } from '@grafana/ui';
-import { css } from '@emotion/css';
+import { css } from 'emotion';
 
 interface Props {
   children: ReactElement;
@@ -31,18 +31,19 @@ export const LoginForm: FC<Props> = ({ children, onSubmit, isLoggingIn, password
           <>
             <Field label="Email or username" invalid={!!errors.user} error={errors.user?.message}>
               <Input
-                {...register('user', { required: 'Email or username is required' })}
                 autoFocus
-                autoCapitalize="none"
+                name="user"
+                ref={register({ required: 'Email or username is required' })}
                 placeholder={loginHint}
                 aria-label={selectors.pages.Login.username}
               />
             </Field>
             <Field label="Password" invalid={!!errors.password} error={errors.password?.message}>
               <Input
-                {...register('password', { required: 'Password is required' })}
+                name="password"
                 type="password"
                 placeholder={passwordHint}
+                ref={register({ required: 'Password is required' })}
                 aria-label={selectors.pages.Login.password}
               />
             </Field>

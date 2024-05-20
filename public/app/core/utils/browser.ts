@@ -1,7 +1,4 @@
-/**
- * Check to see if browser is not supported by Grafana
- * This function is copied to index-template.html but is here so we can write tests
- *  */
+// Check to see if browser is not supported by Grafana
 export function checkBrowserCompatibility() {
   const isIE = navigator.userAgent.indexOf('MSIE') > -1;
   const isEdge = navigator.userAgent.indexOf('Edge/') > -1 || navigator.userAgent.indexOf('Edg/') > -1;
@@ -9,11 +6,11 @@ export function checkBrowserCompatibility() {
   const isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
 
   /* Check for
-     <= IE11 (Trident 7)
-     Edge <= 16
-     Firefox <= 64
-     Chrome <= 54
-    */
+   <= IE11 (Trident 7)
+   Edge <= 16
+   Firefox <= 64
+   Chrome <= 54
+  */
   const isEdgeVersion = /Edge\/([0-9.]+)/.exec(navigator.userAgent);
 
   if (isIE && parseFloat(/Trident\/([0-9.]+)/.exec(navigator.userAgent)![1]) <= 7) {

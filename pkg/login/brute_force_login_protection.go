@@ -5,6 +5,7 @@ import (
 
 	"github.com/grafana/grafana/pkg/bus"
 	"github.com/grafana/grafana/pkg/models"
+	"github.com/grafana/grafana/pkg/setting"
 )
 
 var (
@@ -12,13 +13,13 @@ var (
 	loginAttemptsWindow           = time.Minute * 5
 )
 
-var validateLoginAttempts = func(query *models.LoginUserQuery) error {
-	if query.Cfg.DisableBruteForceLoginProtection {
+var validateLoginAttempts = func(username string) error {
+	if setting.DisableBruteForceLoginProtection {
 		return nil
 	}
 
 	loginAttemptCountQuery := models.GetUserLoginAttemptCountQuery{
-		Username: query.Username,
+		Username: username,
 		Since:    time.Now().Add(-loginAttemptsWindow),
 	}
 
@@ -34,7 +35,7 @@ var validateLoginAttempts = func(query *models.LoginUserQuery) error {
 }
 
 var saveInvalidLoginAttempt = func(query *models.LoginUserQuery) error {
-	if query.Cfg.DisableBruteForceLoginProtection {
+	if setting.DisableBruteForceLoginProtection {
 		return nil
 	}
 

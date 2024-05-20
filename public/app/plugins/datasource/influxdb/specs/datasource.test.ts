@@ -2,8 +2,6 @@ import InfluxDatasource from '../datasource';
 
 import { TemplateSrvStub } from 'test/specs/helpers';
 import { backendSrv } from 'app/core/services/backend_srv'; // will use the version in __mocks__
-import { of } from 'rxjs';
-import { FetchResponse } from '@grafana/runtime';
 
 //@ts-ignore
 const templateSrv = new TemplateSrvStub();
@@ -18,7 +16,7 @@ describe('InfluxDataSource', () => {
     instanceSettings: { url: 'url', name: 'influxDb', jsonData: { httpMode: 'GET' } },
   };
 
-  const fetchMock = jest.spyOn(backendSrv, 'fetch');
+  const datasourceRequestMock = jest.spyOn(backendSrv, 'datasourceRequest');
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -37,13 +35,12 @@ describe('InfluxDataSource', () => {
     let requestQuery: any, requestMethod: any, requestData: any, response: any;
 
     beforeEach(async () => {
-      fetchMock.mockImplementation((req: any) => {
+      datasourceRequestMock.mockImplementation((req: any) => {
         requestMethod = req.method;
         requestQuery = req.params.q;
         requestData = req.data;
-        return of({
+        return Promise.resolve({
           data: {
-            status: 'success',
             results: [
               {
                 series: [
@@ -56,7 +53,7 @@ describe('InfluxDataSource', () => {
               },
             ],
           },
-        } as FetchResponse);
+        });
       });
 
       response = await ctx.ds.metricFindQuery(query, queryOptions);
@@ -99,8 +96,8 @@ describe('InfluxDataSource', () => {
     };
 
     it('throws an error', async () => {
-      fetchMock.mockImplementation((req: any) => {
-        return of({
+      datasourceRequestMock.mockImplementation((req: any) => {
+        return Promise.resolve({
           data: {
             results: [
               {
@@ -108,7 +105,7 @@ describe('InfluxDataSource', () => {
               },
             ],
           },
-        } as FetchResponse);
+        });
       });
 
       try {
@@ -135,25 +132,23 @@ describe('InfluxDataSource', () => {
       let requestMethod: any, requestQueryParameter: any, queryEncoded: any, requestQuery: any;
 
       beforeEach(async () => {
-        fetchMock.mockImplementation((req: any) => {
+        datasourceRequestMock.mockImplementation((req: any) => {
           requestMethod = req.method;
           requestQueryParameter = req.params;
           requestQuery = req.data;
-          return of({
-            data: {
-              results: [
-                {
-                  series: [
-                    {
-                      name: 'measurement',
-                      columns: ['max'],
-                      values: [[1]],
-                    },
-                  ],
-                },
-              ],
-            },
-          } as FetchResponse);
+          return Promise.resolve({
+            results: [
+              {
+                series: [
+                  {
+                    name: 'measurement',
+                    columns: ['max'],
+                    values: [[1]],
+                  },
+                ],
+              },
+            ],
+          });
         });
 
         queryEncoded = await ctx.ds.serializeParams({ q: query });

@@ -1,25 +1,21 @@
-import { cloneDeep, isNumber } from 'lodash';
+import _ from 'lodash';
 import { coreModule } from 'app/core/core';
-import { AnnotationEvent, dateTime } from '@grafana/data';
-import { MetricsPanelCtrl } from '../panel/metrics_panel_ctrl';
-import { deleteAnnotation, saveAnnotation, updateAnnotation } from './api';
-import { getDashboardQueryRunner } from '../query/state/DashboardQueryRunner/DashboardQueryRunner';
+import { MetricsPanelCtrl } from 'app/plugins/sdk';
+import { AnnotationEvent } from '@grafana/data';
+import { dateTime } from '@grafana/data';
+import { AnnotationsSrv } from './all';
 
 export class EventEditorCtrl {
-  // @ts-ignore initialized through Angular not constructor
   panelCtrl: MetricsPanelCtrl;
-  // @ts-ignore initialized through Angular not constructor
   event: AnnotationEvent;
-  timeRange?: { from: number; to: number };
+  timeRange: { from: number; to: number };
   form: any;
   close: any;
-  timeFormated?: string;
+  timeFormated: string;
 
   /** @ngInject */
-  constructor() {}
-
-  $onInit() {
-    this.event.panelId = this.panelCtrl.panel.editSourceId ?? this.panelCtrl.panel.id; // set correct id if in panel edit
+  constructor(private annotationsSrv: AnnotationsSrv) {
+    this.event.panelId = this.panelCtrl.panel.id;
     this.event.dashboardId = this.panelCtrl.dashboard.id;
 
     // Annotations query returns time as Unix timestamp in milliseconds
@@ -31,12 +27,12 @@ export class EventEditorCtrl {
     this.timeFormated = this.panelCtrl.dashboard.formatDate(this.event.time!);
   }
 
-  async save(): Promise<void> {
+  save() {
     if (!this.form.$valid) {
       return;
     }
 
-    const saveModel = cloneDeep(this.event);
+    const saveModel = _.cloneDeep(this.event);
     saveModel.time = saveModel.time!.valueOf();
     saveModel.timeEnd = 0;
 
@@ -49,35 +45,47 @@ export class EventEditorCtrl {
       }
     }
 
-    let crudFunction = saveAnnotation;
     if (saveModel.id) {
-      crudFunction = updateAnnotation;
-    }
-
-    try {
-      await crudFunction(saveModel);
-    } catch (err) {
-      console.log(err);
-    } finally {
-      this.close();
-      getDashboardQueryRunner().run({ dashboard: this.panelCtrl.dashboard, range: this.panelCtrl.range });
+      this.annotationsSrv
+        .updateAnnotationEvent(saveModel)
+        .then(() => {
+          this.panelCtrl.refresh();
+          this.close();
+        })
+        .catch(() => {
+          this.panelCtrl.refresh();
+          this.close();
+        });
+    } else {
+      this.annotationsSrv
+        .saveAnnotationEvent(saveModel)
+        .then(() => {
+          this.panelCtrl.refresh();
+          this.close();
+        })
+        .catch(() => {
+          this.panelCtrl.refresh();
+          this.close();
+        });
     }
   }
 
-  async delete(): Promise<void> {
-    try {
-      await deleteAnnotation(this.event);
-    } catch (err) {
-      console.log(err);
-    } finally {
-      this.close();
-      getDashboardQueryRunner().run({ dashboard: this.panelCtrl.dashboard, range: this.panelCtrl.range });
-    }
+  delete() {
+    return this.annotationsSrv
+      .deleteAnnotationEvent(this.event)
+      .then(() => {
+        this.panelCtrl.refresh();
+        this.close();
+      })
+      .catch(() => {
+        this.panelCtrl.refresh();
+        this.close();
+      });
   }
 }
 
 function tryEpochToMoment(timestamp: any) {
-  if (timestamp && isNumber(timestamp)) {
+  if (timestamp && _.isNumber(timestamp)) {
     const epoch = Number(timestamp);
     return dateTime(epoch);
   } else {

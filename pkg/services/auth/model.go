@@ -18,7 +18,6 @@ type userAuthToken struct {
 	RotatedAt     int64
 	CreatedAt     int64
 	UpdatedAt     int64
-	RevokedAt     int64
 	UnhashedToken string `xorm:"-"`
 }
 
@@ -44,7 +43,6 @@ func (uat *userAuthToken) fromUserToken(ut *models.UserToken) error {
 	uat.RotatedAt = ut.RotatedAt
 	uat.CreatedAt = ut.CreatedAt
 	uat.UpdatedAt = ut.UpdatedAt
-	uat.RevokedAt = ut.RevokedAt
 	uat.UnhashedToken = ut.UnhashedToken
 
 	return nil
@@ -66,7 +64,6 @@ func (uat *userAuthToken) toUserToken(ut *models.UserToken) error {
 	ut.RotatedAt = uat.RotatedAt
 	ut.CreatedAt = uat.CreatedAt
 	ut.UpdatedAt = uat.UpdatedAt
-	ut.RevokedAt = uat.RevokedAt
 	ut.UnhashedToken = uat.UnhashedToken
 
 	return nil

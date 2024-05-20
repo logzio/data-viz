@@ -15,7 +15,7 @@ import (
 func validateTimeRange(item *annotations.Item) error {
 	if item.EpochEnd == 0 {
 		if item.Epoch == 0 {
-			return annotations.ErrTimerangeMissing
+			return errors.New("Missing Time Range")
 		}
 		item.EpochEnd = item.Epoch
 	}
@@ -28,14 +28,14 @@ func validateTimeRange(item *annotations.Item) error {
 	return nil
 }
 
-type SQLAnnotationRepo struct {
+type SqlAnnotationRepo struct {
 }
 
-func (r *SQLAnnotationRepo) Save(item *annotations.Item) error {
+func (r *SqlAnnotationRepo) Save(item *annotations.Item) error {
 	return inTransaction(func(sess *DBSession) error {
 		tags := models.ParseTagPairs(item.Tags)
 		item.Tags = models.JoinTagPairs(tags)
-		item.Created = timeNow().UnixNano() / int64(time.Millisecond)
+		item.Created = time.Now().UnixNano() / int64(time.Millisecond)
 		item.Updated = item.Created
 		if item.Epoch == 0 {
 			item.Epoch = item.Created
@@ -64,7 +64,7 @@ func (r *SQLAnnotationRepo) Save(item *annotations.Item) error {
 	})
 }
 
-func (r *SQLAnnotationRepo) Update(item *annotations.Item) error {
+func (r *SqlAnnotationRepo) Update(item *annotations.Item) error {
 	return inTransaction(func(sess *DBSession) error {
 		var (
 			isExist bool
@@ -78,10 +78,10 @@ func (r *SQLAnnotationRepo) Update(item *annotations.Item) error {
 			return err
 		}
 		if !isExist {
-			return errors.New("annotation not found")
+			return errors.New("Annotation not found")
 		}
 
-		existing.Updated = timeNow().UnixNano() / int64(time.Millisecond)
+		existing.Updated = time.Now().UnixNano() / int64(time.Millisecond)
 		existing.Text = item.Text
 
 		if item.Epoch != 0 {
@@ -117,7 +117,7 @@ func (r *SQLAnnotationRepo) Update(item *annotations.Item) error {
 	})
 }
 
-func (r *SQLAnnotationRepo) Find(query *annotations.ItemQuery) ([]*annotations.ItemDTO, error) {
+func (r *SqlAnnotationRepo) Find(query *annotations.ItemQuery) ([]*annotations.ItemDTO, error) {
 	var sql bytes.Buffer
 	params := make([]interface{}, 0)
 
@@ -235,26 +235,26 @@ func (r *SQLAnnotationRepo) Find(query *annotations.ItemQuery) ([]*annotations.I
 	return items, nil
 }
 
-func (r *SQLAnnotationRepo) Delete(params *annotations.DeleteParams) error {
+func (r *SqlAnnotationRepo) Delete(params *annotations.DeleteParams) error {
 	return inTransaction(func(sess *DBSession) error {
 		var (
 			sql         string
-			annoTagSQL  string
+			annoTagSql  string
 			queryParams []interface{}
 		)
 
 		sqlog.Info("delete", "orgId", params.OrgId)
 		if params.Id != 0 {
-			annoTagSQL = "DELETE FROM annotation_tag WHERE annotation_id IN (SELECT id FROM annotation WHERE id = ? AND org_id = ?)"
+			annoTagSql = "DELETE FROM annotation_tag WHERE annotation_id IN (SELECT id FROM annotation WHERE id = ? AND org_id = ?)"
 			sql = "DELETE FROM annotation WHERE id = ? AND org_id = ?"
 			queryParams = []interface{}{params.Id, params.OrgId}
 		} else {
-			annoTagSQL = "DELETE FROM annotation_tag WHERE annotation_id IN (SELECT id FROM annotation WHERE dashboard_id = ? AND panel_id = ? AND org_id = ?)"
+			annoTagSql = "DELETE FROM annotation_tag WHERE annotation_id IN (SELECT id FROM annotation WHERE dashboard_id = ? AND panel_id = ? AND org_id = ?)"
 			sql = "DELETE FROM annotation WHERE dashboard_id = ? AND panel_id = ? AND org_id = ?"
 			queryParams = []interface{}{params.DashboardId, params.PanelId, params.OrgId}
 		}
 
-		sqlOrArgs := append([]interface{}{annoTagSQL}, queryParams...)
+		sqlOrArgs := append([]interface{}{annoTagSql}, queryParams...)
 
 		if _, err := sess.Exec(sqlOrArgs...); err != nil {
 			return err

@@ -17,11 +17,11 @@ export default {
 };
 
 export const simple = () => {
-  const defaultValues: any = {
+  const defaultValues = {
     people: [{ firstName: 'Janis', lastName: 'Joplin' }],
   };
   return (
-    <Form onSubmit={(values) => console.log(values)} defaultValues={defaultValues}>
+    <Form onSubmit={values => console.log(values)} defaultValues={defaultValues}>
       {({ control, register }) => (
         <div>
           <FieldArray control={control} name="people">
@@ -30,16 +30,8 @@ export const simple = () => {
                 <div style={{ marginBottom: '1rem' }}>
                   {fields.map((field, index) => (
                     <HorizontalGroup key={field.id}>
-                      <Input
-                        key={field.id}
-                        {...register(`people.${index}.firstName` as const)}
-                        defaultValue={field.firstName}
-                      />
-                      <Input
-                        key={field.id}
-                        {...register(`people.${index}.lastName` as const)}
-                        defaultValue={field.lastName}
-                      />
+                      <Input ref={register()} name={`people[${index}].firstName`} value={field.firstName} />
+                      <Input ref={register()} name={`people[${index}].lastName`} value={field.lastName} />
                     </HorizontalGroup>
                   ))}
                 </div>

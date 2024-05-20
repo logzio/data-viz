@@ -1,46 +1,51 @@
 // Libraries
 import React, { memo } from 'react';
+
 // Types
 import { LokiQuery } from '../types';
-import { LokiQueryField } from './LokiQueryField';
-import { LokiOptionFields } from './LokiOptionFields';
+import { useLokiSyntaxAndLabels } from './useLokiSyntaxAndLabels';
+import { LokiQueryFieldForm } from './LokiQueryFieldForm';
 import LokiDatasource from '../datasource';
 
 interface Props {
   expr: string;
-  maxLines?: number;
-  instant?: boolean;
   datasource: LokiDatasource;
-  onChange: (query: LokiQuery) => void;
+  onChange: (expr: string) => void;
 }
 
 export const LokiAnnotationsQueryEditor = memo(function LokiAnnotationQueryEditor(props: Props) {
-  const { expr, maxLines, instant, datasource, onChange } = props;
+  const { expr, datasource, onChange } = props;
 
-  const queryWithRefId: LokiQuery = {
+  // Timerange to get existing labels from. Hard coding like this seems to be good enough right now.
+  const absolute = {
+    from: Date.now() - 10000,
+    to: Date.now(),
+  };
+
+  const { isSyntaxReady, setActiveOption, refreshLabels, syntax, logLabelOptions } = useLokiSyntaxAndLabels(
+    datasource.languageProvider,
+    absolute
+  );
+
+  const query: LokiQuery = {
     refId: '',
     expr,
-    maxLines,
-    instant,
   };
+
   return (
     <div className="gf-form-group">
-      <LokiQueryField
+      <LokiQueryFieldForm
         datasource={datasource}
-        query={queryWithRefId}
-        onChange={onChange}
+        query={query}
+        onChange={(query: LokiQuery) => onChange(query.expr)}
         onRunQuery={() => {}}
-        onBlur={() => {}}
         history={[]}
-        ExtraFieldElement={
-          <LokiOptionFields
-            queryType={queryWithRefId.instant ? 'instant' : 'range'}
-            lineLimitValue={queryWithRefId?.maxLines?.toString() || ''}
-            query={queryWithRefId}
-            onRunQuery={() => {}}
-            onChange={onChange}
-          />
-        }
+        onLoadOptions={setActiveOption}
+        onLabelsRefresh={refreshLabels}
+        absoluteRange={absolute}
+        syntax={syntax}
+        syntaxLoaded={isSyntaxReady}
+        logLabelOptions={logLabelOptions}
       />
     </div>
   );

@@ -1,34 +1,32 @@
-import { map as _map } from 'lodash';
-import { of } from 'rxjs';
+import _ from 'lodash';
+import { Observable, of } from 'rxjs';
 import { catchError, map, mapTo } from 'rxjs/operators';
-import { getBackendSrv, DataSourceWithBackend, FetchResponse, BackendDataSourceResponse } from '@grafana/runtime';
-import { DataSourceInstanceSettings, ScopedVars, MetricFindValue, AnnotationEvent } from '@grafana/data';
-import MySQLQueryModel from 'app/plugins/datasource/mysql/mysql_query_model';
-import ResponseParser from './response_parser';
-import { MysqlQueryForInterpolation, MySQLOptions, MySQLQuery } from './types';
+import { getBackendSrv } from '@grafana/runtime';
+import { ScopedVars } from '@grafana/data';
+import MysqlQuery from 'app/plugins/datasource/mysql/mysql_query';
+import ResponseParser, { MysqlResponse } from './response_parser';
+import { MysqlMetricFindValue, MysqlQueryForInterpolation } from './types';
 import { getTemplateSrv, TemplateSrv } from 'app/features/templating/template_srv';
-import { getSearchFilterScopedVar } from '../../../features/variables/utils';
 import { getTimeSrv, TimeSrv } from 'app/features/dashboard/services/TimeSrv';
+import { getSearchFilterScopedVar } from '../../../features/variables/utils';
 
-export class MysqlDatasource extends DataSourceWithBackend<MySQLQuery, MySQLOptions> {
+export class MysqlDatasource {
   id: any;
   name: any;
   responseParser: ResponseParser;
-  queryModel: MySQLQueryModel;
+  queryModel: MysqlQuery;
   interval: string;
 
   constructor(
-    instanceSettings: DataSourceInstanceSettings<MySQLOptions>,
+    instanceSettings: any,
     private readonly templateSrv: TemplateSrv = getTemplateSrv(),
     private readonly timeSrv: TimeSrv = getTimeSrv()
   ) {
-    super(instanceSettings);
     this.name = instanceSettings.name;
     this.id = instanceSettings.id;
     this.responseParser = new ResponseParser();
-    this.queryModel = new MySQLQueryModel({});
-    const settingsData = instanceSettings.jsonData || ({} as MySQLOptions);
-    this.interval = settingsData.timeInterval || '1m';
+    this.queryModel = new MysqlQuery({});
+    this.interval = (instanceSettings.jsonData || {}).timeInterval || '1m';
   }
 
   interpolateVariable = (value: string | string[] | number, variable: any) => {
@@ -45,7 +43,7 @@ export class MysqlDatasource extends DataSourceWithBackend<MySQLQuery, MySQLOpti
       return value;
     }
 
-    const quotedValues = _map(value, (v: any) => {
+    const quotedValues = _.map(value, (v: any) => {
       return this.queryModel.quoteLiteral(v);
     });
     return quotedValues.join(',');
@@ -57,7 +55,7 @@ export class MysqlDatasource extends DataSourceWithBackend<MySQLQuery, MySQLOpti
   ): MysqlQueryForInterpolation[] {
     let expandedQueries = queries;
     if (queries && queries.length > 0) {
-      expandedQueries = queries.map((query) => {
+      expandedQueries = queries.map(query => {
         const expandedQuery = {
           ...query,
           datasource: this.name,
@@ -70,21 +68,40 @@ export class MysqlDatasource extends DataSourceWithBackend<MySQLQuery, MySQLOpti
     return expandedQueries;
   }
 
-  filterQuery(query: MySQLQuery): boolean {
-    return !query.hide;
+  query(options: any): Observable<MysqlResponse> {
+    const queries = _.filter(options.targets, target => {
+      return target.hide !== true;
+    }).map(target => {
+      const queryModel = new MysqlQuery(target, this.templateSrv, options.scopedVars);
+
+      return {
+        refId: target.refId,
+        intervalMs: options.intervalMs,
+        maxDataPoints: options.maxDataPoints,
+        datasourceId: this.id,
+        rawSql: queryModel.render(this.interpolateVariable as any),
+        format: target.format,
+      };
+    });
+
+    if (queries.length === 0) {
+      return of({ data: [] });
+    }
+
+    return getBackendSrv()
+      .fetch({
+        url: '/api/tsdb/query',
+        method: 'POST',
+        data: {
+          from: options.range.from.valueOf().toString(),
+          to: options.range.to.valueOf().toString(),
+          queries: queries,
+        },
+      })
+      .pipe(map(this.responseParser.processQueryResult));
   }
 
-  applyTemplateVariables(target: MySQLQuery, scopedVars: ScopedVars): Record<string, any> {
-    const queryModel = new MySQLQueryModel(target, this.templateSrv, scopedVars);
-    return {
-      refId: target.refId,
-      datasourceId: this.id,
-      rawSql: queryModel.render(this.interpolateVariable as any),
-      format: target.format,
-    };
-  }
-
-  async annotationQuery(options: any): Promise<AnnotationEvent[]> {
+  annotationQuery(options: any) {
     if (!options.annotation.rawQuery) {
       return Promise.reject({
         message: 'Query missing in annotation definition',
@@ -99,26 +116,20 @@ export class MysqlDatasource extends DataSourceWithBackend<MySQLQuery, MySQLOpti
     };
 
     return getBackendSrv()
-      .fetch<BackendDataSourceResponse>({
-        url: '/api/ds/query',
+      .fetch({
+        url: '/api/tsdb/query',
         method: 'POST',
         data: {
           from: options.range.from.valueOf().toString(),
           to: options.range.to.valueOf().toString(),
           queries: [query],
         },
-        requestId: options.annotation.name,
       })
-      .pipe(
-        map(
-          async (res: FetchResponse<BackendDataSourceResponse>) =>
-            await this.responseParser.transformAnnotationResponse(options, res.data)
-        )
-      )
+      .pipe(map((data: any) => this.responseParser.transformAnnotationResponse(options, data)))
       .toPromise();
   }
 
-  metricFindQuery(query: string, optionalOptions: any): Promise<MetricFindValue[]> {
+  metricFindQuery(query: string, optionalOptions: any): Promise<MysqlMetricFindValue[]> {
     let refId = 'tempvar';
     if (optionalOptions && optionalOptions.variable && optionalOptions.variable.name) {
       refId = optionalOptions.variable.name;
@@ -138,30 +149,33 @@ export class MysqlDatasource extends DataSourceWithBackend<MySQLQuery, MySQLOpti
     };
 
     const range = this.timeSrv.timeRange();
+    const data = {
+      queries: [interpolatedQuery],
+      from: range.from.valueOf().toString(),
+      to: range.to.valueOf().toString(),
+    };
+
+    if (optionalOptions && optionalOptions.range && optionalOptions.range.from) {
+      data['from'] = optionalOptions.range.from.valueOf().toString();
+    }
+    if (optionalOptions && optionalOptions.range && optionalOptions.range.to) {
+      data['to'] = optionalOptions.range.to.valueOf().toString();
+    }
 
     return getBackendSrv()
-      .fetch<BackendDataSourceResponse>({
-        url: '/api/ds/query',
+      .fetch({
+        url: '/api/tsdb/query',
         method: 'POST',
-        data: {
-          from: range.from.valueOf().toString(),
-          to: range.to.valueOf().toString(),
-          queries: [interpolatedQuery],
-        },
-        requestId: refId,
+        data: data,
       })
-      .pipe(
-        map((rsp) => {
-          return this.responseParser.transformMetricFindResponse(rsp);
-        })
-      )
+      .pipe(map((data: any) => this.responseParser.parseMetricFindQueryResult(refId, data)))
       .toPromise();
   }
 
-  testDatasource(): Promise<any> {
+  testDatasource() {
     return getBackendSrv()
       .fetch({
-        url: '/api/ds/query',
+        url: '/api/tsdb/query',
         method: 'POST',
         data: {
           from: '5m',
@@ -180,7 +194,7 @@ export class MysqlDatasource extends DataSourceWithBackend<MySQLQuery, MySQLOpti
       })
       .pipe(
         mapTo({ status: 'success', message: 'Database Connection OK' }),
-        catchError((err) => {
+        catchError(err => {
           console.error(err);
           if (err.data && err.data.message) {
             return of({ status: 'error', message: err.data.message });
@@ -198,7 +212,7 @@ export class MysqlDatasource extends DataSourceWithBackend<MySQLQuery, MySQLOpti
     if (target.rawQuery) {
       rawSql = target.rawSql;
     } else {
-      const query = new MySQLQueryModel(target);
+      const query = new MysqlQuery(target);
       rawSql = query.buildQuery();
     }
 

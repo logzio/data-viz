@@ -16,13 +16,11 @@
 package httpstatic
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"sync"
 
@@ -65,6 +63,20 @@ func (sm *staticMap) Set(dir *http.Dir) {
 	defer sm.lock.Unlock()
 
 	sm.data[string(*dir)] = dir
+}
+
+func (sm *staticMap) Get(name string) *http.Dir {
+	sm.lock.RLock()
+	defer sm.lock.RUnlock()
+
+	return sm.data[name]
+}
+
+func (sm *staticMap) Delete(name string) {
+	sm.lock.Lock()
+	defer sm.lock.Unlock()
+
+	delete(sm.data, name)
 }
 
 var statics = staticMap{sync.RWMutex{}, map[string]*http.Dir{}}
@@ -136,11 +148,7 @@ func staticHandler(ctx *macaron.Context, log *log.Logger, opt StaticOptions) boo
 	if err != nil {
 		return false
 	}
-	defer func() {
-		if err := f.Close(); err != nil {
-			log.Printf("Failed to close file: %s\n", err)
-		}
-	}()
+	defer f.Close()
 
 	fi, err := f.Stat()
 	if err != nil {
@@ -151,29 +159,16 @@ func staticHandler(ctx *macaron.Context, log *log.Logger, opt StaticOptions) boo
 	if fi.IsDir() {
 		// Redirect if missing trailing slash.
 		if !strings.HasSuffix(ctx.Req.URL.Path, "/") {
-			path := fmt.Sprintf("%s/", ctx.Req.URL.Path)
-			if !strings.HasPrefix(path, "/") {
-				// Disambiguate that it's a path relative to this server
-				path = fmt.Sprintf("/%s", path)
-			} else {
-				// A string starting with // or /\ is interpreted by browsers as a URL, and not a server relative path
-				rePrefix := regexp.MustCompile(`^(?:/\\|/+)`)
-				path = rePrefix.ReplaceAllString(path, "/")
-			}
-			http.Redirect(ctx.Resp, ctx.Req.Request, path, http.StatusFound)
+			http.Redirect(ctx.Resp, ctx.Req.Request, ctx.Req.URL.Path+"/", http.StatusFound)
 			return true
 		}
 
 		file = path.Join(file, opt.IndexFile)
-		indexFile, err := opt.FileSystem.Open(file)
+		f, err = opt.FileSystem.Open(file)
 		if err != nil {
 			return false // Discard error.
 		}
-		defer func() {
-			if err := indexFile.Close(); err != nil {
-				log.Printf("Failed to close file: %s", err)
-			}
-		}()
+		defer f.Close()
 
 		fi, err = f.Stat()
 		if err != nil || fi.IsDir() {
@@ -182,7 +177,7 @@ func staticHandler(ctx *macaron.Context, log *log.Logger, opt StaticOptions) boo
 	}
 
 	if !opt.SkipLogging {
-		log.Printf("[Static] Serving %s\n", file)
+		log.Println("[Static] Serving " + file)
 	}
 
 	// Add an Expires header to the static content
@@ -200,5 +195,24 @@ func Static(directory string, staticOpt ...StaticOptions) macaron.Handler {
 
 	return func(ctx *macaron.Context, log *log.Logger) {
 		staticHandler(ctx, log, opt)
+	}
+}
+
+// Statics registers multiple static middleware handlers all at once.
+func Statics(opt StaticOptions, dirs ...string) macaron.Handler {
+	if len(dirs) == 0 {
+		panic("no static directory is given")
+	}
+	opts := make([]StaticOptions, len(dirs))
+	for i := range dirs {
+		opts[i] = prepareStaticOption(dirs[i], opt)
+	}
+
+	return func(ctx *macaron.Context, log *log.Logger) {
+		for i := range opts {
+			if staticHandler(ctx, log, opts[i]) {
+				return
+			}
+		}
 	}
 }

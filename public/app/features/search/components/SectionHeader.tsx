@@ -1,5 +1,5 @@
 import React, { FC, useCallback } from 'react';
-import { css, cx } from '@emotion/css';
+import { css, cx } from 'emotion';
 import { useLocalStorage } from 'react-use';
 import { GrafanaTheme } from '@grafana/data';
 import { Icon, Spinner, stylesFactory, useTheme } from '@grafana/ui';
@@ -37,7 +37,7 @@ export const SectionHeader: FC<SectionHeaderProps> = ({
         onToggleChecked(section);
       }
     },
-    [onToggleChecked, section]
+    [section]
   );
 
   return (
@@ -60,6 +60,7 @@ export const SectionHeader: FC<SectionHeaderProps> = ({
           </a>
         )}
       </div>
+
       {section.itemsFetching ? <Spinner /> : <Icon name={section.expanded ? 'angle-down' : 'angle-right'} />}
     </div>
   );

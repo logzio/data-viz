@@ -3,10 +3,9 @@ package alerting
 
 import (
 	"context"
-	"errors"
-	"github.com/grafana/grafana/pkg/plugins"
 	"math"
 	"time"
+	"errors"
 
 	"github.com/grafana/grafana/pkg/infra/log"
 	"github.com/grafana/grafana/pkg/registry"
@@ -23,8 +22,6 @@ import (
 type AlertEvaluatorEngine struct {
 	RenderService rendering.Service `inject:""`
 	Bus           bus.Bus           `inject:""`
-	RequestValidator models.PluginRequestValidator `inject:""`
-	DataService      plugins.DataRequestHandler    `inject:""`
 
 	evalHandler   evalHandler
 	ruleReader    ruleReader
@@ -56,7 +53,7 @@ func init() {
 }
 
 func (e *AlertEvaluatorEngine) Init() error {
-	e.evalHandler = NewEvalHandler(e.DataService)
+	e.evalHandler = NewEvalHandler()
 	e.ruleReader = newRuleReader()
 	e.log = log.New("check-alerting.engine")
 	e.resultHandler = newResultHandler(e.RenderService)
@@ -72,7 +69,7 @@ func (e *AlertEvaluatorEngine) processJob(attemptID int, attemptChan chan int, c
 	span := opentracing.StartSpan("alert execution")
 	alertCtx = opentracing.ContextWithSpan(alertCtx, span)
 
-	evalContext := NewEvalContext(alertCtx, job.Rule, job.EvalTime, e.RequestValidator) // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - Add eval time
+	evalContext := NewEvalContext(alertCtx, job.Rule, job.EvalTime) // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - Add eval time
 	evalContext.Ctx = alertCtx
 
 	e.evalHandler.Eval(evalContext)

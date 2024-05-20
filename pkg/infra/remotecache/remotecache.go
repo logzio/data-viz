@@ -23,17 +23,8 @@ var (
 	defaultMaxCacheExpiration = time.Hour * 24
 )
 
-const (
-	ServiceName = "RemoteCache"
-)
-
 func init() {
-	rc := &RemoteCache{}
-	registry.Register(&registry.Descriptor{
-		Name:         ServiceName,
-		Instance:     rc,
-		InitPriority: registry.Medium,
-	})
+	registry.RegisterService(&RemoteCache{})
 }
 
 // CacheStorage allows the caller to set, get and delete items in the cache.
@@ -55,7 +46,7 @@ type CacheStorage interface {
 type RemoteCache struct {
 	log      log.Logger
 	client   CacheStorage
-	SQLStore *sqlstore.SQLStore `inject:""`
+	SQLStore *sqlstore.SqlStore `inject:""`
 	Cfg      *setting.Cfg       `inject:""`
 }
 
@@ -98,7 +89,7 @@ func (ds *RemoteCache) Run(ctx context.Context) error {
 	return ctx.Err()
 }
 
-func createClient(opts *setting.RemoteCacheOptions, sqlstore *sqlstore.SQLStore) (CacheStorage, error) {
+func createClient(opts *setting.RemoteCacheOptions, sqlstore *sqlstore.SqlStore) (CacheStorage, error) {
 	if opts.Name == redisCacheType {
 		return newRedisStorage(opts)
 	}

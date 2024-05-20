@@ -38,7 +38,7 @@ const setup = (propOverrides?: object) => {
   Object.assign(props, propOverrides);
 
   const wrapper = shallow(<LokiQueryEditor {...props} />);
-  const instance = wrapper.instance();
+  const instance = wrapper.instance() as LokiQueryEditor;
 
   return {
     instance,

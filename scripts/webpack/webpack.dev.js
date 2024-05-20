@@ -8,12 +8,11 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
-const getBabelConfig = require('./babel.config');
 // const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 
 module.exports = (env = {}) =>
   merge(common, {
-    devtool: 'inline-source-map',
+    devtool: 'cheap-module-source-map',
     mode: 'development',
 
     entry: {
@@ -36,7 +35,43 @@ module.exports = (env = {}) =>
           use: [
             {
               loader: 'babel-loader',
-              options: getBabelConfig({ BABEL_ENV: 'dev' }),
+              options: {
+                cacheDirectory: true,
+                babelrc: false,
+                // Note: order is top-to-bottom and/or left-to-right
+                plugins: [
+                  [
+                    require('@rtsao/plugin-proposal-class-properties'),
+                    {
+                      loose: true,
+                    },
+                  ],
+                  '@babel/plugin-proposal-nullish-coalescing-operator',
+                  '@babel/plugin-proposal-optional-chaining',
+                  'angularjs-annotate',
+                ],
+                // Note: order is bottom-to-top and/or right-to-left
+                presets: [
+                  [
+                    '@babel/preset-env',
+                    {
+                      targets: {
+                        browsers: 'last 3 versions',
+                      },
+                      useBuiltIns: 'entry',
+                      corejs: 3,
+                      modules: false,
+                    },
+                  ],
+                  [
+                    '@babel/preset-typescript',
+                    {
+                      allowNamespaces: true,
+                    },
+                  ],
+                  '@babel/preset-react',
+                ],
+              },
             },
           ],
         },
@@ -58,11 +93,9 @@ module.exports = (env = {}) =>
               options: {
                 cache: true,
               },
-              memoryLimit: 4096,
             },
             typescript: {
               mode: 'write-references',
-              memoryLimit: 4096,
               diagnosticOptions: {
                 semantic: true,
                 syntactic: true,

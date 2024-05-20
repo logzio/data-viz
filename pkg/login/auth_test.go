@@ -4,157 +4,177 @@ import (
 	"errors"
 	"testing"
 
+	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/grafana/grafana/pkg/models"
 	"github.com/grafana/grafana/pkg/services/ldap"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestAuthenticateUser(t *testing.T) {
-	authScenario(t, "When a user authenticates without setting a password", func(sc *authScenarioContext) {
-		mockLoginAttemptValidation(nil, sc)
-		mockLoginUsingGrafanaDB(nil, sc)
-		mockLoginUsingLDAP(false, nil, sc)
+	Convey("Authenticate user", t, func() {
+		authScenario("When a user authenticates without setting a password", func(sc *authScenarioContext) {
+			mockLoginAttemptValidation(nil, sc)
+			mockLoginUsingGrafanaDB(nil, sc)
+			mockLoginUsingLDAP(false, nil, sc)
 
-		loginQuery := models.LoginUserQuery{
-			Username: "user",
-			Password: "",
-		}
-		err := authenticateUser(&loginQuery)
+			loginQuery := models.LoginUserQuery{
+				Username: "user",
+				Password: "",
+			}
+			err := AuthenticateUser(&loginQuery)
 
-		require.EqualError(t, err, ErrPasswordEmpty.Error())
-		assert.False(t, sc.grafanaLoginWasCalled)
-		assert.False(t, sc.ldapLoginWasCalled)
-		assert.Empty(t, sc.loginUserQuery.AuthModule)
-	})
+			Convey("login should fail", func() {
+				So(sc.grafanaLoginWasCalled, ShouldBeFalse)
+				So(sc.ldapLoginWasCalled, ShouldBeFalse)
+				So(err, ShouldEqual, ErrPasswordEmpty)
+				So(sc.loginUserQuery.AuthModule, ShouldEqual, "")
+			})
+		})
 
-	authScenario(t, "When a user authenticates having too many login attempts", func(sc *authScenarioContext) {
-		mockLoginAttemptValidation(ErrTooManyLoginAttempts, sc)
-		mockLoginUsingGrafanaDB(nil, sc)
-		mockLoginUsingLDAP(true, nil, sc)
-		mockSaveInvalidLoginAttempt(sc)
+		authScenario("When a user authenticates having too many login attempts", func(sc *authScenarioContext) {
+			mockLoginAttemptValidation(ErrTooManyLoginAttempts, sc)
+			mockLoginUsingGrafanaDB(nil, sc)
+			mockLoginUsingLDAP(true, nil, sc)
+			mockSaveInvalidLoginAttempt(sc)
 
-		err := authenticateUser(sc.loginUserQuery)
+			err := AuthenticateUser(sc.loginUserQuery)
 
-		require.EqualError(t, err, ErrTooManyLoginAttempts.Error())
-		assert.True(t, sc.loginAttemptValidationWasCalled)
-		assert.False(t, sc.grafanaLoginWasCalled)
-		assert.False(t, sc.ldapLoginWasCalled)
-		assert.False(t, sc.saveInvalidLoginAttemptWasCalled)
-		assert.Empty(t, sc.loginUserQuery.AuthModule)
-	})
+			Convey("it should result in", func() {
+				So(err, ShouldEqual, ErrTooManyLoginAttempts)
+				So(sc.loginAttemptValidationWasCalled, ShouldBeTrue)
+				So(sc.grafanaLoginWasCalled, ShouldBeFalse)
+				So(sc.ldapLoginWasCalled, ShouldBeFalse)
+				So(sc.saveInvalidLoginAttemptWasCalled, ShouldBeFalse)
+				So(sc.loginUserQuery.AuthModule, ShouldEqual, "")
+			})
+		})
 
-	authScenario(t, "When grafana user authenticate with valid credentials", func(sc *authScenarioContext) {
-		mockLoginAttemptValidation(nil, sc)
-		mockLoginUsingGrafanaDB(nil, sc)
-		mockLoginUsingLDAP(true, ErrInvalidCredentials, sc)
-		mockSaveInvalidLoginAttempt(sc)
+		authScenario("When grafana user authenticate with valid credentials", func(sc *authScenarioContext) {
+			mockLoginAttemptValidation(nil, sc)
+			mockLoginUsingGrafanaDB(nil, sc)
+			mockLoginUsingLDAP(true, ErrInvalidCredentials, sc)
+			mockSaveInvalidLoginAttempt(sc)
 
-		err := authenticateUser(sc.loginUserQuery)
+			err := AuthenticateUser(sc.loginUserQuery)
 
-		require.NoError(t, err)
-		assert.True(t, sc.loginAttemptValidationWasCalled)
-		assert.True(t, sc.grafanaLoginWasCalled)
-		assert.False(t, sc.ldapLoginWasCalled)
-		assert.False(t, sc.saveInvalidLoginAttemptWasCalled)
-		assert.Equal(t, "grafana", sc.loginUserQuery.AuthModule)
-	})
+			Convey("it should result in", func() {
+				So(err, ShouldEqual, nil)
+				So(sc.loginAttemptValidationWasCalled, ShouldBeTrue)
+				So(sc.grafanaLoginWasCalled, ShouldBeTrue)
+				So(sc.ldapLoginWasCalled, ShouldBeFalse)
+				So(sc.saveInvalidLoginAttemptWasCalled, ShouldBeFalse)
+				So(sc.loginUserQuery.AuthModule, ShouldEqual, "grafana")
+			})
+		})
 
-	authScenario(t, "When grafana user authenticate and unexpected error occurs", func(sc *authScenarioContext) {
-		customErr := errors.New("custom")
-		mockLoginAttemptValidation(nil, sc)
-		mockLoginUsingGrafanaDB(customErr, sc)
-		mockLoginUsingLDAP(true, ErrInvalidCredentials, sc)
-		mockSaveInvalidLoginAttempt(sc)
+		authScenario("When grafana user authenticate and unexpected error occurs", func(sc *authScenarioContext) {
+			customErr := errors.New("custom")
+			mockLoginAttemptValidation(nil, sc)
+			mockLoginUsingGrafanaDB(customErr, sc)
+			mockLoginUsingLDAP(true, ErrInvalidCredentials, sc)
+			mockSaveInvalidLoginAttempt(sc)
 
-		err := authenticateUser(sc.loginUserQuery)
+			err := AuthenticateUser(sc.loginUserQuery)
 
-		require.EqualError(t, err, customErr.Error())
-		assert.True(t, sc.loginAttemptValidationWasCalled)
-		assert.True(t, sc.grafanaLoginWasCalled)
-		assert.False(t, sc.ldapLoginWasCalled)
-		assert.False(t, sc.saveInvalidLoginAttemptWasCalled)
-		assert.Equal(t, "grafana", sc.loginUserQuery.AuthModule)
-	})
+			Convey("it should result in", func() {
+				So(err, ShouldEqual, customErr)
+				So(sc.loginAttemptValidationWasCalled, ShouldBeTrue)
+				So(sc.grafanaLoginWasCalled, ShouldBeTrue)
+				So(sc.ldapLoginWasCalled, ShouldBeFalse)
+				So(sc.saveInvalidLoginAttemptWasCalled, ShouldBeFalse)
+				So(sc.loginUserQuery.AuthModule, ShouldEqual, "grafana")
+			})
+		})
 
-	authScenario(t, "When a non-existing grafana user authenticate and ldap disabled", func(sc *authScenarioContext) {
-		mockLoginAttemptValidation(nil, sc)
-		mockLoginUsingGrafanaDB(models.ErrUserNotFound, sc)
-		mockLoginUsingLDAP(false, nil, sc)
-		mockSaveInvalidLoginAttempt(sc)
+		authScenario("When a non-existing grafana user authenticate and ldap disabled", func(sc *authScenarioContext) {
+			mockLoginAttemptValidation(nil, sc)
+			mockLoginUsingGrafanaDB(models.ErrUserNotFound, sc)
+			mockLoginUsingLDAP(false, nil, sc)
+			mockSaveInvalidLoginAttempt(sc)
 
-		err := authenticateUser(sc.loginUserQuery)
+			err := AuthenticateUser(sc.loginUserQuery)
 
-		require.EqualError(t, err, models.ErrUserNotFound.Error())
-		assert.True(t, sc.loginAttemptValidationWasCalled)
-		assert.True(t, sc.grafanaLoginWasCalled)
-		assert.True(t, sc.ldapLoginWasCalled)
-		assert.False(t, sc.saveInvalidLoginAttemptWasCalled)
-		assert.Empty(t, sc.loginUserQuery.AuthModule)
-	})
+			Convey("it should result in", func() {
+				So(err, ShouldEqual, models.ErrUserNotFound)
+				So(sc.loginAttemptValidationWasCalled, ShouldBeTrue)
+				So(sc.grafanaLoginWasCalled, ShouldBeTrue)
+				So(sc.ldapLoginWasCalled, ShouldBeTrue)
+				So(sc.saveInvalidLoginAttemptWasCalled, ShouldBeFalse)
+				So(sc.loginUserQuery.AuthModule, ShouldEqual, "")
+			})
+		})
 
-	authScenario(t, "When a non-existing grafana user authenticate and invalid ldap credentials", func(sc *authScenarioContext) {
-		mockLoginAttemptValidation(nil, sc)
-		mockLoginUsingGrafanaDB(models.ErrUserNotFound, sc)
-		mockLoginUsingLDAP(true, ldap.ErrInvalidCredentials, sc)
-		mockSaveInvalidLoginAttempt(sc)
+		authScenario("When a non-existing grafana user authenticate and invalid ldap credentials", func(sc *authScenarioContext) {
+			mockLoginAttemptValidation(nil, sc)
+			mockLoginUsingGrafanaDB(models.ErrUserNotFound, sc)
+			mockLoginUsingLDAP(true, ldap.ErrInvalidCredentials, sc)
+			mockSaveInvalidLoginAttempt(sc)
 
-		err := authenticateUser(sc.loginUserQuery)
+			err := AuthenticateUser(sc.loginUserQuery)
 
-		require.EqualError(t, err, ErrInvalidCredentials.Error())
-		assert.True(t, sc.loginAttemptValidationWasCalled)
-		assert.True(t, sc.grafanaLoginWasCalled)
-		assert.True(t, sc.ldapLoginWasCalled)
-		assert.True(t, sc.saveInvalidLoginAttemptWasCalled)
-		assert.Equal(t, "ldap", sc.loginUserQuery.AuthModule)
-	})
+			Convey("it should result in", func() {
+				So(err, ShouldEqual, ErrInvalidCredentials)
+				So(sc.loginAttemptValidationWasCalled, ShouldBeTrue)
+				So(sc.grafanaLoginWasCalled, ShouldBeTrue)
+				So(sc.ldapLoginWasCalled, ShouldBeTrue)
+				So(sc.saveInvalidLoginAttemptWasCalled, ShouldBeTrue)
+				So(sc.loginUserQuery.AuthModule, ShouldEqual, "ldap")
+			})
+		})
 
-	authScenario(t, "When a non-existing grafana user authenticate and valid ldap credentials", func(sc *authScenarioContext) {
-		mockLoginAttemptValidation(nil, sc)
-		mockLoginUsingGrafanaDB(models.ErrUserNotFound, sc)
-		mockLoginUsingLDAP(true, nil, sc)
-		mockSaveInvalidLoginAttempt(sc)
+		authScenario("When a non-existing grafana user authenticate and valid ldap credentials", func(sc *authScenarioContext) {
+			mockLoginAttemptValidation(nil, sc)
+			mockLoginUsingGrafanaDB(models.ErrUserNotFound, sc)
+			mockLoginUsingLDAP(true, nil, sc)
+			mockSaveInvalidLoginAttempt(sc)
 
-		err := authenticateUser(sc.loginUserQuery)
+			err := AuthenticateUser(sc.loginUserQuery)
 
-		require.NoError(t, err)
-		assert.True(t, sc.loginAttemptValidationWasCalled)
-		assert.True(t, sc.grafanaLoginWasCalled)
-		assert.True(t, sc.ldapLoginWasCalled)
-		assert.False(t, sc.saveInvalidLoginAttemptWasCalled)
-		assert.Equal(t, "ldap", sc.loginUserQuery.AuthModule)
-	})
+			Convey("it should result in", func() {
+				So(err, ShouldBeNil)
+				So(sc.loginAttemptValidationWasCalled, ShouldBeTrue)
+				So(sc.grafanaLoginWasCalled, ShouldBeTrue)
+				So(sc.ldapLoginWasCalled, ShouldBeTrue)
+				So(sc.saveInvalidLoginAttemptWasCalled, ShouldBeFalse)
+				So(sc.loginUserQuery.AuthModule, ShouldEqual, "ldap")
+			})
+		})
 
-	authScenario(t, "When a non-existing grafana user authenticate and ldap returns unexpected error", func(sc *authScenarioContext) {
-		customErr := errors.New("custom")
-		mockLoginAttemptValidation(nil, sc)
-		mockLoginUsingGrafanaDB(models.ErrUserNotFound, sc)
-		mockLoginUsingLDAP(true, customErr, sc)
-		mockSaveInvalidLoginAttempt(sc)
+		authScenario("When a non-existing grafana user authenticate and ldap returns unexpected error", func(sc *authScenarioContext) {
+			customErr := errors.New("custom")
+			mockLoginAttemptValidation(nil, sc)
+			mockLoginUsingGrafanaDB(models.ErrUserNotFound, sc)
+			mockLoginUsingLDAP(true, customErr, sc)
+			mockSaveInvalidLoginAttempt(sc)
 
-		err := authenticateUser(sc.loginUserQuery)
+			err := AuthenticateUser(sc.loginUserQuery)
 
-		require.EqualError(t, err, customErr.Error())
-		assert.True(t, sc.loginAttemptValidationWasCalled)
-		assert.True(t, sc.grafanaLoginWasCalled)
-		assert.True(t, sc.ldapLoginWasCalled)
-		assert.False(t, sc.saveInvalidLoginAttemptWasCalled)
-		assert.Equal(t, "ldap", sc.loginUserQuery.AuthModule)
-	})
+			Convey("it should result in", func() {
+				So(err, ShouldEqual, customErr)
+				So(sc.loginAttemptValidationWasCalled, ShouldBeTrue)
+				So(sc.grafanaLoginWasCalled, ShouldBeTrue)
+				So(sc.ldapLoginWasCalled, ShouldBeTrue)
+				So(sc.saveInvalidLoginAttemptWasCalled, ShouldBeFalse)
+				So(sc.loginUserQuery.AuthModule, ShouldEqual, "ldap")
+			})
+		})
 
-	authScenario(t, "When grafana user authenticate with invalid credentials and invalid ldap credentials", func(sc *authScenarioContext) {
-		mockLoginAttemptValidation(nil, sc)
-		mockLoginUsingGrafanaDB(ErrInvalidCredentials, sc)
-		mockLoginUsingLDAP(true, ldap.ErrInvalidCredentials, sc)
-		mockSaveInvalidLoginAttempt(sc)
+		authScenario("When grafana user authenticate with invalid credentials and invalid ldap credentials", func(sc *authScenarioContext) {
+			mockLoginAttemptValidation(nil, sc)
+			mockLoginUsingGrafanaDB(ErrInvalidCredentials, sc)
+			mockLoginUsingLDAP(true, ldap.ErrInvalidCredentials, sc)
+			mockSaveInvalidLoginAttempt(sc)
 
-		err := authenticateUser(sc.loginUserQuery)
+			err := AuthenticateUser(sc.loginUserQuery)
 
-		require.EqualError(t, err, ErrInvalidCredentials.Error())
-		assert.True(t, sc.loginAttemptValidationWasCalled)
-		assert.True(t, sc.grafanaLoginWasCalled)
-		assert.True(t, sc.ldapLoginWasCalled)
-		assert.True(t, sc.saveInvalidLoginAttemptWasCalled)
+			Convey("it should result in", func() {
+				So(err, ShouldEqual, ErrInvalidCredentials)
+				So(sc.loginAttemptValidationWasCalled, ShouldBeTrue)
+				So(sc.grafanaLoginWasCalled, ShouldBeTrue)
+				So(sc.ldapLoginWasCalled, ShouldBeTrue)
+				So(sc.saveInvalidLoginAttemptWasCalled, ShouldBeTrue)
+			})
+		})
 	})
 }
 
@@ -183,7 +203,7 @@ func mockLoginUsingLDAP(enabled bool, err error, sc *authScenarioContext) {
 }
 
 func mockLoginAttemptValidation(err error, sc *authScenarioContext) {
-	validateLoginAttempts = func(*models.LoginUserQuery) error {
+	validateLoginAttempts = func(username string) error {
 		sc.loginAttemptValidationWasCalled = true
 		return err
 	}
@@ -196,10 +216,8 @@ func mockSaveInvalidLoginAttempt(sc *authScenarioContext) {
 	}
 }
 
-func authScenario(t *testing.T, desc string, fn authScenarioFunc) {
-	t.Helper()
-
-	t.Run(desc, func(t *testing.T) {
+func authScenario(desc string, fn authScenarioFunc) {
+	Convey(desc, func() {
 		origLoginUsingGrafanaDB := loginUsingGrafanaDB
 		origLoginUsingLDAP := loginUsingLDAP
 		origValidateLoginAttempts := validateLoginAttempts
@@ -213,12 +231,12 @@ func authScenario(t *testing.T, desc string, fn authScenarioFunc) {
 			},
 		}
 
-		t.Cleanup(func() {
+		defer func() {
 			loginUsingGrafanaDB = origLoginUsingGrafanaDB
 			loginUsingLDAP = origLoginUsingLDAP
 			validateLoginAttempts = origValidateLoginAttempts
 			saveInvalidLoginAttempt = origSaveInvalidLoginAttempt
-		})
+		}()
 
 		fn(sc)
 	})

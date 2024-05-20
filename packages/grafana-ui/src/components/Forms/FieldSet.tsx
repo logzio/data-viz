@@ -1,7 +1,7 @@
 import React, { FC, HTMLProps } from 'react';
-import { css, cx } from '@emotion/css';
-import { GrafanaTheme2 } from '@grafana/data';
-import { stylesFactory, useTheme2 } from '../../themes';
+import { css, cx } from 'emotion';
+import { GrafanaTheme } from '@grafana/data';
+import { stylesFactory, useTheme } from '../../themes';
 import { Legend } from './Legend';
 
 export interface Props extends HTMLProps<HTMLFieldSetElement> {
@@ -11,7 +11,7 @@ export interface Props extends HTMLProps<HTMLFieldSetElement> {
 }
 
 export const FieldSet: FC<Props> = ({ label, children, className, ...rest }) => {
-  const theme = useTheme2();
+  const theme = useTheme();
   const styles = getStyles(theme);
 
   return (
@@ -22,14 +22,10 @@ export const FieldSet: FC<Props> = ({ label, children, className, ...rest }) => 
   );
 };
 
-const getStyles = stylesFactory((theme: GrafanaTheme2) => {
+const getStyles = stylesFactory((theme: GrafanaTheme) => {
   return {
     wrapper: css`
-      margin-bottom: ${theme.spacing(4)};
-
-      &:last-child {
-        margin-bottom: 0;
-      }
+      margin-bottom: ${theme.spacing.formSpacingBase * 4}px;
     `,
   };
 });

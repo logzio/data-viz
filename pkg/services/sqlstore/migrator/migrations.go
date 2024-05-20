@@ -21,21 +21,21 @@ func (m *MigrationBase) GetCondition() MigrationCondition {
 	return m.Condition
 }
 
-type RawSQLMigration struct {
+type RawSqlMigration struct {
 	MigrationBase
 
 	sql map[string]string
 }
 
-func NewRawSQLMigration(sql string) *RawSQLMigration {
-	m := &RawSQLMigration{}
+func NewRawSqlMigration(sql string) *RawSqlMigration {
+	m := &RawSqlMigration{}
 	if sql != "" {
 		m.Default(sql)
 	}
 	return m
 }
 
-func (m *RawSQLMigration) SQL(dialect Dialect) string {
+func (m *RawSqlMigration) Sql(dialect Dialect) string {
 	if m.sql != nil {
 		if val := m.sql[dialect.DriverName()]; val != "" {
 			return val
@@ -46,10 +46,10 @@ func (m *RawSQLMigration) SQL(dialect Dialect) string {
 		}
 	}
 
-	return dialect.NoOpSQL()
+	return dialect.NoOpSql()
 }
 
-func (m *RawSQLMigration) Set(dialect string, sql string) *RawSQLMigration {
+func (m *RawSqlMigration) Set(dialect string, sql string) *RawSqlMigration {
 	if m.sql == nil {
 		m.sql = make(map[string]string)
 	}
@@ -58,23 +58,23 @@ func (m *RawSQLMigration) Set(dialect string, sql string) *RawSQLMigration {
 	return m
 }
 
-func (m *RawSQLMigration) Default(sql string) *RawSQLMigration {
+func (m *RawSqlMigration) Default(sql string) *RawSqlMigration {
 	return m.Set("default", sql)
 }
 
-func (m *RawSQLMigration) SQLite(sql string) *RawSQLMigration {
-	return m.Set(SQLite, sql)
+func (m *RawSqlMigration) Sqlite(sql string) *RawSqlMigration {
+	return m.Set(SQLITE, sql)
 }
 
-func (m *RawSQLMigration) Mysql(sql string) *RawSQLMigration {
-	return m.Set(MySQL, sql)
+func (m *RawSqlMigration) Mysql(sql string) *RawSqlMigration {
+	return m.Set(MYSQL, sql)
 }
 
-func (m *RawSQLMigration) Postgres(sql string) *RawSQLMigration {
-	return m.Set(Postgres, sql)
+func (m *RawSqlMigration) Postgres(sql string) *RawSqlMigration {
+	return m.Set(POSTGRES, sql)
 }
 
-func (m *RawSQLMigration) Mssql(sql string) *RawSQLMigration {
+func (m *RawSqlMigration) Mssql(sql string) *RawSqlMigration {
 	return m.Set(MSSQL, sql)
 }
 
@@ -100,8 +100,8 @@ func (m *AddColumnMigration) Column(col *Column) *AddColumnMigration {
 	return m
 }
 
-func (m *AddColumnMigration) SQL(dialect Dialect) string {
-	return dialect.AddColumnSQL(m.tableName, m.column)
+func (m *AddColumnMigration) Sql(dialect Dialect) string {
+	return dialect.AddColumnSql(m.tableName, m.column)
 }
 
 type AddIndexMigration struct {
@@ -121,8 +121,8 @@ func (m *AddIndexMigration) Table(tableName string) *AddIndexMigration {
 	return m
 }
 
-func (m *AddIndexMigration) SQL(dialect Dialect) string {
-	return dialect.CreateIndexSQL(m.tableName, m.index)
+func (m *AddIndexMigration) Sql(dialect Dialect) string {
+	return dialect.CreateIndexSql(m.tableName, m.index)
 }
 
 type DropIndexMigration struct {
@@ -137,11 +137,11 @@ func NewDropIndexMigration(table Table, index *Index) *DropIndexMigration {
 	return m
 }
 
-func (m *DropIndexMigration) SQL(dialect Dialect) string {
+func (m *DropIndexMigration) Sql(dialect Dialect) string {
 	if m.index.Name == "" {
 		m.index.Name = strings.Join(m.index.Cols, "_")
 	}
-	return dialect.DropIndexSQL(m.tableName, m.index)
+	return dialect.DropIndexSql(m.tableName, m.index)
 }
 
 type AddTableMigration struct {
@@ -158,8 +158,8 @@ func NewAddTableMigration(table Table) *AddTableMigration {
 	return &AddTableMigration{table: table}
 }
 
-func (m *AddTableMigration) SQL(d Dialect) string {
-	return d.CreateTableSQL(&m.table)
+func (m *AddTableMigration) Sql(d Dialect) string {
+	return d.CreateTableSql(&m.table)
 }
 
 type DropTableMigration struct {
@@ -171,7 +171,7 @@ func NewDropTableMigration(tableName string) *DropTableMigration {
 	return &DropTableMigration{tableName: tableName}
 }
 
-func (m *DropTableMigration) SQL(d Dialect) string {
+func (m *DropTableMigration) Sql(d Dialect) string {
 	return d.DropTable(m.tableName)
 }
 
@@ -191,7 +191,7 @@ func (m *RenameTableMigration) Rename(oldName string, newName string) *RenameTab
 	return m
 }
 
-func (m *RenameTableMigration) SQL(d Dialect) string {
+func (m *RenameTableMigration) Sql(d Dialect) string {
 	return d.RenameTable(m.oldName, m.newName)
 }
 
@@ -213,7 +213,7 @@ func NewCopyTableDataMigration(targetTable string, sourceTable string, colMap ma
 	return m
 }
 
-func (m *CopyTableDataMigration) SQL(d Dialect) string {
+func (m *CopyTableDataMigration) Sql(d Dialect) string {
 	return d.CopyTableData(m.sourceTable, m.targetTable, m.sourceCols, m.targetCols)
 }
 
@@ -227,6 +227,6 @@ func NewTableCharsetMigration(tableName string, columns []*Column) *TableCharset
 	return &TableCharsetMigration{tableName: tableName, columns: columns}
 }
 
-func (m *TableCharsetMigration) SQL(d Dialect) string {
-	return d.UpdateTableSQL(m.tableName, m.columns)
+func (m *TableCharsetMigration) Sql(d Dialect) string {
+	return d.UpdateTableSql(m.tableName, m.columns)
 }

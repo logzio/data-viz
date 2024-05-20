@@ -1,3 +1,4 @@
+import '../series_overrides_ctrl';
 import { SeriesOverridesCtrl } from '../series_overrides_ctrl';
 
 describe('SeriesOverridesCtrl', () => {

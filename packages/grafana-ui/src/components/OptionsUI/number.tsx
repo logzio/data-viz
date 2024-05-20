@@ -36,7 +36,7 @@ export const NumberValueEditor: React.FC<FieldConfigEditorProps<number, NumberFi
         );
       }
     },
-    [onChange, settings?.integer]
+    [onChange]
   );
 
   const defaultValue = value === undefined || value === null || isNaN(value) ? '' : value.toString();

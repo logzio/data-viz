@@ -1,7 +1,7 @@
 'use strict';
 
 const pkg = require('../../package.json');
-const { pull } = require('lodash');
+const pull = require('lodash/pull');
 
 let dependencies = Object.keys(pkg.dependencies);
 // remove jquery so we can add it first

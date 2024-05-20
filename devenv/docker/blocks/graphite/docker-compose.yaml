@@ -1,16 +1,16 @@
-  graphite11:
-    image: graphiteapp/graphite-statsd
+  graphite09:
+    build: docker/blocks/graphite
     ports:
-      - "8180:80"
-      - "2103-2104:2003-2004"
-      - "2123-2124:2023-2024"
+      - "8080:80"
+      - "2003:2003"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
 
-  fake-graphite11-data:
+  fake-graphite-data:
     image: grafana/fake-data-gen
     network_mode: bridge
     environment:
       FD_DATASOURCE: graphite
-      FD_PORT: 2103
-      FD_GRAPHITE_VERSION: 1.1
-    depends_on:
-      - graphite11
+      FD_PORT: 2003
+

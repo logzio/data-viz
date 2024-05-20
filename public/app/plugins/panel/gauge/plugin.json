@@ -4,7 +4,6 @@
   "id": "gauge",
 
   "info": {
-    "description": "Standard gauge visualization",
     "author": {
       "name": "Grafana Labs",
       "url": "https://grafana.com"

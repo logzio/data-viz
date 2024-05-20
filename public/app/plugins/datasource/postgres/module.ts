@@ -1,8 +1,6 @@
 import { PostgresDatasource } from './datasource';
 import { PostgresQueryCtrl } from './query_ctrl';
 import { PostgresConfigCtrl } from './config_ctrl';
-import { PostgresQuery } from './types';
-import { DataSourcePlugin } from '@grafana/data';
 
 const defaultQuery = `SELECT
   extract(epoch from time_column) AS time,
@@ -17,16 +15,18 @@ WHERE
 class PostgresAnnotationsQueryCtrl {
   static templateUrl = 'partials/annotations.editor.html';
 
-  declare annotation: any;
+  annotation: any;
 
   /** @ngInject */
-  constructor($scope: any) {
-    this.annotation = $scope.ctrl.annotation;
+  constructor() {
     this.annotation.rawQuery = this.annotation.rawQuery || defaultQuery;
   }
 }
 
-export const plugin = new DataSourcePlugin<PostgresDatasource, PostgresQuery>(PostgresDatasource)
-  .setQueryCtrl(PostgresQueryCtrl)
-  .setConfigCtrl(PostgresConfigCtrl)
-  .setAnnotationQueryCtrl(PostgresAnnotationsQueryCtrl);
+export {
+  PostgresDatasource,
+  PostgresDatasource as Datasource,
+  PostgresQueryCtrl as QueryCtrl,
+  PostgresConfigCtrl as ConfigCtrl,
+  PostgresAnnotationsQueryCtrl as AnnotationsQueryCtrl,
+};

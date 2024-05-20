@@ -1,10 +1,10 @@
 import React, { PureComponent } from 'react';
 import { stripIndent, stripIndents } from 'common-tags';
-import { QueryEditorHelpProps } from '@grafana/data';
+import { ExploreStartPageProps } from '@grafana/data';
 import Prism from 'prismjs';
 import tokenizer from '../syntax';
 import { flattenTokens } from '@grafana/ui/src/slate-plugins/slate-prism';
-import { css, cx } from '@emotion/css';
+import { css, cx } from 'emotion';
 import { CloudWatchLogsQuery } from '../types';
 
 interface QueryExample {
@@ -192,10 +192,10 @@ const CLIQ_EXAMPLES: QueryExample[] = [
 ];
 
 function renderHighlightedMarkup(code: string, keyPrefix: string) {
-  const grammar = tokenizer;
+  const grammar = Prism.languages['cloudwatch'] ?? tokenizer;
   const tokens = flattenTokens(Prism.tokenize(code, grammar));
   const spans = tokens
-    .filter((token) => typeof token !== 'string')
+    .filter(token => typeof token !== 'string')
     .map((token, i) => {
       return (
         <span
@@ -214,7 +214,7 @@ const exampleCategory = css`
   margin-top: 5px;
 `;
 
-export default class LogsCheatSheet extends PureComponent<QueryEditorHelpProps, { userExamples: string[] }> {
+export default class LogsCheatSheet extends PureComponent<ExploreStartPageProps, { userExamples: string[] }> {
   onClickExample(query: CloudWatchLogsQuery) {
     this.props.onClickExample(query);
   }
@@ -224,7 +224,7 @@ export default class LogsCheatSheet extends PureComponent<QueryEditorHelpProps, 
       <div
         className="cheat-sheet-item__example"
         key={expr}
-        onClick={(e) =>
+        onClick={e =>
           this.onClickExample({ refId: 'A', expression: expr, queryMode: 'Logs', region: 'default', id: 'A' })
         }
       >
@@ -237,13 +237,13 @@ export default class LogsCheatSheet extends PureComponent<QueryEditorHelpProps, 
     return (
       <div>
         <h2>CloudWatch Logs Cheat Sheet</h2>
-        {CLIQ_EXAMPLES.map((cat, i) => (
-          <div key={`${cat.category}-${i}`}>
+        {CLIQ_EXAMPLES.map(cat => (
+          <div>
             <div className={`cheat-sheet-item__title ${cx(exampleCategory)}`}>{cat.category}</div>
-            {cat.examples.map((item, j) => (
-              <div className="cheat-sheet-item" key={`item-${j}`}>
+            {cat.examples.map((item, i) => (
+              <div className="cheat-sheet-item" key={`item-${i}`}>
                 <h4>{item.title}</h4>
-                {this.renderExpression(item.expr, `item-${j}`)}
+                {this.renderExpression(item.expr, `item-${i}`)}
               </div>
             ))}
           </div>

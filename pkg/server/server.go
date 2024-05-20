@@ -13,16 +13,17 @@ import (
 	"sync"
 	"time"
 
+	"github.com/facebookgo/inject"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/grafana/grafana/pkg/api"
 	"github.com/grafana/grafana/pkg/api/routing"
 	"github.com/grafana/grafana/pkg/bus"
 	_ "github.com/grafana/grafana/pkg/extensions"
-	"github.com/grafana/grafana/pkg/infra/httpclient/httpclientprovider"
 	"github.com/grafana/grafana/pkg/infra/localcache"
 	"github.com/grafana/grafana/pkg/infra/log"
 	"github.com/grafana/grafana/pkg/infra/metrics"
+	_ "github.com/grafana/grafana/pkg/infra/metrics"
 	_ "github.com/grafana/grafana/pkg/infra/remotecache"
 	_ "github.com/grafana/grafana/pkg/infra/serverlock"
 	_ "github.com/grafana/grafana/pkg/infra/tracing"
@@ -30,21 +31,18 @@ import (
 	"github.com/grafana/grafana/pkg/login"
 	"github.com/grafana/grafana/pkg/login/social"
 	"github.com/grafana/grafana/pkg/middleware"
-	_ "github.com/grafana/grafana/pkg/plugins/manager"
+	_ "github.com/grafana/grafana/pkg/plugins"
 	"github.com/grafana/grafana/pkg/registry"
 	_ "github.com/grafana/grafana/pkg/services/alerting"
 	_ "github.com/grafana/grafana/pkg/services/auth"
-	_ "github.com/grafana/grafana/pkg/services/auth/jwt"
 	_ "github.com/grafana/grafana/pkg/services/cleanup"
-	_ "github.com/grafana/grafana/pkg/services/librarypanels"
-	_ "github.com/grafana/grafana/pkg/services/login/loginservice"
-	_ "github.com/grafana/grafana/pkg/services/ngalert"
 	_ "github.com/grafana/grafana/pkg/services/notifications"
 	_ "github.com/grafana/grafana/pkg/services/provisioning"
 	_ "github.com/grafana/grafana/pkg/services/rendering"
 	_ "github.com/grafana/grafana/pkg/services/search"
 	_ "github.com/grafana/grafana/pkg/services/sqlstore"
 	"github.com/grafana/grafana/pkg/setting"
+	"github.com/grafana/grafana/pkg/util/errutil"
 )
 
 // Config contains parameters for the New function.
@@ -58,43 +56,17 @@ type Config struct {
 	Listener    net.Listener
 }
 
-type serviceRegistry interface {
-	IsDisabled(srv registry.Service) bool
-	GetServices() []*registry.Descriptor
-}
-
-type globalServiceRegistry struct{}
-
-func (r *globalServiceRegistry) IsDisabled(srv registry.Service) bool {
-	return registry.IsDisabled(srv)
-}
-
-func (r *globalServiceRegistry) GetServices() []*registry.Descriptor {
-	return registry.GetServices()
-}
-
 // New returns a new instance of Server.
 func New(cfg Config) (*Server, error) {
-	s := newServer(cfg)
-	if err := s.init(); err != nil {
-		return nil, err
-	}
-	return s, nil
-}
-
-func newServer(cfg Config) *Server {
 	rootCtx, shutdownFn := context.WithCancel(context.Background())
 	childRoutines, childCtx := errgroup.WithContext(rootCtx)
 
-	return &Server{
-		context:          childCtx,
-		shutdownFn:       shutdownFn,
-		shutdownFinished: make(chan struct{}),
-		childRoutines:    childRoutines,
-		log:              log.New("server"),
-		// Need to use the singleton setting.Cfg instance, to make sure we use the same as is injected in the DI
-		// graph
-		cfg: setting.GetCfg(),
+	s := &Server{
+		context:       childCtx,
+		shutdownFn:    shutdownFn,
+		childRoutines: childRoutines,
+		log:           log.New("server"),
+		cfg:           setting.NewCfg(),
 
 		configFile:  cfg.ConfigFile,
 		homePath:    cfg.HomePath,
@@ -102,24 +74,27 @@ func newServer(cfg Config) *Server {
 		version:     cfg.Version,
 		commit:      cfg.Commit,
 		buildBranch: cfg.BuildBranch,
-
-		serviceRegistry: &globalServiceRegistry{},
-		listener:        cfg.Listener,
 	}
+	if cfg.Listener != nil {
+		if err := s.init(&cfg); err != nil {
+			return nil, err
+		}
+	}
+
+	return s, nil
 }
 
 // Server is responsible for managing the lifecycle of services.
 type Server struct {
-	context          context.Context
-	shutdownFn       context.CancelFunc
-	childRoutines    *errgroup.Group
-	log              log.Logger
-	cfg              *setting.Cfg
-	shutdownOnce     sync.Once
-	shutdownFinished chan struct{}
-	isInitialized    bool
-	mtx              sync.Mutex
-	listener         net.Listener
+	context            context.Context
+	shutdownFn         context.CancelFunc
+	childRoutines      *errgroup.Group
+	log                log.Logger
+	cfg                *setting.Cfg
+	shutdownReason     string
+	shutdownInProgress bool
+	isInitialized      bool
+	mtx                sync.Mutex
 
 	configFile  string
 	homePath    string
@@ -128,13 +103,11 @@ type Server struct {
 	commit      string
 	buildBranch string
 
-	serviceRegistry serviceRegistry
-
 	HTTPServer *api.HTTPServer `inject:""`
 }
 
 // init initializes the server and its services.
-func (s *Server) init() error {
+func (s *Server) init(cfg *Config) error {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
@@ -152,19 +125,29 @@ func (s *Server) init() error {
 	login.Init()
 	social.NewOAuthService()
 
-	services := s.serviceRegistry.GetServices()
+	services := registry.GetServices()
 	if err := s.buildServiceGraph(services); err != nil {
 		return err
 	}
 
-	if s.listener != nil {
-		for _, service := range services {
+	// Initialize services.
+	for _, service := range services {
+		if registry.IsDisabled(service.Instance) {
+			continue
+		}
+
+		if cfg != nil {
 			if httpS, ok := service.Instance.(*api.HTTPServer); ok {
 				// Configure the api.HTTPServer if necessary
 				// Hopefully we can find a better solution, maybe with a more advanced DI framework, f.ex. Dig?
-				s.log.Debug("Using provided listener for HTTP server")
-				httpS.Listener = s.listener
+				if cfg.Listener != nil {
+					s.log.Debug("Using provided listener for HTTP server")
+					httpS.Listener = cfg.Listener
+				}
 			}
+		}
+		if err := service.Instance.Init(); err != nil {
+			return errutil.Wrapf(err, "Service init failed")
 		}
 	}
 
@@ -173,14 +156,12 @@ func (s *Server) init() error {
 
 // Run initializes and starts services. This will block until all services have
 // exited. To initiate shutdown, call the Shutdown method in another goroutine.
-func (s *Server) Run() error {
-	defer close(s.shutdownFinished)
-
-	if err := s.init(); err != nil {
-		return err
+func (s *Server) Run() (err error) {
+	if err = s.init(nil); err != nil {
+		return
 	}
 
-	services := s.serviceRegistry.GetServices()
+	services := registry.GetServices()
 
 	// Start background services.
 	for _, svc := range services {
@@ -189,66 +170,78 @@ func (s *Server) Run() error {
 			continue
 		}
 
-		if s.serviceRegistry.IsDisabled(svc.Instance) {
+		if registry.IsDisabled(svc.Instance) {
 			continue
 		}
 
 		// Variable is needed for accessing loop variable in callback
 		descriptor := svc
 		s.childRoutines.Go(func() error {
-			select {
-			case <-s.context.Done():
-				return s.context.Err()
-			default:
+			// Don't start new services when server is shutting down.
+			if s.shutdownInProgress {
+				return nil
 			}
+
 			err := service.Run(s.context)
-			// Do not return context.Canceled error since errgroup.Group only
-			// returns the first error to the caller - thus we can miss a more
-			// interesting error.
-			if err != nil && !errors.Is(err, context.Canceled) {
-				s.log.Error("Stopped "+descriptor.Name, "reason", err)
-				return fmt.Errorf("%s run error: %w", descriptor.Name, err)
+			if err != nil {
+				// Mark that we are in shutdown mode
+				// So no more services are started
+				s.shutdownInProgress = true
+				if err != context.Canceled {
+					// Server has crashed.
+					s.log.Error("Stopped "+descriptor.Name, "reason", err)
+				} else {
+					s.log.Debug("Stopped "+descriptor.Name, "reason", err)
+				}
+
+				return err
 			}
-			s.log.Debug("Stopped "+descriptor.Name, "reason", err)
+
 			return nil
 		})
 	}
 
+	defer func() {
+		s.log.Debug("Waiting on services...")
+		if waitErr := s.childRoutines.Wait(); waitErr != nil && !errors.Is(waitErr, context.Canceled) {
+			s.log.Error("A service failed", "err", waitErr)
+			if err == nil {
+				err = waitErr
+			}
+		}
+	}()
+
 	s.notifySystemd("READY=1")
 
-	s.log.Debug("Waiting on services...")
-	return s.childRoutines.Wait()
+	return nil
 }
 
-// Shutdown initiates Grafana graceful shutdown. This shuts down all
-// running background services. Since Run blocks Shutdown supposed to
-// be run from a separate goroutine.
-func (s *Server) Shutdown(ctx context.Context, reason string) error {
-	var err error
-	s.shutdownOnce.Do(func() {
-		s.log.Info("Shutdown started", "reason", reason)
-		// Call cancel func to stop services.
-		s.shutdownFn()
-		// Wait for server to shut down
-		select {
-		case <-s.shutdownFinished:
-			s.log.Debug("Finished waiting for server to shut down")
-		case <-ctx.Done():
-			s.log.Warn("Timed out while waiting for server to shut down")
-			err = fmt.Errorf("timeout waiting for shutdown")
-		}
-	})
+func (s *Server) Shutdown(reason string) {
+	s.log.Info("Shutdown started", "reason", reason)
+	s.shutdownReason = reason
+	s.shutdownInProgress = true
 
-	return err
+	// call cancel func on root context
+	s.shutdownFn()
+
+	// wait for child routines
+	if err := s.childRoutines.Wait(); err != nil && !errors.Is(err, context.Canceled) {
+		s.log.Error("Failed waiting for services to shutdown", "err", err)
+	}
 }
 
 // ExitCode returns an exit code for a given error.
-func (s *Server) ExitCode(runError error) int {
-	if runError != nil {
-		s.log.Error("Server shutdown", "error", runError)
-		return 1
+func (s *Server) ExitCode(reason error) int {
+	code := 1
+
+	if reason == context.Canceled && s.shutdownReason != "" {
+		reason = fmt.Errorf(s.shutdownReason)
+		code = 0
 	}
-	return 0
+
+	s.log.Error("Server shutdown", "reason", reason)
+
+	return code
 }
 
 // writePIDFile retrieves the current process ID and writes it to file.
@@ -280,12 +273,30 @@ func (s *Server) buildServiceGraph(services []*registry.Descriptor) error {
 	objs := []interface{}{
 		bus.GetBus(),
 		s.cfg,
-		routing.NewRouteRegister(middleware.ProvideRouteOperationName, middleware.RequestMetrics(s.cfg)),
+		routing.NewRouteRegister(middleware.RequestTracing, middleware.RequestMetrics(s.cfg)),
 		localcache.New(5*time.Minute, 10*time.Minute),
-		httpclientprovider.New(s.cfg),
 		s,
 	}
-	return registry.BuildServiceGraph(objs, services)
+
+	for _, service := range services {
+		objs = append(objs, service.Instance)
+	}
+
+	var serviceGraph inject.Graph
+
+	// Provide services and their dependencies to the graph.
+	for _, obj := range objs {
+		if err := serviceGraph.Provide(&inject.Object{Value: obj}); err != nil {
+			return errutil.Wrapf(err, "Failed to provide object to the graph")
+		}
+	}
+
+	// Resolve services and their dependencies.
+	if err := serviceGraph.Populate(); err != nil {
+		return errutil.Wrapf(err, "Failed to populate service dependency")
+	}
+
+	return nil
 }
 
 // loadConfiguration loads settings and configuration from config files.
@@ -297,7 +308,7 @@ func (s *Server) loadConfiguration() {
 	}
 
 	if err := s.cfg.Load(args); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Failed to start grafana. error: %s\n", err.Error())
+		fmt.Fprintf(os.Stderr, "Failed to start grafana. error: %s\n", err.Error())
 		os.Exit(1)
 	}
 
@@ -329,11 +340,7 @@ func (s *Server) notifySystemd(state string) {
 		s.log.Warn("Failed to connect to systemd", "err", err, "socket", notifySocket)
 		return
 	}
-	defer func() {
-		if err := conn.Close(); err != nil {
-			s.log.Warn("Failed to close connection", "err", err)
-		}
-	}()
+	defer conn.Close()
 
 	_, err = conn.Write([]byte(state))
 	if err != nil {

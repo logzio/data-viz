@@ -80,11 +80,11 @@ func GetAlertNotifications(query *models.GetAlertNotificationsQuery) error {
 	return getAlertNotificationInternal(query, newSession())
 }
 
-func (ss *SQLStore) addAlertNotificationUidByIdHandler() {
+func (ss *SqlStore) addAlertNotificationUidByIdHandler() {
 	bus.AddHandler("sql", ss.GetAlertNotificationUidWithId)
 }
 
-func (ss *SQLStore) GetAlertNotificationUidWithId(query *models.GetAlertNotificationUidQuery) error {
+func (ss *SqlStore) GetAlertNotificationUidWithId(query *models.GetAlertNotificationUidQuery) error {
 	cacheKey := newAlertNotificationUidCacheKey(query.OrgId, query.Id)
 
 	if cached, found := ss.CacheService.Get(cacheKey); found {
@@ -299,7 +299,7 @@ func CreateAlertNotificationCommand(cmd *models.CreateAlertNotificationCommand) 
 		}
 
 		if existingQuery.Result != nil {
-			return models.ErrAlertNotificationWithSameUIDExists
+			return fmt.Errorf("Alert notification uid %s already exists", cmd.Uid)
 		}
 
 		// check if name exists
@@ -309,7 +309,7 @@ func CreateAlertNotificationCommand(cmd *models.CreateAlertNotificationCommand) 
 		}
 
 		if sameNameQuery.Result != nil {
-			return models.ErrAlertNotificationWithSameNameExists
+			return fmt.Errorf("Alert notification name %s already exists", cmd.Name)
 		}
 
 		var frequency time.Duration
@@ -390,7 +390,7 @@ func UpdateAlertNotification(cmd *models.UpdateAlertNotificationCommand) error {
 		}
 
 		if sameNameQuery.Result != nil && sameNameQuery.Result.Id != current.Id {
-			return fmt.Errorf("alert notification name %q already exists", cmd.Name)
+			return fmt.Errorf("Alert notification name %s already exists", cmd.Name)
 		}
 
 		// delete empty keys
@@ -431,7 +431,7 @@ func UpdateAlertNotification(cmd *models.UpdateAlertNotificationCommand) error {
 		if affected, err := sess.ID(cmd.Id).Update(current); err != nil {
 			return err
 		} else if affected == 0 {
-			return fmt.Errorf("could not update alert notification")
+			return fmt.Errorf("Could not update alert notification")
 		}
 
 		cmd.Result = &current
@@ -510,7 +510,7 @@ func SetAlertNotificationStateToCompleteCommand(ctx context.Context, cmd *models
 }
 
 func SetAlertNotificationStateToPendingCommand(ctx context.Context, cmd *models.SetAlertNotificationStateToPendingCommand) error {
-	return withDbSession(ctx, x, func(sess *DBSession) error {
+	return withDbSession(ctx, func(sess *DBSession) error {
 		newVersion := cmd.Version + 1
 		sql := `UPDATE alert_notification_state SET
 			state = ?,
@@ -578,7 +578,7 @@ func GetOrCreateAlertNotificationState(ctx context.Context, cmd *models.GetOrCre
 				}
 
 				if !exist {
-					return errors.New("should not happen")
+					return errors.New("Should not happen")
 				}
 
 				cmd.Result = nj

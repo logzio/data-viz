@@ -1,5 +1,5 @@
-import { RangeJSON, Range as SlateRange } from 'slate';
-import { Plugin, Editor as CoreEditor } from 'slate-react';
+import { RangeJSON, Range as SlateRange, Editor as CoreEditor } from 'slate';
+import { Plugin } from '@grafana/slate-react';
 import { isKeyHotkey } from 'is-hotkey';
 
 const isIndentLeftHotkey = isKeyHotkey('mod+[');
@@ -73,8 +73,8 @@ const handleIndent = (editor: CoreEditor, indentDirection: 'left' | 'right') => 
 // Clears the rest of the line after the caret
 export function IndentationPlugin(): Plugin {
   return {
-    onKeyDown(event, editor: CoreEditor, next: Function) {
-      const keyEvent = event as any;
+    onKeyDown(event: Event, editor: CoreEditor, next: Function) {
+      const keyEvent = event as KeyboardEvent;
       if (isIndentLeftHotkey(keyEvent) || isShiftTabHotkey(keyEvent)) {
         keyEvent.preventDefault();
         handleIndent(editor, 'left');

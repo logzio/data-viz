@@ -17,7 +17,7 @@ import (
 
 const AdminUserId = 1
 
-func resetPasswordCommand(c utils.CommandLine, sqlStore *sqlstore.SQLStore) error {
+func resetPasswordCommand(c utils.CommandLine, sqlStore *sqlstore.SqlStore) error {
 	newPassword := ""
 
 	if c.Bool("password-from-stdin") {

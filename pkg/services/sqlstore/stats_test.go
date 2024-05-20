@@ -13,8 +13,8 @@ import (
 )
 
 func TestStatsDataAccess(t *testing.T) {
-	sqlStore := InitTestDB(t)
-	populateDB(t, sqlStore)
+	InitTestDB(t)
+	populateDB(t)
 
 	t.Run("Get system stats should not results in error", func(t *testing.T) {
 		query := models.GetSystemStatsQuery{}
@@ -24,8 +24,6 @@ func TestStatsDataAccess(t *testing.T) {
 		assert.Equal(t, 0, query.Result.Editors)
 		assert.Equal(t, 0, query.Result.Viewers)
 		assert.Equal(t, 3, query.Result.Admins)
-		assert.Equal(t, int64(0), query.Result.LibraryPanels)
-		assert.Equal(t, int64(0), query.Result.LibraryVariables)
 	})
 
 	t.Run("Get system user count stats should not results in error", func(t *testing.T) {
@@ -57,22 +55,33 @@ func TestStatsDataAccess(t *testing.T) {
 		err := GetAdminStats(&query)
 		assert.NoError(t, err)
 	})
+
+	t.Run("Get active user count stats should not result in error", func(t *testing.T) {
+		query := models.GetUserStatsQuery{
+			MustUpdate: true,
+			Active:     true,
+		}
+		err := GetUserStats(context.Background(), &query)
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), query.Result.Users)
+		assert.Equal(t, int64(1), query.Result.Admins)
+		assert.Equal(t, int64(0), query.Result.Editors)
+		assert.Equal(t, int64(0), query.Result.Viewers)
+	})
 }
 
-func populateDB(t *testing.T, sqlStore *SQLStore) {
-	t.Helper()
-
+func populateDB(t *testing.T) {
 	users := make([]models.User, 3)
 	for i := range users {
-		cmd := models.CreateUserCommand{
+		cmd := &models.CreateUserCommand{
 			Email:   fmt.Sprintf("usertest%v@test.com", i),
 			Name:    fmt.Sprintf("user name %v", i),
 			Login:   fmt.Sprintf("user_test_%v_login", i),
 			OrgName: fmt.Sprintf("Org #%v", i),
 		}
-		user, err := sqlStore.CreateUser(context.Background(), cmd)
+		err := CreateUser(context.Background(), cmd)
 		require.NoError(t, err)
-		users[i] = *user
+		users[i] = cmd.Result
 	}
 
 	// get 1st user's organisation
@@ -122,6 +131,10 @@ func populateDB(t *testing.T, sqlStore *SQLStore) {
 	require.NoError(t, err)
 
 	// force renewal of user stats
-	err = updateUserRoleCountsIfNecessary(context.Background(), true)
+	query := models.GetUserStatsQuery{
+		MustUpdate: true,
+		Active:     true,
+	}
+	err = GetUserStats(context.Background(), &query)
 	require.NoError(t, err)
 }

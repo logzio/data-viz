@@ -1,8 +1,8 @@
 package tsdb
 
 import (
-	"github.com/grafana/grafana/pkg/plugins"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/timberio/go-datemath"
@@ -17,11 +17,11 @@ func NewTimeRange(from, to string) *TimeRange {
 }
 
 // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - Add now to time range.
-func CustomNewTimeRange(from, to string, now time.Time) plugins.DataTimeRange {
-	return plugins.DataTimeRange{
+func CustomNewTimeRange(from, to string, now time.Time) *TimeRange {
+	return &TimeRange{
 		From: from,
 		To:   to,
-		Now:  now,
+		now:  now,
 	}
 }
 // LOGZ.IO GRAFANA CHANGE :: end
@@ -124,4 +124,19 @@ func parse(s string, now time.Time, withRoundUp bool, location *time.Location) (
 	}
 
 	return now.Add(diff), nil
+}
+
+// EpochPrecisionToMs converts epoch precision to millisecond, if needed.
+// Only seconds to milliseconds supported right now
+func EpochPrecisionToMs(value float64) float64 {
+	s := strconv.FormatFloat(value, 'e', -1, 64)
+	if strings.HasSuffix(s, "e+09") {
+		return value * float64(1e3)
+	}
+
+	if strings.HasSuffix(s, "e+18") {
+		return value / float64(time.Millisecond)
+	}
+
+	return value
 }

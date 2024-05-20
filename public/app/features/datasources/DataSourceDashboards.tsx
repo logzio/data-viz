@@ -1,6 +1,7 @@
 // Libraries
 import React, { PureComponent } from 'react';
-import { connect, ConnectedProps } from 'react-redux';
+import { hot } from 'react-hot-loader';
+import { connect } from 'react-redux';
 
 // Components
 import Page from 'app/core/components/Page/Page';
@@ -8,6 +9,7 @@ import DashboardTable from './DashboardsTable';
 
 // Actions & Selectors
 import { getNavModel } from 'app/core/selectors/navModel';
+import { getRouteParamsId } from 'app/core/selectors/location';
 import { loadDataSource } from './state/actions';
 import { loadPluginDashboards } from '../plugins/state/actions';
 import { importDashboard, removeDashboard } from '../dashboard/state/actions';
@@ -15,37 +17,26 @@ import { getDataSource } from './state/selectors';
 
 // Types
 import { PluginDashboard, StoreState } from 'app/types';
-import { GrafanaRouteComponentProps } from 'app/core/navigation/types';
+import { DataSourceSettings } from '@grafana/data';
+import { NavModel } from '@grafana/data';
 
-export interface OwnProps extends GrafanaRouteComponentProps<{ uid: string }> {}
-
-function mapStateToProps(state: StoreState, props: OwnProps) {
-  const dataSourceId = props.match.params.uid;
-
-  return {
-    navModel: getNavModel(state.navIndex, `datasource-dashboards-${dataSourceId}`),
-    dashboards: state.plugins.dashboards,
-    dataSource: getDataSource(state.dataSources, dataSourceId),
-    isLoading: state.plugins.isLoadingPluginDashboards,
-    dataSourceId,
-  };
+export interface Props {
+  navModel: NavModel;
+  dashboards: PluginDashboard[];
+  dataSource: DataSourceSettings;
+  pageId: number;
+  importDashboard: typeof importDashboard;
+  loadDataSource: typeof loadDataSource;
+  loadPluginDashboards: typeof loadPluginDashboards;
+  removeDashboard: typeof removeDashboard;
+  isLoading: boolean;
 }
-
-const mapDispatchToProps = {
-  importDashboard,
-  loadDataSource,
-  loadPluginDashboards,
-  removeDashboard,
-};
-
-const connector = connect(mapStateToProps, mapDispatchToProps);
-
-export type Props = OwnProps & ConnectedProps<typeof connector>;
 
 export class DataSourceDashboards extends PureComponent<Props> {
   async componentDidMount() {
-    const { loadDataSource, dataSourceId } = this.props;
-    await loadDataSource(dataSourceId);
+    const { loadDataSource, pageId } = this.props;
+
+    await loadDataSource(pageId);
     this.props.loadPluginDashboards();
   }
 
@@ -82,7 +73,7 @@ export class DataSourceDashboards extends PureComponent<Props> {
           <DashboardTable
             dashboards={dashboards}
             onImport={(dashboard, overwrite) => this.onImport(dashboard, overwrite)}
-            onRemove={(dashboard) => this.onRemove(dashboard)}
+            onRemove={dashboard => this.onRemove(dashboard)}
           />
         </Page.Contents>
       </Page>
@@ -90,4 +81,22 @@ export class DataSourceDashboards extends PureComponent<Props> {
   }
 }
 
-export default connector(DataSourceDashboards);
+function mapStateToProps(state: StoreState) {
+  const pageId = getRouteParamsId(state.location);
+  return {
+    navModel: getNavModel(state.navIndex, `datasource-dashboards-${pageId}`),
+    pageId: pageId,
+    dashboards: state.plugins.dashboards,
+    dataSource: getDataSource(state.dataSources, pageId),
+    isLoading: state.plugins.isLoadingPluginDashboards,
+  };
+}
+
+const mapDispatchToProps = {
+  importDashboard,
+  loadDataSource,
+  loadPluginDashboards,
+  removeDashboard,
+};
+
+export default hot(module)(connect(mapStateToProps, mapDispatchToProps)(DataSourceDashboards));

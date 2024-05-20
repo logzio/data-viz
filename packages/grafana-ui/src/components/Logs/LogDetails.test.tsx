@@ -8,7 +8,6 @@ const setup = (propOverrides?: Partial<Props>, rowOverrides?: Partial<LogRowMode
   const props: Props = {
     theme: {} as GrafanaTheme,
     showDuplicates: false,
-    wrapLogMessage: false,
     row: {
       dataFrame: new MutableDataFrame(),
       entryFieldIndex: 0,
@@ -20,7 +19,6 @@ const setup = (propOverrides?: Partial<Props>, rowOverrides?: Partial<LogRowMode
       timeLocal: '',
       timeUtc: '',
       hasAnsi: false,
-      hasUnescapedContent: false,
       entry: '',
       raw: '',
       uid: '0',
@@ -40,7 +38,7 @@ describe('LogDetails', () => {
   describe('when labels are present', () => {
     it('should render heading', () => {
       const wrapper = setup(undefined, { labels: { key1: 'label1', key2: 'label2' } });
-      expect(wrapper.find({ 'aria-label': 'Log labels' }).hostNodes()).toHaveLength(1);
+      expect(wrapper.find({ 'aria-label': 'Log Labels' }).hostNodes()).toHaveLength(1);
     });
     it('should render labels', () => {
       const wrapper = setup(undefined, { labels: { key1: 'label1', key2: 'label2' } });
@@ -58,7 +56,7 @@ describe('LogDetails', () => {
       const wrapper = setup(undefined, { entry: 'test=successful' });
       expect(wrapper.find({ title: 'Ad-hoc statistics' }).hostNodes()).toHaveLength(1);
     });
-    it('should render detected fields', () => {
+    it('should render parsed fields', () => {
       const wrapper = setup(undefined, { entry: 'test=successful' });
       expect(wrapper.text().includes('testsuccessful')).toBe(true);
     });
@@ -66,10 +64,10 @@ describe('LogDetails', () => {
   describe('when row entry have parsable fields and labels are present', () => {
     it('should render all headings', () => {
       const wrapper = setup(undefined, { entry: 'test=successful', labels: { key: 'label' } });
-      expect(wrapper.find({ 'aria-label': 'Log labels' })).toHaveLength(1);
-      expect(wrapper.find({ 'aria-label': 'Detected fields' })).toHaveLength(1);
+      expect(wrapper.find({ 'aria-label': 'Log Labels' })).toHaveLength(1);
+      expect(wrapper.find({ 'aria-label': 'Parsed Fields' })).toHaveLength(1);
     });
-    it('should render all labels and detected fields', () => {
+    it('should render all labels and parsed fields', () => {
       const wrapper = setup(undefined, {
         entry: 'test=successful',
         labels: { key: 'label' },
@@ -86,7 +84,7 @@ describe('LogDetails', () => {
     it('should not render headings', () => {
       const wrapper = setup(undefined, { entry: '' });
       expect(wrapper.find({ 'aria-label': 'Log labels' })).toHaveLength(0);
-      expect(wrapper.find({ 'aria-label': 'Detected fields' })).toHaveLength(0);
+      expect(wrapper.find({ 'aria-label': 'Parsed fields' })).toHaveLength(0);
     });
   });
 
@@ -108,7 +106,7 @@ describe('LogDetails', () => {
       {
         getFieldLinks: (field: Field, rowIndex: number) => {
           if (field.config && field.config.links) {
-            return field.config.links.map((link) => {
+            return field.config.links.map(link => {
               return {
                 href: link.url.replace('${__value.text}', field.values.get(rowIndex)),
                 title: link.title,

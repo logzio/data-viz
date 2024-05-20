@@ -1,6 +1,6 @@
 import coreModule from 'app/core/core_module';
 import appEvents from 'app/core/app_events';
-import angular from 'angular';
+import angular, { ILocationService } from 'angular';
 import { AppEvents } from '@grafana/data';
 
 const template = `
@@ -11,7 +11,7 @@ const template = `
 `;
 
 /** @ngInject */
-export function uploadDashboardDirective() {
+export function uploadDashboardDirective(timer: any, $location: ILocationService) {
   return {
     restrict: 'E',
     template: template,
@@ -33,7 +33,7 @@ export function uploadDashboardDirective() {
               console.error(err);
               appEvents.emit(AppEvents.alertError, [
                 'Import failed',
-                'JSON -> JS serialization failed: ' + err.message,
+                'JSON -> JS Serialization failed: ' + err.message,
               ]);
               return;
             }
@@ -62,7 +62,7 @@ export function uploadDashboardDirective() {
         // Something
         elem[0].addEventListener('change', file_selected, false);
       } else {
-        appEvents.emit(AppEvents.alertError, ['Oops', 'The HTML5 file APIs are not fully supported in this browser']);
+        appEvents.emit(AppEvents.alertError, ['Oops', 'The HTML5 File APIs are not fully supported in this browser']);
       }
     },
   };

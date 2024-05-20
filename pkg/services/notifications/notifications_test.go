@@ -6,31 +6,32 @@ import (
 	"github.com/grafana/grafana/pkg/bus"
 	"github.com/grafana/grafana/pkg/models"
 	"github.com/grafana/grafana/pkg/setting"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestNotificationService(t *testing.T) {
-	ns := &NotificationService{
-		Cfg: setting.NewCfg(),
-	}
-	ns.Cfg.StaticRootPath = "../../../public/"
-	ns.Cfg.Smtp.Enabled = true
-	ns.Cfg.Smtp.TemplatesPattern = "emails/*.html"
-	ns.Cfg.Smtp.FromAddress = "from@address.com"
-	ns.Cfg.Smtp.FromName = "Grafana Admin"
-	ns.Bus = bus.New()
+func TestNotifications(t *testing.T) {
+	Convey("Given the notifications service", t, func() {
+		setting.StaticRootPath = "../../../public/"
 
-	err := ns.Init()
-	require.NoError(t, err)
+		ns := &NotificationService{}
+		ns.Bus = bus.New()
+		ns.Cfg = setting.NewCfg()
+		ns.Cfg.Smtp.Enabled = true
+		ns.Cfg.Smtp.TemplatesPattern = "emails/*.html"
+		ns.Cfg.Smtp.FromAddress = "from@address.com"
+		ns.Cfg.Smtp.FromName = "Grafana Admin"
 
-	t.Run("When sending reset email password", func(t *testing.T) {
-		err := ns.sendResetPasswordEmail(&models.SendResetPasswordEmailCommand{User: &models.User{Email: "asd@asd.com"}})
-		require.NoError(t, err)
+		err := ns.Init()
+		So(err, ShouldBeNil)
 
-		sentMsg := <-ns.mailQueue
-		assert.Contains(t, sentMsg.Body, "body")
-		assert.Equal(t, "Reset your Grafana password - asd@asd.com", sentMsg.Subject)
-		assert.NotContains(t, sentMsg.Body, "Subject")
+		Convey("When sending reset email password", func() {
+			err := ns.sendResetPasswordEmail(&models.SendResetPasswordEmailCommand{User: &models.User{Email: "asd@asd.com"}})
+			So(err, ShouldBeNil)
+
+			sentMsg := <-ns.mailQueue
+			So(sentMsg.Body, ShouldContainSubstring, "body")
+			So(sentMsg.Subject, ShouldEqual, "Reset your Grafana password - asd@asd.com")
+			So(sentMsg.Body, ShouldNotContainSubstring, "Subject")
+		})
 	})
 }

@@ -5,6 +5,7 @@ import { mockTransformationsRegistry } from '../../utils/tests/mockTransformatio
 import { transformDataFrame } from '../transformDataFrame';
 import { ensureColumnsTransformer } from './ensureColumns';
 import { seriesToColumnsTransformer } from './seriesToColumns';
+import { observableTester } from '../../utils/tests/observableTester';
 
 const seriesA = toDataFrame({
   fields: [
@@ -35,7 +36,7 @@ describe('ensureColumns transformer', () => {
     mockTransformationsRegistry([ensureColumnsTransformer, seriesToColumnsTransformer]);
   });
 
-  it('will transform to columns if time field exists and multiple frames', async () => {
+  it('will transform to columns if time field exists and multiple frames', done => {
     const cfg = {
       id: DataTransformerID.ensureColumns,
       options: {},
@@ -43,84 +44,79 @@ describe('ensureColumns transformer', () => {
 
     const data = [seriesA, seriesBC];
 
-    await expect(transformDataFrame([cfg], data)).toEmitValuesWith((received) => {
-      const filtered = received[0];
-      expect(filtered.length).toEqual(1);
-
-      const frame = filtered[0];
-      expect(frame.fields.length).toEqual(5);
-      expect(filtered[0]).toMatchInlineSnapshot(`
-        Object {
-          "fields": Array [
-            Object {
-              "config": Object {},
-              "name": "TheTime",
-              "state": Object {
-                "displayName": "TheTime",
-              },
-              "type": "time",
-              "values": Array [
-                1000,
-                2000,
-              ],
-            },
-            Object {
-              "config": Object {},
-              "labels": Object {},
-              "name": "A",
-              "state": Object {},
-              "type": "number",
-              "values": Array [
-                1,
-                100,
-              ],
-            },
-            Object {
-              "config": Object {},
-              "labels": Object {},
-              "name": "B",
-              "state": Object {},
-              "type": "number",
-              "values": Array [
-                2,
-                200,
-              ],
-            },
-            Object {
-              "config": Object {},
-              "labels": Object {},
-              "name": "C",
-              "state": Object {},
-              "type": "number",
-              "values": Array [
-                3,
-                300,
-              ],
-            },
-            Object {
-              "config": Object {},
-              "labels": Object {},
-              "name": "D",
-              "state": Object {},
-              "type": "string",
-              "values": Array [
-                "first",
-                "second",
-              ],
-            },
-          ],
-          "length": 2,
-          "meta": Object {
-            "transformations": Array [
-              "ensureColumns",
+    observableTester().subscribeAndExpectOnNext({
+      observable: transformDataFrame([cfg], data),
+      expect: filtered => {
+        expect(filtered.length).toEqual(1);
+        expect(filtered[0]).toMatchInlineSnapshot(`
+      Object {
+        "fields": Array [
+          Object {
+            "config": Object {},
+            "labels": undefined,
+            "name": "TheTime",
+            "type": "time",
+            "values": Array [
+              1000,
+              2000,
             ],
           },
-        }
-      `);
+          Object {
+            "config": Object {},
+            "labels": Object {},
+            "name": "A",
+            "type": "number",
+            "values": Array [
+              1,
+              100,
+            ],
+          },
+          Object {
+            "config": Object {},
+            "labels": Object {},
+            "name": "B",
+            "type": "number",
+            "values": Array [
+              2,
+              200,
+            ],
+          },
+          Object {
+            "config": Object {},
+            "labels": Object {},
+            "name": "C",
+            "type": "number",
+            "values": Array [
+              3,
+              300,
+            ],
+          },
+          Object {
+            "config": Object {},
+            "labels": Object {},
+            "name": "D",
+            "type": "string",
+            "values": Array [
+              "first",
+              "second",
+            ],
+          },
+        ],
+        "meta": Object {
+          "transformations": Array [
+            "ensureColumns",
+          ],
+        },
+        "name": undefined,
+        "refId": undefined,
+      }
+    `);
+      },
+      done,
     });
   });
 
-  it('will not transform to columns if time field is missing for any of the series', async () => {
+  it('will not transform to columns if time field is missing for any of the series', done => {
     const cfg = {
       id: DataTransformerID.ensureColumns,
       options: {},
@@ -128,10 +124,16 @@ describe('ensureColumns transformer', () => {
 
     const data = [seriesBC, seriesNoTime];
 
-    await expect(transformDataFrame([cfg], data)).toEmitValues([data]);
+    observableTester().subscribeAndExpectOnNext({
+      observable: transformDataFrame([cfg], data),
+      expect: filtered => {
+        expect(filtered).toEqual(data);
+      },
+      done,
+    });
   });
 
-  it('will not transform to columns if only one series', async () => {
+  it('will not transform to columns if only one series', done => {
     const cfg = {
       id: DataTransformerID.ensureColumns,
       options: {},
@@ -139,6 +141,12 @@ describe('ensureColumns transformer', () => {
 
     const data = [seriesBC];
 
-    await expect(transformDataFrame([cfg], data)).toEmitValues([data]);
+    observableTester().subscribeAndExpectOnNext({
+      observable: transformDataFrame([cfg], data),
+      expect: filtered => {
+        expect(filtered).toEqual(data);
+      },
+      done,
+    });
   });
 });

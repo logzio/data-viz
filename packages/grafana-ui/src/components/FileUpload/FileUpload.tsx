@@ -1,10 +1,9 @@
 import React, { FC, FormEvent, useCallback, useState } from 'react';
-import { GrafanaTheme2 } from '@grafana/data';
-import { css, cx } from '@emotion/css';
-import { Icon } from '../index';
-import { stylesFactory, useTheme2 } from '../../themes';
+import { GrafanaTheme } from '@grafana/data';
+import { css, cx } from 'emotion';
+import { getFormStyles, Icon } from '../index';
+import { stylesFactory, useTheme } from '../../themes';
 import { ComponentSize } from '../../types/size';
-import { getButtonStyles } from '../Button';
 
 export interface Props {
   /** Callback function to handle uploaded file  */
@@ -37,20 +36,17 @@ export const FileUpload: FC<Props> = ({
   accept = '*',
   size = 'md',
 }) => {
-  const theme = useTheme2();
+  const theme = useTheme();
   const style = getStyles(theme, size);
   const [fileName, setFileName] = useState('');
 
-  const onChange = useCallback(
-    (event: FormEvent<HTMLInputElement>) => {
-      const file = event.currentTarget?.files?.[0];
-      if (file) {
-        setFileName(file.name ?? '');
-      }
-      onFileUpload(event);
-    },
-    [onFileUpload]
-  );
+  const onChange = useCallback((event: FormEvent<HTMLInputElement>) => {
+    const file = event.currentTarget?.files?.[0];
+    if (file) {
+      setFileName(file.name ?? '');
+    }
+    onFileUpload(event);
+  }, []);
 
   return (
     <>
@@ -75,16 +71,20 @@ export const FileUpload: FC<Props> = ({
   );
 };
 
-const getStyles = stylesFactory((theme: GrafanaTheme2, size: ComponentSize) => {
-  const buttonStyles = getButtonStyles({ theme, variant: 'primary', size, iconOnly: false });
+const getStyles = stylesFactory((theme: GrafanaTheme, size: ComponentSize) => {
+  const buttonFormStyle = getFormStyles(theme, { variant: 'primary', invalid: false, size }).button.button;
   return {
     fileUpload: css`
       display: none;
     `,
-    button: buttonStyles.button,
-    icon: buttonStyles.icon,
+    button: css`
+      ${buttonFormStyle}
+    `,
+    icon: css`
+      margin-right: ${theme.spacing.xs};
+    `,
     fileName: css`
-      margin-left: ${theme.spacing(0.5)};
+      margin-left: ${theme.spacing.xs};
     `,
   };
 });

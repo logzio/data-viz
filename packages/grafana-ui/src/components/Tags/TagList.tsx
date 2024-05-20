@@ -1,5 +1,5 @@
 import React, { FC, memo } from 'react';
-import { css, cx } from '@emotion/css';
+import { cx, css } from 'emotion';
 import { OnTagClick, Tag } from './Tag';
 
 export interface Props {
@@ -14,14 +14,12 @@ export const TagList: FC<Props> = memo(({ tags, onClick, className }) => {
 
   return (
     <span className={cx(styles.wrapper, className)}>
-      {tags.map((tag) => (
+      {tags.map(tag => (
         <Tag key={tag} name={tag} onClick={onClick} className={styles.tag} />
       ))}
     </span>
   );
 });
-
-TagList.displayName = 'TagList';
 
 const getStyles = () => {
   return {
@@ -29,11 +27,9 @@ const getStyles = () => {
       display: flex;
       flex: 1 1 auto;
       flex-wrap: wrap;
-      margin-bottom: -6px;
-      justify-content: flex-end;
     `,
     tag: css`
-      margin: 0 0 6px 6px;
+      margin-left: 6px;
     `,
   };
 };

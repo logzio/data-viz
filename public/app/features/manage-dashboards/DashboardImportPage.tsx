@@ -1,8 +1,8 @@
 import React, { FormEvent, PureComponent } from 'react';
 import { MapDispatchToProps, MapStateToProps } from 'react-redux';
-import { css } from '@emotion/css';
-import { AppEvents, GrafanaTheme2, NavModel } from '@grafana/data';
-import { Button, stylesFactory, withTheme2, TextArea, Field, Form, Legend, FileUpload, Themeable2 } from '@grafana/ui'; // LOGZ.IO GRAFANA CHANGE :: DEV-23444 Hide import via grafana.com
+import { css } from 'emotion';
+import { AppEvents, NavModel } from '@grafana/data';
+import { Button, stylesFactory, TextArea, Field, Form, Legend, FileUpload } from '@grafana/ui'; // LOGZ.IO GRAFANA CHANGE :: DEV-23444 Hide import via grafana.com
 import Page from 'app/core/components/Page/Page';
 import { connectWithCleanUp } from 'app/core/components/connectWithCleanUp';
 import { ImportDashboardOverview } from './components/ImportDashboardOverview';
@@ -12,7 +12,7 @@ import appEvents from 'app/core/app_events';
 import { getNavModel } from 'app/core/selectors/navModel';
 import { StoreState } from 'app/types';
 
-interface OwnProps extends Themeable2 {}
+interface OwnProps {}
 
 interface ConnectedProps {
   navModel: NavModel;
@@ -26,7 +26,7 @@ interface DispatchProps {
 
 type Props = OwnProps & ConnectedProps & DispatchProps;
 
-class UnthemedDashboardImport extends PureComponent<Props> {
+class DashboardImportUnConnected extends PureComponent<Props> {
   onFileUpload = (event: FormEvent<HTMLInputElement>) => {
     const { importDashboardJson } = this.props;
     const file = event.currentTarget.files && event.currentTarget.files.length > 0 && event.currentTarget.files[0];
@@ -72,7 +72,7 @@ class UnthemedDashboardImport extends PureComponent<Props> {
   };
 
   renderImportForm() {
-    const styles = importStyles(this.props.theme);
+    const styles = importStyles();
 
     return (
       <>
@@ -88,10 +88,11 @@ class UnthemedDashboardImport extends PureComponent<Props> {
             {({ register, errors }) => (
               <Field invalid={!!errors.gcomDashboard} error={errors.gcomDashboard && errors.gcomDashboard.message}>
                 <Input
-                  placeholder="Grafana.com dashboard URL or ID"
+                  name="gcomDashboard"
+                  placeholder="Grafana.com dashboard url or id"
                   type="text"
-                  {...register('gcomDashboard', {
-                    required: 'A Grafana dashboard URL or ID is required',
+                  ref={register({
+                    required: 'A Grafana dashboard url or id is required',
                     validate: validateGcomDashboard,
                   })}
                   addonAfter={<Button type="submit">Load</Button>}
@@ -108,8 +109,9 @@ class UnthemedDashboardImport extends PureComponent<Props> {
               <>
                 <Field invalid={!!errors.dashboardJson} error={errors.dashboardJson && errors.dashboardJson.message}>
                   <TextArea
-                    {...register('dashboardJson', {
-                      required: 'Need a dashboard JSON model',
+                    name="dashboardJson"
+                    ref={register({
+                      required: 'Need a dashboard json model',
                       validate: validateDashboardJson,
                     })}
                     rows={10}
@@ -134,8 +136,6 @@ class UnthemedDashboardImport extends PureComponent<Props> {
   }
 }
 
-const DashboardImportUnConnected = withTheme2(UnthemedDashboardImport);
-
 const mapStateToProps: MapStateToProps<ConnectedProps, OwnProps, StoreState> = (state: StoreState) => ({
   navModel: getNavModel(state.navIndex, 'import', undefined, true),
   isLoaded: state.importDashboard.isLoaded,
@@ -149,17 +149,15 @@ const mapDispatchToProps: MapDispatchToProps<DispatchProps, Props> = {
 export const DashboardImportPage = connectWithCleanUp(
   mapStateToProps,
   mapDispatchToProps,
-  (state) => state.importDashboard
+  state => state.importDashboard
 )(DashboardImportUnConnected);
-
 export default DashboardImportPage;
-
 DashboardImportPage.displayName = 'DashboardImport';
 
-const importStyles = stylesFactory((theme: GrafanaTheme2) => {
+const importStyles = stylesFactory(() => {
   return {
     option: css`
-      margin-bottom: ${theme.spacing(4)};
+      margin-bottom: 32px;
     `,
   };
 });

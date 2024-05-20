@@ -9,7 +9,6 @@ import { useNavModel } from 'app/core/hooks/useNavModel';
 import { LinkButton } from '@grafana/ui'; // LOGZ.IO GRAFANA CHANGE :: reimport LinkButton
 // import { CoreEvents } from 'app/types'; // LOGZ.IO GRAFANA CHANGE :: comment out to prevent ts errors
 import { AlertNotification } from 'app/types/alerting';
-// import { ShowConfirmModalEvent } from '../../types/events'; // LOGZ.IO GRAFANA CHANGE :: Disable exemplars
 
 const NotificationsListPage: FC = () => {
   const navModel = useNavModel('channels');
@@ -22,10 +21,10 @@ const NotificationsListPage: FC = () => {
 
   const [state, fetchNotifications] = useAsyncFn(getNotifications);
   useEffect(() => {
-    fetchNotifications().then((res) => {
+    fetchNotifications().then(res => {
       setNotifications(res);
     });
-  }, [fetchNotifications]);
+  }, []);
 
   // LOGZ.IO GRAFANA CHANGE :: comment out to prevent ts errors
   // const deleteNotification = (id: number) => {
@@ -82,7 +81,7 @@ const NotificationsListPage: FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {notifications.map((notification) => (
+                {notifications.map(notification => (
                   <tr key={notification.id}>
                     <td className="link-td">
                       {/*LOGZ.IO GRAFANA CHANGE :: (ALERTS) Disable endpoints editing in grafana*/}

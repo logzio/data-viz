@@ -1,13 +1,9 @@
 import React from 'react';
-import { Story } from '@storybook/react';
+import { select } from '@storybook/addon-knobs';
 import { action } from '@storybook/addon-actions';
-import { Alert, AlertVariant, VerticalGroup } from '@grafana/ui';
-import { Props } from './Alert';
+import { Alert, AlertVariant } from './Alert';
 import { withCenteredStory, withHorizontallyCenteredStory } from '../../utils/storybook/withCenteredStory';
 import mdx from '../Alert/Alert.mdx';
-import { StoryExample } from '../../utils/storybook/StoryExample';
-
-const severities: AlertVariant[] = ['error', 'warning', 'info', 'success'];
 
 export default {
   title: 'Overlays/Alert',
@@ -18,50 +14,28 @@ export default {
       page: mdx,
     },
   },
-  argTypes: {
-    severity: { control: { type: 'select', options: severities } },
-  },
 };
 
-export const Examples: Story<Props> = ({ severity, title, buttonContent }) => {
+const severities: AlertVariant[] = ['error', 'warning', 'info', 'success'];
+
+export const basic = () => {
+  const severity = select('Severity', severities, 'info');
+  return <Alert title="Some very important message" severity={severity} />;
+};
+
+export const withRemove = () => {
+  const severity = select('Severity', severities, 'info');
+  return <Alert title="Some very important message" severity={severity} onRemove={action('Remove button clicked')} />;
+};
+
+export const customButtonContent = () => {
+  const severity = select('Severity', severities, 'info');
   return (
-    <VerticalGroup>
-      <StoryExample name="With buttonContent and children">
-        <Alert
-          title={title}
-          severity={severity}
-          buttonContent={<span>{buttonContent}</span>}
-          onRemove={action('Remove button clicked')}
-        >
-          <VerticalGroup>
-            <div>Child content that includes some alert details, like maybe what actually happened.</div>
-          </VerticalGroup>
-        </Alert>
-      </StoryExample>
-      <StoryExample name="No dismiss">
-        <Alert title={title} severity={severity} />
-      </StoryExample>
-      <StoryExample name="Elevated alert used for absolute positioned alerts">
-        <Alert title={title} severity={severity} elevated />
-      </StoryExample>
-      <StoryExample name="Severities">
-        <VerticalGroup>
-          {severities.map((severity) => (
-            <Alert
-              title={`Severity: ${severity}`}
-              severity={severity}
-              key={severity}
-              onRemove={action('Remove button clicked')}
-            />
-          ))}
-        </VerticalGroup>
-      </StoryExample>
-    </VerticalGroup>
+    <Alert
+      title="Some very important message"
+      severity={severity}
+      buttonContent={<span>Close</span>}
+      onRemove={action('Remove button clicked')}
+    />
   );
-};
-
-Examples.args = {
-  severity: 'error',
-  title: 'Some very important message',
-  buttonContent: 'Close',
 };

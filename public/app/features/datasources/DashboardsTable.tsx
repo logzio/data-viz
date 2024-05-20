@@ -1,6 +1,6 @@
 import React, { FC } from 'react';
 import { PluginDashboard } from '../../types';
-import { Button, Icon } from '@grafana/ui';
+import { Icon } from '@grafana/ui';
 
 export interface Props {
   dashboards: PluginDashboard[];
@@ -31,16 +31,18 @@ const DashboardsTable: FC<Props> = ({ dashboards, onImport, onRemove }) => {
               </td>
               <td style={{ textAlign: 'right' }}>
                 {!dashboard.imported ? (
-                  <Button variant="secondary" size="sm" onClick={() => onImport(dashboard, false)}>
+                  <button className="btn btn-secondary btn-small" onClick={() => onImport(dashboard, false)}>
                     Import
-                  </Button>
+                  </button>
                 ) : (
-                  <Button variant="secondary" size="sm" onClick={() => onImport(dashboard, true)}>
+                  <button className="btn btn-secondary btn-small" onClick={() => onImport(dashboard, true)}>
                     {buttonText(dashboard)}
-                  </Button>
+                  </button>
                 )}
                 {dashboard.imported && (
-                  <Button icon="trash-alt" variant="destructive" size="sm" onClick={() => onRemove(dashboard)} />
+                  <button className="btn btn-danger btn-small" onClick={() => onRemove(dashboard)}>
+                    <Icon name="trash-alt" />
+                  </button>
                 )}
               </td>
             </tr>

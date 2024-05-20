@@ -1,108 +1,72 @@
-import React, { useState } from 'react';
-import { css } from '@emotion/css';
+import React, { FC, useContext } from 'react';
+import { css } from 'emotion';
 import { Modal } from '../Modal/Modal';
 import { IconName } from '../../types/icon';
 import { Button } from '../Button';
-import { useStyles2 } from '../../themes';
-import { GrafanaTheme2 } from '@grafana/data';
-import { HorizontalGroup, Input } from '..';
-import { selectors } from '@grafana/e2e-selectors';
+import { stylesFactory, ThemeContext } from '../../themes';
+import { GrafanaTheme } from '@grafana/data';
+import { HorizontalGroup } from '..';
 
-export interface ConfirmModalProps {
+export interface Props {
   /** Toggle modal's open/closed state */
   isOpen: boolean;
   /** Title for the modal header */
   title: string;
   /** Modal content */
   body: React.ReactNode;
-  /** Modal description */
-  description?: React.ReactNode;
   /** Text for confirm button */
   confirmText: string;
   /** Text for dismiss button */
   dismissText?: string;
   /** Icon for the modal header */
   icon?: IconName;
-  /** Text user needs to fill in before confirming */
-  confirmationText?: string;
-  /** Text for alternative button */
-  alternativeText?: string;
   /** Confirm action callback */
   onConfirm(): void;
   /** Dismiss action callback */
   onDismiss(): void;
-  /** Alternative action callback */
-  onAlternative?(): void;
 }
 
-export const ConfirmModal = ({
+export const ConfirmModal: FC<Props> = ({
   isOpen,
   title,
   body,
-  description,
   confirmText,
-  confirmationText,
   dismissText = 'Cancel',
-  alternativeText,
   icon = 'exclamation-triangle',
   onConfirm,
   onDismiss,
-  onAlternative,
-}: ConfirmModalProps): JSX.Element => {
-  const [disabled, setDisabled] = useState(Boolean(confirmationText));
-  const styles = useStyles2(getStyles);
-  const onConfirmationTextChange = (event: React.FormEvent<HTMLInputElement>) => {
-    setDisabled(confirmationText?.localeCompare(event.currentTarget.value) !== 0);
-  };
+}) => {
+  const theme = useContext(ThemeContext);
+  const styles = getStyles(theme);
 
   return (
     <Modal className={styles.modal} title={title} icon={icon} isOpen={isOpen} onDismiss={onDismiss}>
-      <div className={styles.modalText}>
-        {body}
-        {description ? <div className={styles.modalDescription}>{description}</div> : null}
-        {confirmationText ? (
-          <div className={styles.modalConfirmationInput}>
-            <HorizontalGroup>
-              <Input placeholder={`Type ${confirmationText} to confirm`} onChange={onConfirmationTextChange} />
-            </HorizontalGroup>
-          </div>
-        ) : null}
-      </div>
-      <Modal.ButtonRow>
-        <Button variant="secondary" onClick={onDismiss} fill="outline">
-          {dismissText}
-        </Button>
-        <Button
-          variant="destructive"
-          onClick={onConfirm}
-          disabled={disabled}
-          autoFocus
-          aria-label={selectors.pages.ConfirmModal.delete}
-        >
-          {confirmText}
-        </Button>
-        {onAlternative ? (
-          <Button variant="primary" onClick={onAlternative}>
-            {alternativeText}
+      <div className={styles.modalContent}>
+        <div className={styles.modalText}>{body}</div>
+        <HorizontalGroup justify="center">
+          <Button variant="destructive" onClick={onConfirm}>
+            {confirmText}
           </Button>
-        ) : null}
-      </Modal.ButtonRow>
+          <Button variant="secondary" onClick={onDismiss}>
+            {dismissText}
+          </Button>
+        </HorizontalGroup>
+      </div>
     </Modal>
   );
 };
 
-const getStyles = (theme: GrafanaTheme2) => ({
+const getStyles = stylesFactory((theme: GrafanaTheme) => ({
   modal: css`
     width: 500px;
   `,
-  modalText: css({
-    fontSize: theme.typography.h5.fontSize,
-    color: theme.colors.text.primary,
-  }),
-  modalDescription: css({
-    fontSize: theme.typography.body.fontSize,
-  }),
-  modalConfirmationInput: css({
-    paddingTop: theme.spacing(1),
-  }),
-});
+  modalContent: css`
+    text-align: center;
+  `,
+  modalText: css`
+    font-size: ${theme.typography.heading.h4};
+    color: ${theme.colors.link};
+    margin-bottom: calc(${theme.spacing.d} * 2);
+    padding-top: ${theme.spacing.d};
+  `,
+}));

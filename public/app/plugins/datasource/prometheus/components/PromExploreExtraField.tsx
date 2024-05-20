@@ -1,39 +1,29 @@
 // Libraries
 import React, { memo } from 'react';
-import { css, cx } from '@emotion/css';
+import { css, cx } from 'emotion';
 
 // Types
 import { InlineFormLabel, RadioButtonGroup } from '@grafana/ui';
-import { PromQuery } from '../types';
-// import { PromExemplarField } from './PromExemplarField'; // LOGZ.IO GRAFANA CHANGE :: Disable exemplars
-import { PrometheusDatasource } from '../datasource';
 
 export interface PromExploreExtraFieldProps {
   queryType: string;
   stepValue: string;
-  query: PromQuery;
   onStepChange: (e: React.SyntheticEvent<HTMLInputElement>) => void;
   onKeyDownFunc: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   onQueryTypeChange: (value: string) => void;
-  onChange: (value: PromQuery) => void;
-  datasource: PrometheusDatasource;
 }
 
 export const PromExploreExtraField: React.FC<PromExploreExtraFieldProps> = memo(
-  ({ queryType, stepValue, query, onChange, onStepChange, onQueryTypeChange, onKeyDownFunc, datasource }) => {
+  ({ queryType, stepValue, onStepChange, onQueryTypeChange, onKeyDownFunc }) => {
     const rangeOptions = [
-      { value: 'range', label: 'Range', description: 'Run query over a range of time.' },
-      {
-        value: 'instant',
-        label: 'Instant',
-        description: 'Run query against a single point in time. For this query, the "To" time is used.',
-      },
-      { value: 'both', label: 'Both', description: 'Run an Instant query and a Range query.' },
+      { value: 'range', label: 'Range' },
+      { value: 'instant', label: 'Instant' },
+      { value: 'both', label: 'Both' },
     ];
 
     return (
       <div aria-label="Prometheus extra field" className="gf-form-inline">
-        {/*Query type field*/}
+        {/*QueryTypeField */}
         <div
           data-testid="queryTypeField"
           className={cx(
@@ -44,7 +34,7 @@ export const PromExploreExtraField: React.FC<PromExploreExtraFieldProps> = memo(
           )}
           aria-label="Query type field"
         >
-          <InlineFormLabel width="auto">Query type</InlineFormLabel>
+          <InlineFormLabel width={5}>Query type</InlineFormLabel>
 
           <RadioButtonGroup options={rangeOptions} value={queryType} onChange={onQueryTypeChange} />
         </div>
@@ -76,13 +66,6 @@ export const PromExploreExtraField: React.FC<PromExploreExtraFieldProps> = memo(
             value={stepValue}
           />
         </div>
-
-        {/*LOGZ.IO GRAFANA CHANGE :: Disable exemplars*/}
-        {/*<PromExemplarField*/}
-        {/*  isEnabled={Boolean(query.exemplar)}*/}
-        {/*  onChange={(isEnabled) => onChange({ ...query, exemplar: isEnabled })}*/}
-        {/*  datasource={datasource}*/}
-        {/*/>*/}
       </div>
     );
   }

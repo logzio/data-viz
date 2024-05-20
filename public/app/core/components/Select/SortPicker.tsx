@@ -1,6 +1,6 @@
 import React, { FC } from 'react';
 import { useAsync } from 'react-use';
-import { Icon, IconName, Select } from '@grafana/ui';
+import { Select, Icon } from '@grafana/ui';
 import { SelectableValue } from '@grafana/data';
 import { DEFAULT_SORT } from 'app/features/search/constants';
 import { SearchSrv } from '../../services/search_srv';
@@ -9,32 +9,28 @@ const searchSrv = new SearchSrv();
 
 export interface Props {
   onChange: (sortValue: SelectableValue) => void;
-  value?: string;
+  value?: SelectableValue | null;
   placeholder?: string;
-  filter?: string[];
 }
 
-const getSortOptions = (filter?: string[]) => {
+const getSortOptions = () => {
   return searchSrv.getSortOptions().then(({ sortOptions }) => {
-    const filteredOptions = filter ? sortOptions.filter((o: any) => filter.includes(o.name)) : sortOptions;
-    return filteredOptions.map((opt: any) => ({ label: opt.displayName, value: opt.name }));
+    return sortOptions.map((opt: any) => ({ label: opt.displayName, value: opt.name }));
   });
 };
 
-export const SortPicker: FC<Props> = ({ onChange, value, placeholder, filter }) => {
+export const SortPicker: FC<Props> = ({ onChange, value, placeholder }) => {
   // Using sync Select and manual options fetching here since we need to find the selected option by value
-  const { loading, value: options } = useAsync<SelectableValue[]>(() => getSortOptions(filter), []);
+  const { loading, value: options } = useAsync<SelectableValue[]>(getSortOptions, []);
 
-  const selected = options?.find((opt) => opt.value === value);
   return !loading ? (
     <Select
-      key={value}
       width={25}
       onChange={onChange}
-      value={selected ?? null}
+      value={options?.filter(opt => opt.value === value)}
       options={options}
       placeholder={placeholder ?? `Sort (Default ${DEFAULT_SORT.label})`}
-      prefix={<Icon name={(value?.includes('asc') ? 'sort-amount-up' : 'sort-amount-down') as IconName} />}
+      prefix={<Icon name="sort-amount-down" />}
     />
   ) : null;
 };

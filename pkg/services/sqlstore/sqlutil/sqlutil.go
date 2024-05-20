@@ -10,12 +10,11 @@ type TestDB struct {
 	ConnStr    string
 }
 
-func SQLite3TestDB() TestDB {
+func Sqlite3TestDB() TestDB {
 	// To run all tests in a local test database, set ConnStr to "grafana_test.db"
 	return TestDB{
 		DriverName: "sqlite3",
-		// ConnStr specifies an In-memory database shared between connections.
-		ConnStr: "file::memory:?cache=shared",
+		ConnStr:    ":memory:",
 	}
 }
 

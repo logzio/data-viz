@@ -15,7 +15,7 @@ const packageJsonFile = 'package.json';
 
 const failures: FailedVersionCheck[] = [];
 
-export const nodeVersionFiles = [packageJsonFile, 'Dockerfile'];
+export const nodeVersionFiles = [packageJsonFile, 'Dockerfile', '.circleci/config.yml'];
 
 const nodeVersionCheckerRunner: TaskRunner<NodeVersionCheckerOptions> = async () => {
   // Read version from package json and treat that as the expected version in all other locations

@@ -1,12 +1,13 @@
 import React, { PureComponent } from 'react';
-import { isEqual } from 'lodash';
+import _ from 'lodash';
 import tinycolor from 'tinycolor2';
-import { css, cx } from '@emotion/css';
+import { css, cx } from 'emotion';
 import { LogRowModel, findHighlightChunksInText, GrafanaTheme } from '@grafana/data';
 
 // @ts-ignore
 import Highlighter from 'react-highlight-words';
 import { LogRowContextQueryErrors, HasMoreContextRows, LogRowContextRows } from './LogRowContextProvider';
+import { selectThemeVariant } from '../../index';
 import { Themeable } from '../../types/theme';
 import { withTheme } from '../../themes/index';
 import { getLogRowStyles } from './getLogRowStyles';
@@ -33,7 +34,13 @@ interface Props extends Themeable {
 }
 
 const getStyles = stylesFactory((theme: GrafanaTheme) => {
-  const outlineColor = tinycolor(theme.colors.dashboardBg).setAlpha(0.7).toRgbString();
+  const outlineColor = selectThemeVariant(
+    {
+      light: theme.palette.white,
+      dark: theme.palette.black,
+    },
+    theme.type
+  );
 
   return {
     positionRelative: css`
@@ -43,7 +50,10 @@ const getStyles = stylesFactory((theme: GrafanaTheme) => {
     rowWithContext: css`
       label: rowWithContext;
       z-index: 1;
-      outline: 9999px solid ${outlineColor};
+      outline: 9999px solid
+        ${tinycolor(outlineColor as tinycolor.ColorInput)
+          .setAlpha(0.7)
+          .toRgbString()};
     `,
     horizontalScroll: css`
       label: verticalScroll;
@@ -76,7 +86,7 @@ class UnThemedLogRowMessage extends PureComponent<Props> {
     const style = getLogRowStyles(theme, row.logLevel);
     const { entry, hasAnsi, raw } = row;
 
-    const previewHighlights = highlighterExpressions?.length && !isEqual(highlighterExpressions, row.searchWords);
+    const previewHighlights = highlighterExpressions && !_.isEqual(highlighterExpressions, row.searchWords);
     const highlights = previewHighlights ? highlighterExpressions : row.searchWords;
     const needsHighlighter =
       highlights && highlights.length > 0 && highlights[0] && highlights[0].length > 0 && entry.length < MAX_CHARACTERS;
@@ -106,7 +116,7 @@ class UnThemedLogRowMessage extends PureComponent<Props> {
             {needsHighlighter ? (
               <Highlighter
                 textToHighlight={entry}
-                searchWords={highlights ?? []}
+                searchWords={highlights}
                 findChunks={findHighlightChunksInText}
                 highlightClassName={highlightClassName}
               />
@@ -117,7 +127,7 @@ class UnThemedLogRowMessage extends PureComponent<Props> {
             )}
           </span>
           {showContextToggle?.(row) && (
-            <span onClick={this.onContextToggle} className={cx('log-row-context', style.context)}>
+            <span onClick={this.onContextToggle} className={cx(style.context)}>
               {contextIsOpen ? 'Hide' : 'Show'} context
             </span>
           )}

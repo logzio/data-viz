@@ -1,58 +1,52 @@
+// Libraries
 import $ from 'jquery';
-import React, { PureComponent } from 'react';
-import { css } from 'emotion';
+import React, { MouseEvent, PureComponent } from 'react';
 import { hot } from 'react-hot-loader';
 import { connect } from 'react-redux';
-import { locationService } from '@grafana/runtime';
-import { selectors } from '@grafana/e2e-selectors';
-import { CustomScrollbar, ScrollbarPosition, stylesFactory, Themeable2, withTheme2 } from '@grafana/ui';
-import { debounce } from 'lodash'; // LOGZ.IO GRAFANA CHANGE :: DEV-28669 :: Global Filters :: Enable/Disable filters and debounce refresh-subscribers
+
+// Services & Utils
 import { createErrorNotification } from 'app/core/copy/appNotification';
+import { getMessageFromError } from 'app/core/utils/errors';
 import { Branding } from 'app/core/components/Branding/Branding';
+// Components
 import { DashboardGrid } from '../dashgrid/DashboardGrid';
 import { DashNav } from '../components/DashNav';
 import { DashboardSettings } from '../components/DashboardSettings';
 import { PanelEditor } from '../components/PanelEditor/PanelEditor';
+import { Alert, Button, CustomScrollbar, HorizontalGroup, Icon, VerticalGroup } from '@grafana/ui';
+// Redux
 import { initDashboard } from '../state/initDashboard';
-import { notifyApp } from 'app/core/actions';
-import { DashboardInitError, DashboardInitPhase, KioskMode, StoreState } from 'app/types';
+import { notifyApp, updateLocation } from 'app/core/actions';
+// Types
+import {
+  AppNotificationSeverity,
+  DashboardInitError,
+  DashboardInitPhase,
+  DashboardRouteInfo,
+  StoreState,
+} from 'app/types';
+
 import { DashboardModel, PanelModel } from 'app/features/dashboard/state';
+import { InspectTab } from '../components/Inspector/types';
 import { PanelInspector } from '../components/Inspector/PanelInspector';
 import { SubMenu } from '../components/SubMenu/SubMenu';
 import { cleanUpDashboardAndVariables } from '../state/actions';
-import { cancelVariables, templateVarsChangedInUrl } from '../../variables/state/actions';
-import { findTemplateVarChanges } from '../../variables/utils';
+import { cancelVariables } from '../../variables/state/actions';
 import { dashboardWatcher } from 'app/features/live/dashboard/dashboardWatcher';
-import { GrafanaRouteComponentProps } from 'app/core/navigation/types';
-import { getTimeSrv } from '../services/TimeSrv';
-import { getKioskMode } from 'app/core/navigation/kiosk';
-import { GrafanaTheme2, UrlQueryValue, logzioServices } from '@grafana/data'; // LOGZ.IO GRAFANA CHANGE :: DEV-27954 :: Global Filters :: Import logzioServices
-import { DashboardLoading } from '../components/DashboardLoading/DashboardLoading';
-import { DashboardFailed } from '../components/DashboardLoading/DashboardFailed';
-import { DashboardPrompt } from '../components/DashboardPrompt/DashboardPrompt';
 
-export interface DashboardPageRouteParams {
-  uid?: string;
-  type?: string;
-  slug?: string;
-}
-
-type DashboardPageRouteSearchParams = {
-  tab?: string;
-  folderId?: string;
-  editPanel?: string;
-  viewPanel?: string;
+export interface Props {
+  urlUid?: string;
+  urlSlug?: string;
+  urlType?: string;
   editview?: string;
-  inspect?: string;
-  kiosk?: UrlQueryValue;
-  from?: string;
-  to?: string;
-  refresh?: string;
-};
-
-export interface Props
-  extends Themeable2,
-    GrafanaRouteComponentProps<DashboardPageRouteParams, DashboardPageRouteSearchParams> {
+  urlPanelId?: string;
+  urlFolderId?: string;
+  inspectPanelId?: string;
+  $scope: any;
+  $injector: any;
+  routeInfo: DashboardRouteInfo;
+  urlEditPanelId?: string;
+  urlViewPanelId?: string;
   initPhase: DashboardInitPhase;
   isInitSlow: boolean;
   dashboard: DashboardModel | null;
@@ -60,9 +54,10 @@ export interface Props
   initDashboard: typeof initDashboard;
   cleanUpDashboardAndVariables: typeof cleanUpDashboardAndVariables;
   notifyApp: typeof notifyApp;
+  updateLocation: typeof updateLocation;
+  inspectTab?: InspectTab;
   isPanelEditorOpen?: boolean;
   cancelVariables: typeof cancelVariables;
-  templateVarsChangedInUrl: typeof templateVarsChangedInUrl;
 }
 
 export interface State {
@@ -74,113 +69,57 @@ export interface State {
   showLoadingState: boolean;
 }
 
-export class UnthemedDashboardPage extends PureComponent<Props, State> {
-  private forceRouteReloadCounter = 0;
-  state: State = this.getCleanState();
+export class DashboardPage extends PureComponent<Props, State> {
+  state: State = {
+    editPanel: null,
+    viewPanel: null,
+    showLoadingState: false,
+    scrollTop: 0,
+    rememberScrollTop: 0,
+  };
 
-  getCleanState(): State {
-    return {
-      editPanel: null,
-      viewPanel: null,
-      showLoadingState: false,
-      scrollTop: 0,
-      rememberScrollTop: 0,
-    };
-  }
-
-  // LOGZ.IO GRAFANA CHANGE :: DEV-27954 :: Unified Filters :: Listen to unified filters changes
-  private logzioUnifiedFiltersSubscriber: any;
-  private logzioUnifiedVariablesSubscriber: any;
-  private logzioEnabledFiltersStatusSubscriber: any;
-  // LOGZ.IO GRAFANA CHANGE :: DEV-27954 :: Unified Filters :: Listen to unified filters changes :: End
-
-  componentDidMount() {
-    this.initDashboard();
-    this.forceRouteReloadCounter = (this.props.history.location.state as any)?.routeReloadCounter || 0;
+  async componentDidMount() {
+    this.props.initDashboard({
+      $injector: this.props.$injector,
+      $scope: this.props.$scope,
+      urlSlug: this.props.urlSlug,
+      urlUid: this.props.urlUid,
+      urlType: this.props.urlType,
+      urlFolderId: this.props.urlFolderId,
+      routeInfo: this.props.routeInfo,
+      fixUrl: true,
+    });
   }
 
   componentWillUnmount() {
-    this.closeDashboard();
-  }
-
-  closeDashboard() {
     this.props.cleanUpDashboardAndVariables();
     this.setPanelFullscreenClass(false);
-    this.setState(this.getCleanState());
-
-    this.unsubscribeFromLogzioUnifiedFilters(); // LOGZ.IO GRAFANA CHANGE :: DEV-27954 :: Global Filters :: Listen to global filters changes
-  }
-
-  initDashboard() {
-    const { dashboard, match, queryParams } = this.props;
-
-    if (dashboard) {
-      this.closeDashboard();
-    }
-
-    this.props.initDashboard({
-      urlSlug: match.params.slug,
-      urlUid: match.params.uid,
-      urlType: match.params.type,
-      urlFolderId: queryParams.folderId,
-      routeName: this.props.route.routeName,
-      fixUrl: true,
-    });
-
-    this.subscribeToLogzioUnifiedFilters(); // LOGZ.IO GRAFANA CHANGE :: DEV-27954 :: Unified Filters :: Listen to filters changes
   }
 
   componentDidUpdate(prevProps: Props) {
-    const { dashboard, match, queryParams, templateVarsChangedInUrl } = this.props;
+    const { dashboard, urlEditPanelId, urlViewPanelId, urlUid } = this.props;
     const { editPanel, viewPanel } = this.state;
-
-    const routeReloadCounter = (this.props.history.location.state as any)?.routeReloadCounter;
 
     if (!dashboard) {
       return;
     }
 
     // if we just got dashboard update title
-    if (prevProps.dashboard !== dashboard) {
+    if (!prevProps.dashboard) {
       document.title = dashboard.title + ' - ' + Branding.AppTitle;
     }
 
-    if (
-      prevProps.match.params.uid !== match.params.uid ||
-      (routeReloadCounter !== undefined && this.forceRouteReloadCounter !== routeReloadCounter)
-    ) {
-      this.initDashboard();
-      this.forceRouteReloadCounter = routeReloadCounter;
+    // Due to the angular -> react url bridge we can ge an update here with new uid before the container unmounts
+    // Can remove this condition after we switch to react router
+    if (prevProps.urlUid !== urlUid) {
       return;
     }
-
-    if (prevProps.location.search !== this.props.location.search) {
-      const prevUrlParams = prevProps.queryParams;
-      const urlParams = this.props.queryParams;
-
-      if (urlParams?.from !== prevUrlParams?.from && urlParams?.to !== prevUrlParams?.to) {
-        getTimeSrv().updateTimeRangeFromUrl();
-      }
-
-      if (!prevUrlParams?.refresh && urlParams?.refresh) {
-        getTimeSrv().setAutoRefresh(urlParams.refresh);
-      }
-
-      const templateVarChanges = findTemplateVarChanges(this.props.queryParams, prevProps.queryParams);
-
-      if (templateVarChanges) {
-        templateVarsChangedInUrl(templateVarChanges);
-      }
-    }
-
-    const urlEditPanelId = queryParams.editPanel;
-    const urlViewPanelId = queryParams.viewPanel;
 
     // entering edit mode
     if (!editPanel && urlEditPanelId) {
       dashboardWatcher.setEditingState(true);
 
-      this.getPanelByIdFromUrlParam(urlEditPanelId, (panel) => {
+      this.getPanelByIdFromUrlParam(urlEditPanelId, panel => {
         // if no edit permission show error
         if (!dashboard.canEditPanel(panel)) {
           this.props.notifyApp(createErrorNotification('Permission to edit panel denied'));
@@ -194,12 +133,13 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
     // leaving edit mode
     if (editPanel && !urlEditPanelId) {
       dashboardWatcher.setEditingState(false);
+
       this.setState({ editPanel: null });
     }
 
     // entering view mode
     if (!viewPanel && urlViewPanelId) {
-      this.getPanelByIdFromUrlParam(urlViewPanelId, (panel) => {
+      this.getPanelByIdFromUrlParam(urlViewPanelId, panel => {
         this.setPanelFullscreenClass(true);
         dashboard.initViewPanel(panel);
         this.setState({
@@ -230,9 +170,15 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
 
     if (!panel) {
       // Panel not found
-      this.props.notifyApp(createErrorNotification(`Panel with ID ${urlPanelId} not found`));
+      this.props.notifyApp(createErrorNotification(`Panel with id ${urlPanelId} not found`));
       // Clear url state
-      locationService.partial({ editPanel: null, viewPanel: null });
+      this.props.updateLocation({
+        query: {
+          editPanel: null,
+          viewPanel: null,
+        },
+        partial: true,
+      });
       return;
     }
 
@@ -252,8 +198,9 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
     $('body').toggleClass('panel-in-fullscreen', isFullscreen);
   }
 
-  setScrollTop = ({ scrollTop }: ScrollbarPosition): void => {
-    this.setState({ scrollTop, updateScrollTop: undefined });
+  setScrollTop = (e: MouseEvent<HTMLElement>): void => {
+    const target = e.target as HTMLElement;
+    this.setState({ scrollTop: target.scrollTop, updateScrollTop: undefined });
   };
 
   onAddPanel = () => {
@@ -278,11 +225,49 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
     this.setState({ updateScrollTop: 0 });
   };
 
+  cancelVariables = () => {
+    this.props.updateLocation({ path: '/' });
+  };
+
+  renderSlowInitState() {
+    return (
+      <div className="dashboard-loading">
+        <div className="dashboard-loading__text">
+          <VerticalGroup spacing="md">
+            <HorizontalGroup align="center" justify="center" spacing="xs">
+              <Icon name="fa fa-spinner" className="fa-spin" /> {this.props.initPhase}
+            </HorizontalGroup>{' '}
+            <HorizontalGroup align="center" justify="center">
+              <Button variant="secondary" size="md" icon="repeat" onClick={this.cancelVariables}>
+                Cancel loading dashboard
+              </Button>
+            </HorizontalGroup>
+          </VerticalGroup>
+        </div>
+      </div>
+    );
+  }
+
+  renderInitFailedState() {
+    const { initError } = this.props;
+
+    if (!initError) {
+      return null;
+    }
+
+    return (
+      <div className="dashboard-loading">
+        <Alert
+          severity={AppNotificationSeverity.Error}
+          title={initError.message}
+          children={getMessageFromError(initError.error)}
+        />
+      </div>
+    );
+  }
+
   getInspectPanel() {
-    const { dashboard, queryParams } = this.props;
-
-    const inspectPanelId = queryParams.inspect;
-
+    const { dashboard, inspectPanelId } = this.props;
     if (!dashboard || !inspectPanelId) {
       return null;
     }
@@ -297,43 +282,24 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
     return inspectPanel;
   }
 
-  // LOGZ.IO GRAFANA CHANGE :: DEV-27954 :: Unified Filters :: Listen to filters changes
-  subscribeToLogzioUnifiedFilters() {
-    this.unsubscribeFromLogzioUnifiedFilters();
-
-    const debouncedRefresh = debounce(() => getTimeSrv().refreshDashboard(), 50);
-    const { unifiedFilters, unifiedVariables, isEnabled } = logzioServices.unifiedFiltersStateService;
-    try {
-      this.logzioUnifiedFiltersSubscriber = unifiedFilters.subscribe(debouncedRefresh);
-      this.logzioUnifiedVariablesSubscriber = unifiedVariables.subscribe(debouncedRefresh);
-      this.logzioEnabledFiltersStatusSubscriber = isEnabled.subscribe(debouncedRefresh);
-    } catch (e) {
-      logzioServices.LoggerService.logError({
-        origin: logzioServices.LoggerService.Origin.GRAFANA,
-        message: 'Could not subscribe to unifiedFiltersStateService',
-        error: e,
-      });
-    }
-  }
-
-  unsubscribeFromLogzioUnifiedFilters() {
-    this.logzioUnifiedFiltersSubscriber?.();
-    this.logzioUnifiedVariablesSubscriber?.();
-    this.logzioEnabledFiltersStatusSubscriber?.();
-  }
-  // LOGZ.IO GRAFANA CHANGE :: DEV-27954 :: Unified Filters :: Listen to filters changes :: End
-
   render() {
-    const { dashboard, isInitSlow, initError, isPanelEditorOpen, queryParams, theme } = this.props;
+    const {
+      dashboard,
+      editview,
+      $injector,
+      isInitSlow,
+      initError,
+      inspectTab,
+      isPanelEditorOpen,
+      updateLocation,
+    } = this.props;
+
     const { editPanel, viewPanel, scrollTop, updateScrollTop } = this.state;
-    const kioskMode = getKioskMode(queryParams.kiosk);
-    const styles = getStyles(theme, kioskMode);
 
     if (!dashboard) {
       if (isInitSlow) {
-        return <DashboardLoading initPhase={this.props.initPhase} />;
+        return this.renderSlowInitState();
       }
-
       return null;
     }
 
@@ -342,37 +308,22 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
     const inspectPanel = this.getInspectPanel();
 
     return (
-      <div className={styles.dashboardContainer}>
-        {kioskMode !== KioskMode.Full && (
-          <div aria-label={selectors.pages.Dashboard.DashNav.nav}>
-            <DashNav
-              dashboard={dashboard}
-              title={dashboard.title}
-              folderTitle={dashboard.meta.folderTitle}
-              isFullscreen={!!viewPanel}
-              onAddPanel={this.onAddPanel}
-              kioskMode={kioskMode}
-              hideTimePicker={dashboard.timepicker.hidden}
-            />
-          </div>
-        )}
+      <div className="dashboard-container">
+        <DashNav dashboard={dashboard} isFullscreen={!!viewPanel} $injector={$injector} onAddPanel={this.onAddPanel} />
 
-        <DashboardPrompt dashboard={dashboard} />
-
-        <div className={styles.dashboardScroll}>
+        <div className="dashboard-scroll">
           <CustomScrollbar
             autoHeightMin="100%"
             setScrollTop={this.setScrollTop}
             scrollTop={updateScrollTop}
             hideHorizontalTrack={true}
             updateAfterMountMs={500}
+            className="custom-scrollbar--page"
           >
-            <div className={styles.dashboardContent}>
-              {initError && <DashboardFailed />}
-              {!editPanel && kioskMode === KioskMode.Off && (
-                <div aria-label={selectors.pages.Dashboard.SubMenu.submenu}>
-                  <SubMenu dashboard={dashboard} annotations={dashboard.annotations.list} links={dashboard.links} />
-                </div>
+            <div className="dashboard-content">
+              {initError && this.renderInitFailedState()}
+              {!editPanel && (
+                <SubMenu dashboard={dashboard} annotations={dashboard.annotations.list} links={dashboard.links} />
               )}
 
               <DashboardGrid
@@ -386,19 +337,29 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
           </CustomScrollbar>
         </div>
 
-        {inspectPanel && <PanelInspector dashboard={dashboard} panel={inspectPanel} />}
-        {editPanel && <PanelEditor dashboard={dashboard} sourcePanel={editPanel} tab={this.props.queryParams.tab} />}
-        {queryParams.editview && <DashboardSettings dashboard={dashboard} editview={queryParams.editview} />}
+        {inspectPanel && <PanelInspector dashboard={dashboard} panel={inspectPanel} defaultTab={inspectTab} />}
+        {editPanel && <PanelEditor dashboard={dashboard} sourcePanel={editPanel} />}
+        {editview && <DashboardSettings dashboard={dashboard} updateLocation={updateLocation} />}
       </div>
     );
   }
 }
 
 export const mapStateToProps = (state: StoreState) => ({
+  urlUid: state.location.routeParams.uid,
+  urlSlug: state.location.routeParams.slug,
+  urlType: state.location.routeParams.type,
+  editview: state.location.query.editview,
+  urlPanelId: state.location.query.panelId,
+  urlFolderId: state.location.query.folderId,
+  urlEditPanelId: state.location.query.editPanel,
+  urlViewPanelId: state.location.query.viewPanel,
+  inspectPanelId: state.location.query.inspect,
   initPhase: state.dashboard.initPhase,
   isInitSlow: state.dashboard.isInitSlow,
   initError: state.dashboard.initError,
-  dashboard: state.dashboard.getModel(),
+  dashboard: state.dashboard.getModel() as DashboardModel,
+  inspectTab: state.location.query.inspectTab,
   isPanelEditorOpen: state.panelEditor.isOpen,
 });
 
@@ -406,40 +367,8 @@ const mapDispatchToProps = {
   initDashboard,
   cleanUpDashboardAndVariables,
   notifyApp,
+  updateLocation,
   cancelVariables,
-  templateVarsChangedInUrl,
 };
 
-/*
- * Styles
- */
-export const getStyles = stylesFactory((theme: GrafanaTheme2, kioskMode) => {
-  const contentPadding = kioskMode !== KioskMode.Full ? theme.spacing(0, 2, 2) : theme.spacing(2);
-  return {
-    dashboardContainer: css`
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      flex: 1 1 0;
-      flex-direction: column;
-    `,
-    dashboardScroll: css`
-      width: 100%;
-      flex-grow: 1;
-      min-height: 0;
-      display: flex;
-    `,
-    dashboardContent: css`
-      padding: ${contentPadding};
-      flex-basis: 100%;
-      flex-grow: 1;
-    `,
-  };
-});
-
-export const DashboardPage = withTheme2(UnthemedDashboardPage);
-DashboardPage.displayName = 'DashboardPage';
 export default hot(module)(connect(mapStateToProps, mapDispatchToProps)(DashboardPage));

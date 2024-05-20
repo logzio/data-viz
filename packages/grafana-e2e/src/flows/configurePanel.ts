@@ -1,4 +1,5 @@
 import { e2e } from '../index';
+import { getLocalStorage, requireLocalStorage } from '../support/localStorage';
 import { getScenarioContext } from '../support/scenarioContext';
 import { selectOption } from './selectOption';
 import { setDashboardTimeRange } from './setDashboardTimeRange';
@@ -33,7 +34,6 @@ interface ConfigurePanelOptional {
   panelTitle?: string;
   timeRange?: TimeRangeConfig;
   visualizationName?: string;
-  matchExploreTable?: boolean;
 }
 
 interface ConfigurePanelRequired {
@@ -75,7 +75,6 @@ export const configurePanel = (config: PartialAddPanelConfig | PartialEditPanelC
       dataSourceName,
       isEdit,
       isExplore,
-      matchExploreTable,
       matchScreenshot,
       panelTitle,
       queriesForm,
@@ -100,7 +99,7 @@ export const configurePanel = (config: PartialAddPanelConfig | PartialEditPanelC
         e2e.components.Panels.Panel.title(panelTitle).click();
         e2e.components.Panels.Panel.headerItems('Edit').click();
       } else {
-        e2e.components.PageToolbar.item('Add panel').click();
+        e2e.pages.Dashboard.Toolbar.toolbarItems('Add panel').click();
         e2e.pages.AddDashboard.addNewPanel().click();
       }
     }
@@ -117,7 +116,9 @@ export const configurePanel = (config: PartialAddPanelConfig | PartialEditPanelC
 
     // @todo alias '/**/*.js*' as '@pluginModule' when possible: https://github.com/cypress-io/cypress/issues/1296
 
-    e2e().route(chartData.method, chartData.route).as('chartData');
+    e2e()
+      .route(chartData.method, chartData.route)
+      .as('chartData');
 
     if (dataSourceName) {
       selectOption({
@@ -130,20 +131,40 @@ export const configurePanel = (config: PartialAddPanelConfig | PartialEditPanelC
     e2e().wait(2000);
 
     if (!isExplore) {
+      if (!isEdit) {
+        // Fields could be covered due to an empty query editor
+        closeRequestErrors();
+      }
+
       // `panelTitle` is needed to edit the panel, and unlikely to have its value changed at that point
       const changeTitle = panelTitle && !isEdit;
 
       if (changeTitle || visualizationName) {
-        if (changeTitle && panelTitle) {
-          e2e.components.PanelEditor.OptionsPane.fieldLabel('Panel options Title').type(`{selectall}${panelTitle}`);
+        openOptions();
+
+        if (changeTitle) {
+          openOptionsGroup('settings');
+          getOptionsGroup('settings')
+            .find('[value="Panel Title"]')
+            .scrollIntoView()
+            .clear()
+            .type(panelTitle as string);
         }
 
         if (visualizationName) {
-          e2e.components.PluginVisualization.item(visualizationName).scrollIntoView().click();
+          openOptionsGroup('type');
+          e2e.components.PluginVisualization.item(visualizationName)
+            .scrollIntoView()
+            .click();
 
           // @todo wait for '@pluginModule' if not a core visualization and not already loaded
           e2e().wait(2000);
         }
+
+        // Consistently closed
+        closeOptionsGroup('settings');
+        closeOptionsGroup('type');
+        closeOptions();
       } else {
         // Consistently closed
         closeOptions();
@@ -167,12 +188,19 @@ export const configurePanel = (config: PartialAddPanelConfig | PartialEditPanelC
     //e2e().wait('@chartData');
 
     if (!isExplore) {
-      e2e().get('button[title="Apply changes and go back to dashboard"]').click();
-      e2e().url().should('include', `/d/${dashboardUid}`);
+      e2e()
+        .get('button[title="Apply changes and go back to dashboard"]')
+        .click();
+      e2e()
+        .url()
+        .should('include', `/d/${dashboardUid}`);
     }
 
     // Avoid annotations flakiness
-    e2e.components.RefreshPicker.runButton().should('be.visible').click();
+    e2e()
+      .get('.refresh-picker-buttons .btn')
+      .first()
+      .click();
 
     e2e().wait('@chartData');
 
@@ -183,7 +211,7 @@ export const configurePanel = (config: PartialAddPanelConfig | PartialEditPanelC
       let visualization;
 
       if (isExplore) {
-        visualization = matchExploreTable ? e2e.pages.Explore.General.table() : e2e.pages.Explore.General.graph();
+        visualization = e2e.pages.Explore.General.graph();
       } else {
         visualization = e2e.components.Panels.Panel.containerByTitle(panelTitle).find('.panel-content');
       }
@@ -197,7 +225,81 @@ export const configurePanel = (config: PartialAddPanelConfig | PartialEditPanelC
   });
 
 // @todo this actually returns type `Cypress.Chainable`
-const closeOptions = () => e2e.components.PanelEditor.toggleVizOptions().click();
+const closeOptions = (): any =>
+  isOptionsOpen().then((isOpen: any) => {
+    if (isOpen) {
+      e2e.components.PanelEditor.OptionsPane.close().click();
+    }
+  });
+
+// @todo this actually returns type `Cypress.Chainable`
+const closeOptionsGroup = (name: string): any =>
+  isOptionsGroupOpen(name).then((isOpen: any) => {
+    if (isOpen) {
+      toggleOptionsGroup(name);
+    }
+  });
+
+const closeRequestErrors = () => {
+  e2e().wait(1000); // emulate `cy.get()` for nested errors
+  e2e()
+    .get('app-notifications-list')
+    .then($elm => {
+      // Avoid failing when none are found
+      const selector = '[aria-label="Alert error"]:contains("Failed to call resource")';
+      const numErrors = $elm.find(selector).length;
+
+      for (let i = 0; i < numErrors; i++) {
+        e2e()
+          .get(selector)
+          .first()
+          .find('button')
+          .click();
+      }
+    });
+};
+
+const getOptionsGroup = (name: string) => e2e().get(`.options-group:has([aria-label="Options group Panel ${name}"])`);
+
+// @todo this actually returns type `Cypress.Chainable`
+const isOptionsGroupOpen = (name: string): any =>
+  requireLocalStorage(`grafana.dashboard.editor.ui.optionGroup[Panel ${name}]`).then(({ defaultToClosed }: any) => {
+    // @todo remove `wrap` when possible
+    return e2e().wrap(!defaultToClosed, { log: false });
+  });
+
+// @todo this actually returns type `Cypress.Chainable`
+const isOptionsOpen = (): any =>
+  getLocalStorage('grafana.dashboard.editor.ui').then((data: any) => {
+    if (data) {
+      // @todo remove `wrap` when possible
+      return e2e().wrap(data.isPanelOptionsVisible, { log: false });
+    } else {
+      // @todo remove `wrap` when possible
+      return e2e().wrap(true, { log: false });
+    }
+  });
+
+// @todo this actually returns type `Cypress.Chainable`
+const openOptions = (): any =>
+  isOptionsOpen().then((isOpen: any) => {
+    if (!isOpen) {
+      e2e.components.PanelEditor.OptionsPane.open().click();
+    }
+  });
+
+// @todo this actually returns type `Cypress.Chainable`
+const openOptionsGroup = (name: string): any =>
+  isOptionsGroupOpen(name).then((isOpen: any) => {
+    if (!isOpen) {
+      toggleOptionsGroup(name);
+    }
+  });
+
+const toggleOptionsGroup = (name: string) =>
+  getOptionsGroup(name)
+    .find('.editor-options-group-toggle')
+    .click();
 
 export const VISUALIZATION_ALERT_LIST = 'Alert list';
 export const VISUALIZATION_BAR_GAUGE = 'Bar gauge';

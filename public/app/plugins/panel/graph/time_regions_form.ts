@@ -4,16 +4,14 @@ import { getColorModes } from './time_region_manager';
 export class TimeRegionFormCtrl {
   panelCtrl: any;
   panel: any;
-  disabled = false;
+  disabled: boolean;
   colorModes: any;
 
   /** @ngInject */
-  constructor(private $scope: any) {}
-
-  $onInit() {
+  constructor($scope: any) {
     this.panel = this.panelCtrl.panel;
 
-    const unbindDestroy = this.$scope.$on('$destroy', () => {
+    const unbindDestroy = $scope.$on('$destroy', () => {
       this.panelCtrl.editingTimeRegions = false;
       this.panelCtrl.render();
       unbindDestroy();

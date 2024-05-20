@@ -3,24 +3,17 @@ title = "User HTTP API "
 description = "Grafana User HTTP API"
 keywords = ["grafana", "http", "documentation", "api", "user"]
 aliases = ["/docs/grafana/latest/http_api/user/"]
+type = "docs"
+[menu.docs]
+name = "Users"
+parent = "http_api"
 +++
 
-# User API
+# User HTTP resources / actions
 
-> If you are running Grafana Enterprise and have [Fine-grained access control]({{< relref "../enterprise/access-control/_index.md" >}}) enabled, for some endpoints you would need to have relevant permissions.
-Refer to specific resources to understand what permissions are required.
- 
 ## Search Users
 
 `GET /api/users?perpage=10&page=1`
-
-#### Required permissions
-
-See note in the [introduction]({{< ref "#user-api" >}}) for an explanation.
-
-Action | Scope
---- | --- | 
-users:read | global:users:*
 
 **Example Request**:
 
@@ -68,14 +61,6 @@ Content-Type: application/json
 ## Search Users with Paging
 
 `GET /api/users/search?perpage=10&page=1&query=mygraf`
-
-#### Required permissions
-
-See note in the [introduction]({{< ref "#user-api" >}}) for an explanation.
-
-Action | Scope
---- | --- | 
-users:read | global:users:*
 
 **Example Request**:
 
@@ -130,14 +115,6 @@ Content-Type: application/json
 
 `GET /api/users/:id`
 
-#### Required permissions
-
-See note in the [introduction]({{< ref "#user-api" >}}) for an explanation.
-
-Action | Scope
---- | --- | 
-users:read | users:*
-
 **Example Request**:
 
 ```http
@@ -174,14 +151,6 @@ Content-Type: application/json
 ## Get single user by Username(login) or Email
 
 `GET /api/users/lookup?loginOrEmail=user@mygraf.com`
-
-#### Required permissions
-
-See note in the [introduction]({{< ref "#user-api" >}}) for an explanation.
-
-Action | Scope
---- | --- | 
-users:read | global:users:*
 
 **Example Request using the email as option**:
 
@@ -230,14 +199,6 @@ Content-Type: application/json
 
 `PUT /api/users/:id`
 
-#### Required permissions
-
-See note in the [introduction]({{< ref "#user-api" >}}) for an explanation.
-
-Action | Scope
---- | --- | 
-users:write | users:*
-
 **Example Request**:
 
 ```http
@@ -269,14 +230,6 @@ Content-Type: application/json
 
 `GET /api/users/:id/orgs`
 
-#### Required permissions
-
-See note in the [introduction]({{< ref "#user-api" >}}) for an explanation.
-
-Action | Scope
---- | --- | 
-users:read | users:*
-
 **Example Request**:
 
 ```http
@@ -306,14 +259,6 @@ Content-Type: application/json
 ## Get Teams for user
 
 `GET /api/users/:id/teams`
-
-#### Required permissions
-
-See note in the [introduction]({{< ref "#user-api" >}}) for an explanation.
-
-Action | Scope
---- | --- | 
-users.teams:read | users:*
 
 **Example Request**:
 
@@ -357,10 +302,8 @@ Content-Type: application/json
 GET /api/user HTTP/1.1
 Accept: application/json
 Content-Type: application/json
-Authorization: Basic YWRtaW46YWRtaW4=
+Authorization: Bearer eyJrIjoiT0tTcG1pUlY2RnVKZTFVaDFsNFZXdE9ZWmNrMkZYbk
 ```
-
-Requires basic authentication.
 
 **Example Response**:
 
@@ -389,7 +332,7 @@ Content-Type: application/json
 
 `PUT /api/user/password`
 
-Changes the password for the user. Requires basic authentication.
+Changes the password for the user
 
 **Example Request**:
 
@@ -397,7 +340,7 @@ Changes the password for the user. Requires basic authentication.
 PUT /api/user/password HTTP/1.1
 Accept: application/json
 Content-Type: application/json
-Authorization: Basic YWRtaW46YWRtaW4=
+Authorization: Bearer eyJrIjoiT0tTcG1pUlY2RnVKZTFVaDFsNFZXdE9ZWmNrMkZYbk
 
 {
   "oldPassword": "old_password",
@@ -476,7 +419,7 @@ Content-Type: application/json
 
 `GET /api/user/orgs`
 
-Return a list of all organizations of the current user. Requires basic authentication.
+Return a list of all organizations of the current user.
 
 **Example Request**:
 
@@ -484,7 +427,7 @@ Return a list of all organizations of the current user. Requires basic authentic
 GET /api/user/orgs HTTP/1.1
 Accept: application/json
 Content-Type: application/json
-Authorization: Basic YWRtaW46YWRtaW4=
+Authorization: Bearer eyJrIjoiT0tTcG1pUlY2RnVKZTFVaDFsNFZXdE9ZWmNrMkZYbk
 ```
 
 **Example Response**:

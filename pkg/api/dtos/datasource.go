@@ -9,7 +9,6 @@ import (
 
 type DataSource struct {
 	Id                int64            `json:"id"`
-	UID               string           `json:"uid"`
 	OrgId             int64            `json:"orgId"`
 	Name              string           `json:"name"`
 	Type              string           `json:"type"`
@@ -32,11 +31,9 @@ type DataSource struct {
 
 type DataSourceListItemDTO struct {
 	Id          int64            `json:"id"`
-	UID         string           `json:"uid"`
 	OrgId       int64            `json:"orgId"`
 	Name        string           `json:"name"`
 	Type        string           `json:"type"`
-	TypeName    string           `json:"typeName"`
 	TypeLogoUrl string           `json:"typeLogoUrl"`
 	Access      models.DsAccess  `json:"access"`
 	Url         string           `json:"url"`

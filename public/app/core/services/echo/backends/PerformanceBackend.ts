@@ -1,9 +1,8 @@
 import { EchoBackend, EchoEvent, EchoEventType } from '@grafana/runtime';
-// import { backendSrv } from '../../backend_srv'; // LOGZ.IO GRAFANA CHANGE
 
 export interface PerformanceEventPayload {
-  name: string;
-  value: number;
+  metricName: string;
+  duration: number;
 }
 
 export interface PerformanceEvent extends EchoEvent<EchoEventType.Performance, PerformanceEventPayload> {}
@@ -17,13 +16,13 @@ export interface PerformanceBackendOptions {
  * Reports performance metrics to given url (TODO)
  */
 export class PerformanceBackend implements EchoBackend<PerformanceEvent, PerformanceBackendOptions> {
-  private buffer: PerformanceEventPayload[] = [];
+  private buffer: PerformanceEvent[] = [];
   supportedEvents = [EchoEventType.Performance];
 
   constructor(public options: PerformanceBackendOptions) {}
 
   addEvent = (e: EchoEvent) => {
-    this.buffer.push(e.payload);
+    this.buffer.push(e);
   };
 
   flush = () => {
@@ -31,18 +30,20 @@ export class PerformanceBackend implements EchoBackend<PerformanceEvent, Perform
       return;
     }
 
+    const result = {
+      metrics: this.buffer,
+    };
+
     // Currently we don't have an API for sending the metrics hence logging to console in dev environment
     if (process.env.NODE_ENV === 'development') {
-      console.log('PerformanceBackend flushing:', this.buffer);
+      console.log('PerformanceBackend flushing:', result);
     }
 
-    console.log('performance', this.buffer);
-
-    // LOGZ.IO GRAFANA CHANGE :: Disable sending frontend metrics
-    // backendSrv.post('/api/frontend-metrics', {
-    //   events: this.buffer,
-    // });
-
     this.buffer = [];
+
+    // TODO: Enable backend request when we have metrics API
+    // if (this.options.url) {
+    // backendSrv.post(this.options.url, result);
+    // }
   };
 }

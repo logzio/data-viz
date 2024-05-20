@@ -16,7 +16,7 @@ export default {
   },
 };
 
-export const Basic = () => {
+export const single = () => {
   return <<%= name %> />;
 };
 `;

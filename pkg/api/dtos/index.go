@@ -1,11 +1,5 @@
 package dtos
 
-import (
-	"github.com/grafana/grafana/pkg/setting"
-
-	"html/template"
-)
-
 type IndexViewData struct {
 	User                    *CurrentUser
 	Settings                map[string]interface{}
@@ -21,13 +15,15 @@ type IndexViewData struct {
 	NewGrafanaVersion       string
 	AppName                 string
 	AppNameBodyClass        string
-	FavIcon                 template.URL
-	AppleTouchIcon          template.URL
+	FavIcon                 string
+	AppleTouchIcon          string
 	AppTitle                string
-	Sentry                  *setting.Sentry
-	ContentDeliveryURL      string
-	// Nonce is a cryptographic identifier for use with Content Security Policy.
-	Nonce string
+	Nonce                   string // LOGZ.IO GRAFANA CHANGE :: DEV-20823 Add nonce to the index data
+}
+
+type PluginCss struct {
+	Light string `json:"light"`
+	Dark  string `json:"dark"`
 }
 
 const (
@@ -62,6 +58,3 @@ type NavLink struct {
 	HideFromTabs bool       `json:"hideFromTabs,omitempty"`
 	Children     []*NavLink `json:"children,omitempty"`
 }
-
-// NavIDCfg is the id for org configuration navigation node
-const NavIDCfg = "cfg"

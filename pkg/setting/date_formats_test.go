@@ -6,7 +6,6 @@ import (
 	"gopkg.in/ini.v1"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestValueAsTimezone(t *testing.T) {
@@ -16,21 +15,23 @@ func TestValueAsTimezone(t *testing.T) {
 	}{
 		"browser":          {"browser", false},
 		"UTC":              {"UTC", false},
+		"utc":              {"browser", true},
 		"Amsterdam":        {"browser", true},
+		"europe/amsterdam": {"browser", true},
 		"Europe/Amsterdam": {"Europe/Amsterdam", false},
 	}
 
 	sec, err := ini.Empty().NewSection("test")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	key, err := sec.NewKey("test", "")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	for input, expected := range tests {
 		key.SetValue(input)
 
-		output, err := valueAsTimezone(sec, "test")
+		output, err := valueAsTimezone(sec, "test", "default")
 
-		assert.Equal(t, expected.hasErr, err != nil, "Invalid has err for input %q: %s", input, err)
-		assert.Equal(t, expected.output, output, "Invalid output for input %q", input)
+		assert.Equal(t, expected.hasErr, err != nil, "Invalid has err for input: %s err: %v", input, err)
+		assert.Equal(t, expected.output, output, "Invalid output for input: %s", input)
 	}
 }

@@ -1,4 +1,4 @@
-import { chain } from 'lodash';
+import _ from 'lodash';
 import { TimeSrv } from 'app/features/dashboard/services/TimeSrv';
 import { getTemplateSrv, TemplateSrv } from 'app/features/templating/template_srv';
 import coreModule from 'app/core/core_module';
@@ -12,7 +12,6 @@ import {
   Field,
   FieldType,
   getFieldDisplayName,
-  InterpolateFunction,
   KeyValue,
   LinkModel,
   // locationUtil, // LOGZ.IO GRAFANA CHANGE :: comment out to prevent ts errors
@@ -24,7 +23,6 @@ import {
   VariableSuggestion,
   VariableSuggestionsScope,
 } from '@grafana/data';
-import { getVariablesUrlParams } from '../../variables/getAllVariableValuesForUrl';
 
 const timeRangeVars = [
   {
@@ -84,7 +82,7 @@ const buildLabelPath = (label: string) => {
 export const getPanelLinksVariableSuggestions = (): VariableSuggestion[] => [
   ...getTemplateSrv()
     .getVariables()
-    .map((variable) => ({
+    .map(variable => ({
       value: variable.name as string,
       label: variable.name,
       origin: VariableOrigin.Template,
@@ -110,7 +108,10 @@ const getFieldVars = (dataFrames: DataFrame[]) => {
     }
   }
 
-  const labels = chain(all).flatten().uniq().value();
+  const labels = _.chain(all)
+    .flatten()
+    .uniq()
+    .value();
 
   return [
     {
@@ -119,7 +120,7 @@ const getFieldVars = (dataFrames: DataFrame[]) => {
       documentation: 'Field name of the clicked datapoint (in ms epoch)',
       origin: VariableOrigin.Field,
     },
-    ...labels.map((label) => ({
+    ...labels.map(label => ({
       value: `__field.labels${buildLabelPath(label)}`,
       label: `labels.${label}`,
       documentation: `${label} label value`,
@@ -134,36 +135,30 @@ export const getDataFrameVars = (dataFrames: DataFrame[]) => {
   const suggestions: VariableSuggestion[] = [];
   const keys: KeyValue<true> = {};
 
-  if (dataFrames.length !== 1) {
-    // It's not possible to access fields of other dataframes. So if there are multiple dataframes we need to skip these suggestions.
-    // Also return early if there are no dataFrames.
-    return [];
-  }
+  for (const frame of dataFrames) {
+    for (const field of frame.fields) {
+      const displayName = getFieldDisplayName(field, frame, dataFrames);
 
-  const frame = dataFrames[0];
+      if (keys[displayName]) {
+        continue;
+      }
 
-  for (const field of frame.fields) {
-    const displayName = getFieldDisplayName(field, frame, dataFrames);
+      suggestions.push({
+        value: `__data.fields${buildLabelPath(displayName)}`,
+        label: `${displayName}`,
+        documentation: `Formatted value for ${displayName} on the same row`,
+        origin: VariableOrigin.Fields,
+      });
 
-    if (keys[displayName]) {
-      continue;
-    }
+      keys[displayName] = true;
 
-    suggestions.push({
-      value: `__data.fields${buildLabelPath(displayName)}`,
-      label: `${displayName}`,
-      documentation: `Formatted value for ${displayName} on the same row`,
-      origin: VariableOrigin.Fields,
-    });
+      if (!numeric && field.type === FieldType.number) {
+        numeric = { ...field, name: displayName };
+      }
 
-    keys[displayName] = true;
-
-    if (!numeric && field.type === FieldType.number) {
-      numeric = { ...field, name: displayName };
-    }
-
-    if (!title && field.config.displayName && field.config.displayName !== field.name) {
-      title = { ...field, name: displayName };
+      if (!title && field.config.displayName && field.config.displayName !== field.name) {
+        title = { ...field, name: displayName };
+      }
     }
   }
 
@@ -249,7 +244,7 @@ export const getPanelOptionsVariableSuggestions = (plugin: PanelPlugin, data?: D
     ...dataVariables, // field values
     ...getTemplateSrv()
       .getVariables()
-      .map((variable) => ({
+      .map(variable => ({
         value: variable.name as string,
         label: variable.name,
         origin: VariableOrigin.Template,
@@ -258,7 +253,7 @@ export const getPanelOptionsVariableSuggestions = (plugin: PanelPlugin, data?: D
 };
 
 export interface LinkService {
-  getDataLinkUIModel: <T>(link: DataLink, replaceVariables: InterpolateFunction | undefined, origin: T) => LinkModel<T>;
+  getDataLinkUIModel: <T>(link: DataLink, scopedVars: ScopedVars | undefined, origin: T) => LinkModel<T>;
   getAnchorInfo: (link: any) => any;
   getLinkUrl: (link: any) => string;
 }
@@ -272,7 +267,7 @@ export class LinkSrv implements LinkService {
     // let url = locationUtil.assureBaseUrl(this.templateSrv.replace(link.url || ''));
     let url = this.templateSrv.replace(link.url || '');
     // LOGZ.IO GRAFANA CHANGE :: END
-    let params: { [key: string]: any } = {};
+    const params: { [key: string]: any } = {};
 
     if (link.keepTime) {
       const range = this.timeSrv.timeRangeForUrl();
@@ -281,10 +276,7 @@ export class LinkSrv implements LinkService {
     }
 
     if (link.includeVars) {
-      params = {
-        ...params,
-        ...getVariablesUrlParams(),
-      };
+      this.templateSrv.fillVariableValuesForUrl(params);
     }
 
     url = urlUtil.appendQueryToUrl(url, urlUtil.toUrlParams(params));
@@ -295,24 +287,22 @@ export class LinkSrv implements LinkService {
     const info: any = {};
     info.href = this.getLinkUrl(link);
     info.title = this.templateSrv.replace(link.title || '');
-    info.tooltip = this.templateSrv.replace(link.tooltip || '');
     return info;
   }
 
   /**
    * Returns LinkModel which is basically a DataLink with all values interpolated through the templateSrv.
    */
-  getDataLinkUIModel = <T>(
-    link: DataLink,
-    replaceVariables: InterpolateFunction | undefined,
-    origin: T
-  ): LinkModel<T> => {
+  getDataLinkUIModel = <T>(link: DataLink, scopedVars: ScopedVars | undefined, origin: T): LinkModel<T> => {
+    const params: KeyValue = {};
+    const timeRangeUrl = urlUtil.toUrlParams(this.timeSrv.timeRangeForUrl());
+
     let href = link.url;
 
     if (link.onBuildUrl) {
       href = link.onBuildUrl({
         origin,
-        replaceVariables,
+        scopedVars,
       });
     }
 
@@ -323,7 +313,7 @@ export class LinkSrv implements LinkService {
         if (link.onClick) {
           link.onClick({
             origin,
-            replaceVariables,
+            scopedVars,
             e,
           });
         }
@@ -335,7 +325,7 @@ export class LinkSrv implements LinkService {
       // href: locationUtil.assureBaseUrl(href.replace(/\n/g, '')),
       href: href.replace(/\n/g, ''),
       // LOGZ.IO GRAFANA CHANGE :: END
-      title: replaceVariables ? replaceVariables(link.title || '') : link.title,
+      title: this.templateSrv.replace(link.title || '', scopedVars),
       // LOGZ.IO GRAFANA CHANGE :: link open on same tab to open on top frame
       // target: link.targetBlank ? '_blank' : '_self',
       target: link.targetBlank ? '_blank' : '_top',
@@ -344,9 +334,21 @@ export class LinkSrv implements LinkService {
       onClick,
     };
 
-    if (replaceVariables) {
-      info.href = replaceVariables(info.href);
-    }
+    this.templateSrv.fillVariableValuesForUrl(params, scopedVars);
+
+    const variablesQuery = urlUtil.toUrlParams(params);
+
+    info.href = this.templateSrv.replace(info.href, {
+      ...scopedVars,
+      [DataLinkBuiltInVars.keepTime]: {
+        text: timeRangeUrl,
+        value: timeRangeUrl,
+      },
+      [DataLinkBuiltInVars.includeVars]: {
+        text: variablesQuery,
+        value: variablesQuery,
+      },
+    });
 
     info.href = getConfig().disableSanitizeHtml ? info.href : textUtil.sanitizeUrl(info.href);
 
@@ -360,10 +362,7 @@ export class LinkSrv implements LinkService {
    */
   getPanelLinkAnchorInfo(link: DataLink, scopedVars: ScopedVars) {
     deprecationWarning('link_srv.ts', 'getPanelLinkAnchorInfo', 'getDataLinkUIModel');
-    const replace: InterpolateFunction = (value, vars, fmt) =>
-      getTemplateSrv().replace(value, { ...scopedVars, ...vars }, fmt);
-
-    return this.getDataLinkUIModel(link, replace, {});
+    return this.getDataLinkUIModel(link, scopedVars, {});
   }
 }
 

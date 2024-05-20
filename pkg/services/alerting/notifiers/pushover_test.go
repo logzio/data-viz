@@ -5,8 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/grafana/grafana/pkg/services/validations"
-
 	"github.com/grafana/grafana/pkg/services/alerting"
 
 	"github.com/grafana/grafana/pkg/components/simplejson"
@@ -37,7 +35,6 @@ func TestPushoverNotifier(t *testing.T) {
 					"apiToken": "4SrUFQL4A5V5TQ1z5Pg9nxHXPXSTve",
 					"userKey": "tzNZYf36y0ohWwXo4XoUrB61rz1A4o",
 					"priority": "1",
-					"okPriority": "2",
 					"sound": "pushover",
 					"okSound": "magic"
 				}`
@@ -57,10 +54,9 @@ func TestPushoverNotifier(t *testing.T) {
 				So(pushoverNotifier.Type, ShouldEqual, "pushover")
 				So(pushoverNotifier.APIToken, ShouldEqual, "4SrUFQL4A5V5TQ1z5Pg9nxHXPXSTve")
 				So(pushoverNotifier.UserKey, ShouldEqual, "tzNZYf36y0ohWwXo4XoUrB61rz1A4o")
-				So(pushoverNotifier.AlertingPriority, ShouldEqual, 1)
-				So(pushoverNotifier.OKPriority, ShouldEqual, 2)
+				So(pushoverNotifier.Priority, ShouldEqual, 1)
 				So(pushoverNotifier.AlertingSound, ShouldEqual, "pushover")
-				So(pushoverNotifier.OKSound, ShouldEqual, "magic")
+				So(pushoverNotifier.OkSound, ShouldEqual, "magic")
 			})
 		})
 	})
@@ -71,13 +67,13 @@ func TestGenPushoverBody(t *testing.T) {
 		Convey("Given common sounds", func() {
 			sirenSound := "siren_sound_tst"
 			successSound := "success_sound_tst"
-			notifier := &PushoverNotifier{AlertingSound: sirenSound, OKSound: successSound}
+			notifier := &PushoverNotifier{AlertingSound: sirenSound, OkSound: successSound}
 
 			Convey("When alert is firing - should use siren sound", func() {
 				evalContext := alerting.NewEvalContext(context.Background(),
 					&alerting.Rule{
 						State: models.AlertStateAlerting,
-					}, &validations.OSSPluginRequestValidator{})
+					})
 				_, pushoverBody, err := notifier.genPushoverBody(evalContext, "", "")
 
 				So(err, ShouldBeNil)
@@ -88,7 +84,7 @@ func TestGenPushoverBody(t *testing.T) {
 				evalContext := alerting.NewEvalContext(context.Background(),
 					&alerting.Rule{
 						State: models.AlertStateOK,
-					}, &validations.OSSPluginRequestValidator{})
+					})
 				_, pushoverBody, err := notifier.genPushoverBody(evalContext, "", "")
 
 				So(err, ShouldBeNil)

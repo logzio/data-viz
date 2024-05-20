@@ -1,13 +1,13 @@
-import React from 'react';
-import { css, cx } from '@emotion/css';
+import React, { FC } from 'react';
+import { css, cx } from 'emotion';
 import { isString } from 'lodash';
 import { Tooltip } from '../Tooltip/Tooltip';
 import { JSONFormatter } from '../JSONFormatter/JSONFormatter';
-import { useStyles2 } from '../../themes';
+import { useStyles } from '../../themes';
 import { TableCellProps } from './types';
-import { GrafanaTheme2 } from '@grafana/data';
+import { GrafanaTheme } from '@grafana/data';
 
-export function JSONViewCell(props: TableCellProps): JSX.Element {
+export const JSONViewCell: FC<TableCellProps> = props => {
   const { cell, tableStyles, cellProps } = props;
 
   const txt = css`
@@ -29,38 +29,32 @@ export function JSONViewCell(props: TableCellProps): JSX.Element {
   const content = <JSONTooltip value={value} />;
 
   return (
-    <Tooltip placement="auto-start" content={content} theme="info-alt">
-      <div {...cellProps} className={tableStyles.cellContainer}>
+    <div {...cellProps} className={tableStyles.cellContainer}>
+      <Tooltip placement="auto" content={content} theme="info-alt">
         <div className={cx(tableStyles.cellText, txt)}>{displayValue}</div>
-      </div>
-    </Tooltip>
+      </Tooltip>
+    </div>
   );
-}
+};
 
 interface PopupProps {
   value: any;
 }
 
-function JSONTooltip(props: PopupProps): JSX.Element {
-  const styles = useStyles2(getStyles);
+const JSONTooltip: FC<PopupProps> = props => {
+  const styles = useStyles((theme: GrafanaTheme) => {
+    return {
+      container: css`
+        padding: ${theme.spacing.xs};
+      `,
+    };
+  });
+
   return (
     <div className={styles.container}>
       <div>
-        <JSONFormatter json={props.value} open={4} className={styles.json} />
+        <JSONFormatter json={props.value} open={4} />
       </div>
     </div>
   );
-}
-
-function getStyles(theme: GrafanaTheme2) {
-  return {
-    container: css`
-      padding: ${theme.spacing(0.5)};
-    `,
-    json: css`
-      max-width: fit-content;
-      max-height: 70vh;
-      overflow-y: auto;
-    `,
-  };
-}
+};

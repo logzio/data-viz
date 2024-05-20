@@ -1,17 +1,15 @@
 package api
 
 import (
-	"errors"
+	"errors" // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - Add errors import
 	"fmt"
 	"strconv"
 
 	"github.com/grafana/grafana/pkg/api/dtos"
-	"github.com/grafana/grafana/pkg/api/response"
 	"github.com/grafana/grafana/pkg/bus"
 	"github.com/grafana/grafana/pkg/models"
 	"github.com/grafana/grafana/pkg/services/alerting"
 	"github.com/grafana/grafana/pkg/services/guardian"
-	"github.com/grafana/grafana/pkg/services/ngalert/notifier"
 	"github.com/grafana/grafana/pkg/services/search"
 	"github.com/grafana/grafana/pkg/util"
 )
@@ -31,11 +29,11 @@ func ValidateOrgAlert(c *models.ReqContext) {
 	}
 }
 
-func GetAlertStatesForDashboard(c *models.ReqContext) response.Response {
+func GetAlertStatesForDashboard(c *models.ReqContext) Response {
 	dashboardID := c.QueryInt64("dashboardId")
 
 	if dashboardID == 0 {
-		return response.Error(400, "Missing query parameter dashboardId", nil)
+		return Error(400, "Missing query parameter dashboardId", nil)
 	}
 
 	query := models.GetAlertStatesForDashboardQuery{
@@ -44,14 +42,14 @@ func GetAlertStatesForDashboard(c *models.ReqContext) response.Response {
 	}
 
 	if err := bus.Dispatch(&query); err != nil {
-		return response.Error(500, "Failed to fetch alert states", err)
+		return Error(500, "Failed to fetch alert states", err)
 	}
 
-	return response.JSON(200, query.Result)
+	return JSON(200, query.Result)
 }
 
 // GET /api/alerts
-func GetAlerts(c *models.ReqContext) response.Response {
+func GetAlerts(c *models.ReqContext) Response {
 	dashboardQuery := c.Query("dashboardQuery")
 	dashboardTags := c.QueryStrings("dashboardTag")
 	stringDashboardIDs := c.QueryStrings("dashboardId")
@@ -88,18 +86,18 @@ func GetAlerts(c *models.ReqContext) response.Response {
 
 		err := bus.Dispatch(&searchQuery)
 		if err != nil {
-			return response.Error(500, "List alerts failed", err)
+			return Error(500, "List alerts failed", err)
 		}
 
 		for _, d := range searchQuery.Result {
-			if d.Type == search.DashHitDB && d.ID > 0 {
-				dashboardIDs = append(dashboardIDs, d.ID)
+			if d.Type == search.DashHitDB && d.Id > 0 {
+				dashboardIDs = append(dashboardIDs, d.Id)
 			}
 		}
 
 		// if we didn't find any dashboards, return empty result
 		if len(dashboardIDs) == 0 {
-			return response.JSON(200, []*models.AlertListItemDTO{})
+			return JSON(200, []*models.AlertListItemDTO{})
 		}
 	}
 
@@ -118,35 +116,41 @@ func GetAlerts(c *models.ReqContext) response.Response {
 	}
 
 	if err := bus.Dispatch(&query); err != nil {
-		return response.Error(500, "List alerts failed", err)
+		return Error(500, "List alerts failed", err)
 	}
 
 	for _, alert := range query.Result {
 		alert.Url = models.GetDashboardUrl(alert.DashboardUid, alert.DashboardSlug)
 	}
 
-	return response.JSON(200, query.Result)
+	return JSON(200, query.Result)
 }
 
 // POST /api/alerts/test
-func (hs *HTTPServer) AlertTest(c *models.ReqContext, dto dtos.AlertTestCommand) response.Response {
+func AlertTest(c *models.ReqContext, dto dtos.AlertTestCommand) Response {
 	if _, idErr := dto.Dashboard.Get("id").Int64(); idErr != nil {
-		return response.Error(400, "The dashboard needs to be saved at least once before you can test an alert rule", nil)
+		return Error(400, "The dashboard needs to be saved at least once before you can test an alert rule", nil)
 	}
 
-	// LOGZ.IO GRAFANA CHANGE :: DEV-17927 - add LogzIoHeaders
-	res, err := hs.AlertEngine.AlertTest(c.OrgId, dto.Dashboard, dto.PanelId, c.SignedInUser, &models.LogzIoHeaders{RequestHeaders: c.Req.Header})
-	if err != nil {
-		var validationErr alerting.ValidationError
-		if errors.As(err, &validationErr) {
-			return response.Error(422, validationErr.Error(), nil)
-		}
-		if errors.Is(err, models.ErrDataSourceAccessDenied) {
-			return response.Error(403, "Access denied to datasource", err)
-		}
-		return response.Error(500, "Failed to test rule", err)
+	backendCmd := alerting.AlertTestCommand{
+		OrgID:         c.OrgId,
+		Dashboard:     dto.Dashboard,
+		PanelID:       dto.PanelId,
+		User:          c.SignedInUser,
+		LogzIoHeaders: &models.LogzIoHeaders{RequestHeaders: c.Req.Header}, // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - add LogzIoHeaders
 	}
 
+	if err := bus.Dispatch(&backendCmd); err != nil {
+		if validationErr, ok := err.(alerting.ValidationError); ok {
+			return Error(422, validationErr.Error(), nil)
+		}
+		if err == models.ErrDataSourceAccessDenied {
+			return Error(403, "Access denied to datasource", err)
+		}
+		return Error(500, "Failed to test rule", err)
+	}
+
+	res := backendCmd.Result
 	dtoRes := &dtos.AlertTestResult{
 		Firing:         res.Firing,
 		ConditionEvals: res.ConditionEvals,
@@ -166,12 +170,12 @@ func (hs *HTTPServer) AlertTest(c *models.ReqContext, dto dtos.AlertTestCommand)
 
 	dtoRes.TimeMs = fmt.Sprintf("%1.3fms", res.GetDurationMs())
 
-	return response.JSON(200, dtoRes)
+	return JSON(200, dtoRes)
 }
 
 // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - Custom Alert payload check end-points
 // POST /api/alerts/evaluate-alert
-func EvaluateAlert(c *models.ReqContext, dto dtos.EvaluateAlertRequestCommand) response.Response {
+func EvaluateAlert(c *models.ReqContext, dto dtos.EvaluateAlertRequestCommand) Response {
 	customDataSources := make([]*models.DataSource, 0)
 
 	for _, ds := range dto.CustomDataSources {
@@ -232,7 +236,7 @@ func EvaluateAlert(c *models.ReqContext, dto dtos.EvaluateAlertRequestCommand) r
 	}
 
 	if err := bus.Dispatch(&alertCheckCommand); err != nil {
-		return response.Error(500, "Failed to check alert", err)
+		return Error(500, "Failed to check alert", err)
 	}
 
 	res := alertCheckCommand.Result
@@ -255,17 +259,17 @@ func EvaluateAlert(c *models.ReqContext, dto dtos.EvaluateAlertRequestCommand) r
 		}
 
 		dtoRes.TimeMs = fmt.Sprintf("%1.3fms", res.GetDurationMs())
-		return response.JSON(200, dtoRes)
+		return JSON(200, dtoRes)
 
 	} else {
 		msg := fmt.Sprintf("Failed to check alert: %d, date: %s", dto.Alert, dto.EvalTime)
-		return response.Error(500, msg, errors.New("results not found"))
+		return Error(500, msg, errors.New("results not found"))
 	}
 }
 
 // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - new endpoint
 // POST /api/alerts/evaluate-alert-by-id
-func EvaluateAlertById(c *models.ReqContext, dto dtos.EvaluateAlertByIdCommand) response.Response {
+func EvaluateAlertById(c *models.ReqContext, dto dtos.EvaluateAlertByIdCommand) Response {
 	evaluateAlertByIdCommand := alerting.EvaluateAlertByIdCommand{
 		AlertId:       dto.AlertId,
 		EvalTime:      dto.EvalTime,
@@ -273,7 +277,7 @@ func EvaluateAlertById(c *models.ReqContext, dto dtos.EvaluateAlertByIdCommand) 
 	}
 
 	if err := bus.Dispatch(&evaluateAlertByIdCommand); err != nil {
-		return response.Error(500, "Failed to check alert", err)
+		return Error(500, "Failed to check alert", err)
 	}
 
 	res := evaluateAlertByIdCommand.Result
@@ -296,42 +300,36 @@ func EvaluateAlertById(c *models.ReqContext, dto dtos.EvaluateAlertByIdCommand) 
 		}
 
 		dtoRes.TimeMs = fmt.Sprintf("%1.3fms", res.GetDurationMs())
-		return response.JSON(200, dtoRes)
+		return JSON(200, dtoRes)
 
 	} else {
 		msg := fmt.Sprintf("Failed to check alert by Id: %d, date: %s", dto.AlertId, dto.EvalTime)
-		return response.Error(500, msg, errors.New("results not found"))
+		return Error(500, msg, errors.New("results not found"))
 	}
 }
+
 // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - end
 
 // GET /api/alerts/:id
-func GetAlert(c *models.ReqContext) response.Response {
+func GetAlert(c *models.ReqContext) Response {
 	id := c.ParamsInt64(":alertId")
 	query := models.GetAlertByIdQuery{Id: id}
 
 	if err := bus.Dispatch(&query); err != nil {
-		return response.Error(500, "List alerts failed", err)
+		return Error(500, "List alerts failed", err)
 	}
 
-	return response.JSON(200, &query.Result)
+	return JSON(200, &query.Result)
 }
 
-func GetAlertNotifiers(ngalertEnabled bool) func(*models.ReqContext) response.Response {
-	return func(_ *models.ReqContext) response.Response {
-		if ngalertEnabled {
-			return response.JSON(200, notifier.GetAvailableNotifiers())
-		}
-		// TODO(codesome): This wont be required in 8.0 since ngalert
-		// will be enabled by default with no disabling. This is to be removed later.
-		return response.JSON(200, alerting.GetNotifiers())
-	}
+func GetAlertNotifiers(c *models.ReqContext) Response {
+	return JSON(200, alerting.GetNotifiers())
 }
 
-func GetAlertNotificationLookup(c *models.ReqContext) response.Response {
+func GetAlertNotificationLookup(c *models.ReqContext) Response {
 	alertNotifications, err := getAlertNotificationsInternal(c)
 	if err != nil {
-		return response.Error(500, "Failed to get alert notifications", err)
+		return Error(500, "Failed to get alert notifications", err)
 	}
 
 	result := make([]*dtos.AlertNotificationLookup, 0)
@@ -340,13 +338,13 @@ func GetAlertNotificationLookup(c *models.ReqContext) response.Response {
 		result = append(result, dtos.NewAlertNotificationLookup(notification))
 	}
 
-	return response.JSON(200, result)
+	return JSON(200, result)
 }
 
-func GetAlertNotifications(c *models.ReqContext) response.Response {
+func GetAlertNotifications(c *models.ReqContext) Response {
 	alertNotifications, err := getAlertNotificationsInternal(c)
 	if err != nil {
-		return response.Error(500, "Failed to get alert notifications", err)
+		return Error(500, "Failed to get alert notifications", err)
 	}
 
 	result := make([]*dtos.AlertNotification, 0)
@@ -355,7 +353,7 @@ func GetAlertNotifications(c *models.ReqContext) response.Response {
 		result = append(result, dtos.NewAlertNotification(notification))
 	}
 
-	return response.JSON(200, result)
+	return JSON(200, result)
 }
 
 func getAlertNotificationsInternal(c *models.ReqContext) ([]*models.AlertNotification, error) {
@@ -368,74 +366,71 @@ func getAlertNotificationsInternal(c *models.ReqContext) ([]*models.AlertNotific
 	return query.Result, nil
 }
 
-func GetAlertNotificationByID(c *models.ReqContext) response.Response {
+func GetAlertNotificationByID(c *models.ReqContext) Response {
 	query := &models.GetAlertNotificationsQuery{
 		OrgId: c.OrgId,
 		Id:    c.ParamsInt64("notificationId"),
 	}
 
 	if query.Id == 0 {
-		return response.Error(404, "Alert notification not found", nil)
+		return Error(404, "Alert notification not found", nil)
 	}
 
 	if err := bus.Dispatch(query); err != nil {
-		return response.Error(500, "Failed to get alert notifications", err)
+		return Error(500, "Failed to get alert notifications", err)
 	}
 
 	if query.Result == nil {
-		return response.Error(404, "Alert notification not found", nil)
+		return Error(404, "Alert notification not found", nil)
 	}
 
-	return response.JSON(200, dtos.NewAlertNotification(query.Result))
+	return JSON(200, dtos.NewAlertNotification(query.Result))
 }
 
-func GetAlertNotificationByUID(c *models.ReqContext) response.Response {
+func GetAlertNotificationByUID(c *models.ReqContext) Response {
 	query := &models.GetAlertNotificationsWithUidQuery{
 		OrgId: c.OrgId,
 		Uid:   c.Params("uid"),
 	}
 
 	if query.Uid == "" {
-		return response.Error(404, "Alert notification not found", nil)
+		return Error(404, "Alert notification not found", nil)
 	}
 
 	if err := bus.Dispatch(query); err != nil {
-		return response.Error(500, "Failed to get alert notifications", err)
+		return Error(500, "Failed to get alert notifications", err)
 	}
 
 	if query.Result == nil {
-		return response.Error(404, "Alert notification not found", nil)
+		return Error(404, "Alert notification not found", nil)
 	}
 
-	return response.JSON(200, dtos.NewAlertNotification(query.Result))
+	return JSON(200, dtos.NewAlertNotification(query.Result))
 }
 
-func CreateAlertNotification(c *models.ReqContext, cmd models.CreateAlertNotificationCommand) response.Response {
+func CreateAlertNotification(c *models.ReqContext, cmd models.CreateAlertNotificationCommand) Response {
 	cmd.OrgId = c.OrgId
 
 	if err := bus.Dispatch(&cmd); err != nil {
-		if errors.Is(err, models.ErrAlertNotificationWithSameNameExists) || errors.Is(err, models.ErrAlertNotificationWithSameUIDExists) {
-			return response.Error(409, "Failed to create alert notification", err)
-		}
-		return response.Error(500, "Failed to create alert notification", err)
+		return Error(500, "Failed to create alert notification", err)
 	}
 
-	return response.JSON(200, dtos.NewAlertNotification(cmd.Result))
+	return JSON(200, dtos.NewAlertNotification(cmd.Result))
 }
 
-func UpdateAlertNotification(c *models.ReqContext, cmd models.UpdateAlertNotificationCommand) response.Response {
+func UpdateAlertNotification(c *models.ReqContext, cmd models.UpdateAlertNotificationCommand) Response {
 	cmd.OrgId = c.OrgId
 
 	err := fillWithSecureSettingsData(&cmd)
 	if err != nil {
-		return response.Error(500, "Failed to update alert notification", err)
+		return Error(500, "Failed to update alert notification", err)
 	}
 
 	if err := bus.Dispatch(&cmd); err != nil {
-		if errors.Is(err, models.ErrAlertNotificationNotFound) {
-			return response.Error(404, err.Error(), err)
+		if err == models.ErrAlertNotificationNotFound {
+			return Error(404, err.Error(), err)
 		}
-		return response.Error(500, "Failed to update alert notification", err)
+		return Error(500, "Failed to update alert notification", err)
 	}
 
 	query := models.GetAlertNotificationsQuery{
@@ -444,26 +439,26 @@ func UpdateAlertNotification(c *models.ReqContext, cmd models.UpdateAlertNotific
 	}
 
 	if err := bus.Dispatch(&query); err != nil {
-		return response.Error(500, "Failed to get alert notification", err)
+		return Error(500, "Failed to get alert notification", err)
 	}
 
-	return response.JSON(200, dtos.NewAlertNotification(query.Result))
+	return JSON(200, dtos.NewAlertNotification(query.Result))
 }
 
-func UpdateAlertNotificationByUID(c *models.ReqContext, cmd models.UpdateAlertNotificationWithUidCommand) response.Response {
+func UpdateAlertNotificationByUID(c *models.ReqContext, cmd models.UpdateAlertNotificationWithUidCommand) Response {
 	cmd.OrgId = c.OrgId
 	cmd.Uid = c.Params("uid")
 
 	err := fillWithSecureSettingsDataByUID(&cmd)
 	if err != nil {
-		return response.Error(500, "Failed to update alert notification", err)
+		return Error(500, "Failed to update alert notification", err)
 	}
 
 	if err := bus.Dispatch(&cmd); err != nil {
-		if errors.Is(err, models.ErrAlertNotificationNotFound) {
-			return response.Error(404, err.Error(), nil)
+		if err == models.ErrAlertNotificationNotFound {
+			return Error(404, err.Error(), nil)
 		}
-		return response.Error(500, "Failed to update alert notification", err)
+		return Error(500, "Failed to update alert notification", err)
 	}
 
 	query := models.GetAlertNotificationsWithUidQuery{
@@ -472,10 +467,10 @@ func UpdateAlertNotificationByUID(c *models.ReqContext, cmd models.UpdateAlertNo
 	}
 
 	if err := bus.Dispatch(&query); err != nil {
-		return response.Error(500, "Failed to get alert notification", err)
+		return Error(500, "Failed to get alert notification", err)
 	}
 
-	return response.JSON(200, dtos.NewAlertNotification(query.Result))
+	return JSON(200, dtos.NewAlertNotification(query.Result))
 }
 
 func fillWithSecureSettingsData(cmd *models.UpdateAlertNotificationCommand) error {
@@ -526,43 +521,43 @@ func fillWithSecureSettingsDataByUID(cmd *models.UpdateAlertNotificationWithUidC
 	return nil
 }
 
-func DeleteAlertNotification(c *models.ReqContext) response.Response {
+func DeleteAlertNotification(c *models.ReqContext) Response {
 	cmd := models.DeleteAlertNotificationCommand{
 		OrgId: c.OrgId,
 		Id:    c.ParamsInt64("notificationId"),
 	}
 
 	if err := bus.Dispatch(&cmd); err != nil {
-		if errors.Is(err, models.ErrAlertNotificationNotFound) {
-			return response.Error(404, err.Error(), nil)
+		if err == models.ErrAlertNotificationNotFound {
+			return Error(404, err.Error(), nil)
 		}
-		return response.Error(500, "Failed to delete alert notification", err)
+		return Error(500, "Failed to delete alert notification", err)
 	}
 
-	return response.Success("Notification deleted")
+	return Success("Notification deleted")
 }
 
-func DeleteAlertNotificationByUID(c *models.ReqContext) response.Response {
+func DeleteAlertNotificationByUID(c *models.ReqContext) Response {
 	cmd := models.DeleteAlertNotificationWithUidCommand{
 		OrgId: c.OrgId,
 		Uid:   c.Params("uid"),
 	}
 
 	if err := bus.Dispatch(&cmd); err != nil {
-		if errors.Is(err, models.ErrAlertNotificationNotFound) {
-			return response.Error(404, err.Error(), nil)
+		if err == models.ErrAlertNotificationNotFound {
+			return Error(404, err.Error(), nil)
 		}
-		return response.Error(500, "Failed to delete alert notification", err)
+		return Error(500, "Failed to delete alert notification", err)
 	}
 
-	return response.JSON(200, util.DynMap{
+	return JSON(200, util.DynMap{
 		"message": "Notification deleted",
 		"id":      cmd.DeletedAlertNotificationId,
 	})
 }
 
 // POST /api/alert-notifications/test
-func NotificationTest(c *models.ReqContext, dto dtos.NotificationTestCommand) response.Response {
+func NotificationTest(c *models.ReqContext, dto dtos.NotificationTestCommand) Response {
 	cmd := &alerting.NotificationTestCommand{
 		OrgID:          c.OrgId,
 		ID:             dto.ID,
@@ -572,50 +567,45 @@ func NotificationTest(c *models.ReqContext, dto dtos.NotificationTestCommand) re
 		SecureSettings: dto.SecureSettings,
 	}
 
-	if err := bus.DispatchCtx(c.Req.Context(), cmd); err != nil {
-		if errors.Is(err, models.ErrSmtpNotEnabled) {
-			return response.Error(412, err.Error(), err)
+	if err := bus.Dispatch(cmd); err != nil {
+		if err == models.ErrSmtpNotEnabled {
+			return Error(412, err.Error(), err)
 		}
-		var alertingErr alerting.ValidationError
-		if errors.As(err, &alertingErr) {
-			return response.Error(400, err.Error(), err)
-		}
-
-		return response.Error(500, "Failed to send alert notifications", err)
+		return Error(500, "Failed to send alert notifications", err)
 	}
 
-	return response.Success("Test notification sent")
+	return Success("Test notification sent")
 }
 
 // POST /api/alerts/:alertId/pause
-func PauseAlert(c *models.ReqContext, dto dtos.PauseAlertCommand) response.Response {
+func PauseAlert(c *models.ReqContext, dto dtos.PauseAlertCommand) Response {
 	alertID := c.ParamsInt64("alertId")
 	result := make(map[string]interface{})
 	result["alertId"] = alertID
 
 	query := models.GetAlertByIdQuery{Id: alertID}
 	if err := bus.Dispatch(&query); err != nil {
-		return response.Error(500, "Get Alert failed", err)
+		return Error(500, "Get Alert failed", err)
 	}
 
 	guardian := guardian.New(query.Result.DashboardId, c.OrgId, c.SignedInUser)
 	if canEdit, err := guardian.CanEdit(); err != nil || !canEdit {
 		if err != nil {
-			return response.Error(500, "Error while checking permissions for Alert", err)
+			return Error(500, "Error while checking permissions for Alert", err)
 		}
 
-		return response.Error(403, "Access denied to this dashboard and alert", nil)
+		return Error(403, "Access denied to this dashboard and alert", nil)
 	}
 
 	// Alert state validation
 	if query.Result.State != models.AlertStatePaused && !dto.Paused {
 		result["state"] = "un-paused"
 		result["message"] = "Alert is already un-paused"
-		return response.JSON(200, result)
+		return JSON(200, result)
 	} else if query.Result.State == models.AlertStatePaused && dto.Paused {
 		result["state"] = models.AlertStatePaused
 		result["message"] = "Alert is already paused"
-		return response.JSON(200, result)
+		return JSON(200, result)
 	}
 
 	cmd := models.PauseAlertCommand{
@@ -625,43 +615,43 @@ func PauseAlert(c *models.ReqContext, dto dtos.PauseAlertCommand) response.Respo
 	}
 
 	if err := bus.Dispatch(&cmd); err != nil {
-		return response.Error(500, "", err)
+		return Error(500, "", err)
 	}
 
-	var resp models.AlertStateType = models.AlertStateUnknown
+	var response models.AlertStateType = models.AlertStateUnknown
 	pausedState := "un-paused"
 	if cmd.Paused {
-		resp = models.AlertStatePaused
+		response = models.AlertStatePaused
 		pausedState = "paused"
 	}
 
-	result["state"] = resp
+	result["state"] = response
 	result["message"] = "Alert " + pausedState
-	return response.JSON(200, result)
+	return JSON(200, result)
 }
 
 // POST /api/admin/pause-all-alerts
-func PauseAllAlerts(c *models.ReqContext, dto dtos.PauseAllAlertsCommand) response.Response {
+func PauseAllAlerts(c *models.ReqContext, dto dtos.PauseAllAlertsCommand) Response {
 	updateCmd := models.PauseAllAlertCommand{
 		Paused: dto.Paused,
 	}
 
 	if err := bus.Dispatch(&updateCmd); err != nil {
-		return response.Error(500, "Failed to pause alerts", err)
+		return Error(500, "Failed to pause alerts", err)
 	}
 
-	var resp models.AlertStateType = models.AlertStatePending
+	var response models.AlertStateType = models.AlertStatePending
 	pausedState := "un paused"
 	if updateCmd.Paused {
-		resp = models.AlertStatePaused
+		response = models.AlertStatePaused
 		pausedState = "paused"
 	}
 
 	result := map[string]interface{}{
-		"state":          resp,
+		"state":          response,
 		"message":        "alerts " + pausedState,
 		"alertsAffected": updateCmd.ResultCount,
 	}
 
-	return response.JSON(200, result)
+	return JSON(200, result)
 }

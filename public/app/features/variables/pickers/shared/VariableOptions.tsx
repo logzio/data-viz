@@ -1,16 +1,18 @@
 import React, { PureComponent } from 'react';
-import { Tooltip } from '@grafana/ui';
+import { getTagColorsFromName, Icon, Tooltip } from '@grafana/ui';
 import { selectors } from '@grafana/e2e-selectors';
 
-import { VariableOption } from '../../types';
+import { VariableOption, VariableTag } from '../../types';
 
 export interface Props {
   multi: boolean;
   values: VariableOption[];
   selectedValues: VariableOption[];
+  tags: VariableTag[];
   highlightIndex: number;
   onToggle: (option: VariableOption, clearOthers: boolean) => void;
   onToggleAll: () => void;
+  onToggleTag: (tag: VariableTag) => void;
 }
 
 export class VariableOptions extends PureComponent<Props> {
@@ -25,13 +27,18 @@ export class VariableOptions extends PureComponent<Props> {
     this.props.onToggleAll();
   };
 
+  onToggleTag = (tag: VariableTag) => (event: React.MouseEvent<HTMLAnchorElement>) => {
+    this.handleEvent(event);
+    this.props.onToggleTag(tag);
+  };
+
   handleEvent(event: React.MouseEvent<HTMLAnchorElement>) {
     event.preventDefault();
     event.stopPropagation();
   }
 
   render() {
-    const { multi, values } = this.props;
+    const { multi, values, tags } = this.props;
 
     return (
       <div
@@ -43,8 +50,41 @@ export class VariableOptions extends PureComponent<Props> {
             {this.renderMultiToggle()}
             {values.map((option, index) => this.renderOption(option, index))}
           </div>
+          {this.renderTags(tags)}
         </div>
       </div>
+    );
+  }
+
+  renderTags(tags: VariableTag[]) {
+    if (tags.length === 0) {
+      return null;
+    }
+
+    return (
+      <div className="variable-options-column">
+        <div className="variable-options-column-header text-center">Tags</div>
+        {tags.map(tag => this.renderTag(tag))}
+      </div>
+    );
+  }
+
+  renderTag(tag: VariableTag) {
+    const { color, borderColor } = getTagColorsFromName(tag.text.toString());
+
+    return (
+      <a
+        key={`${tag.text}`}
+        className={`${tag.selected ? 'variable-option-tag pointer selected' : 'variable-option-tag pointer'}`}
+        onClick={this.onToggleTag(tag)}
+      >
+        <span className="fa fa-fw variable-option-icon"></span>
+        <span className="label-tag" style={{ backgroundColor: color, borderColor }}>
+          {tag.text}&nbsp;&nbsp;
+          <Icon name="tag-alt" />
+          &nbsp;
+        </span>
+      </a>
     );
   }
 

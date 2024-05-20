@@ -12,16 +12,13 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/model"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestCountersAsDelta(t *testing.T) {
-	b, err := NewBridge(&Config{
+	b, _ := NewBridge(&Config{
 		URL:             "localhost:12345",
 		CountersAsDelta: true,
 	})
-	require.NoError(t, err)
 	ty := dto.MetricType(0)
 	mf := &dto.MetricFamily{
 		Type:   &ty,
@@ -33,10 +30,14 @@ func TestCountersAsDelta(t *testing.T) {
 	var got float64
 	want = float64(1)
 	got = b.replaceCounterWithDelta(mf, m, model.SampleValue(1))
-	require.Equal(t, want, got)
+	if got != want {
+		t.Fatalf("want %v got %v", want, got)
+	}
 
 	got = b.replaceCounterWithDelta(mf, m, model.SampleValue(2))
-	require.Equal(t, want, got)
+	if got != want {
+		t.Fatalf("want %v got %v", want, got)
+	}
 }
 
 func TestCountersAsDeltaDisabled(t *testing.T) {
@@ -55,11 +56,15 @@ func TestCountersAsDeltaDisabled(t *testing.T) {
 	var got float64
 	want = float64(1)
 	got = b.replaceCounterWithDelta(mf, m, model.SampleValue(1))
-	require.Equal(t, want, got)
+	if got != want {
+		t.Fatalf("want %v got %v", want, got)
+	}
 
 	want = float64(2)
 	got = b.replaceCounterWithDelta(mf, m, model.SampleValue(2))
-	require.Equal(t, want, got)
+	if got != want {
+		t.Fatalf("want %v got %v", want, got)
+	}
 }
 
 func TestSanitize(t *testing.T) {
@@ -444,21 +449,29 @@ func TestSkipNanValues(t *testing.T) {
 		Gatherer:        reg,
 		CountersAsDelta: true,
 	})
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("error creating bridge: %v", err)
+	}
 
 	// first collect
 	mfs, err := reg.Gather()
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("error: %v", err)
+	}
 
 	var buf bytes.Buffer
 	err = b.writeMetrics(&buf, mfs, "prefix.", model.Time(1477043083))
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("error: %v", err)
+	}
 
 	want := `prefix.http_request_total_sum.constname.constvalue 0 1477043
 prefix.http_request_total_count.constname.constvalue.count 0 1477043
 `
 
-	assert.Equal(t, want, buf.String())
+	if got := buf.String(); want != got {
+		t.Fatalf("wanted \n%s\n, got \n%s\n", want, got)
+	}
 }
 
 func TestPush(t *testing.T) {
@@ -483,17 +496,20 @@ func TestPush(t *testing.T) {
 		Gatherer: reg,
 		Prefix:   "prefix.",
 	})
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("error creating bridge: %v", err)
+	}
 
 	nmg, err := newMockGraphite(port)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		err := nmg.Close()
-		require.NoError(t, err)
-	})
+	if err != nil {
+		t.Fatalf("error creating mock graphite: %v", err)
+	}
+	defer nmg.Close()
 
 	err = b.Push()
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("error pushing: %v", err)
+	}
 
 	wants := []string{
 		"prefix.name.constname.constvalue.labelname.val1.count 1",

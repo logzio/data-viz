@@ -7,26 +7,19 @@ const MANIFEST_FILE = 'MANIFEST.txt';
 
 async function* walk(dir: string, baseDir: string): AsyncGenerator<string, any, any> {
   for await (const d of await (fs.promises as any).opendir(dir)) {
-    const entry = path.posix.join(dir, d.name);
+    const entry = path.join(dir, d.name);
     if (d.isDirectory()) {
       yield* await walk(entry, baseDir);
     } else if (d.isFile()) {
-      yield path.posix.relative(baseDir, entry);
+      yield path.relative(baseDir, entry);
     } else if (d.isSymbolicLink()) {
-      const realPath = await (fs.promises as any).realpath(entry);
+      const realPath = fs.realpathSync(entry);
       if (!realPath.startsWith(baseDir)) {
         throw new Error(
-          `symbolic link ${path.posix.relative(
-            baseDir,
-            entry
-          )} targets a file outside of the base directory: ${baseDir}`
+          `symbolic link ${path.relative(baseDir, entry)} targets a file outside of the base directory: ${baseDir}`
         );
       }
-      // if resolved symlink target is a file include it in the manifest
-      const stats = await (fs.promises as any).stat(realPath);
-      if (stats.isFile()) {
-        yield path.posix.relative(baseDir, entry);
-      }
+      yield path.relative(baseDir, entry);
     }
   }
 }

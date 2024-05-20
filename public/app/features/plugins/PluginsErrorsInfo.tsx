@@ -1,28 +1,29 @@
 import React from 'react';
 import { selectors } from '@grafana/e2e-selectors';
-import { HorizontalGroup, InfoBox, List, PluginSignatureBadge, useTheme } from '@grafana/ui';
+import { HorizontalGroup, InfoBox, List, useTheme } from '@grafana/ui';
+import { mapPluginErrorCodeToSignatureStatus, PluginSignatureBadge } from './PluginSignatureBadge';
 import { StoreState } from '../../types';
 import { getAllPluginsErrors } from './state/selectors';
 import { loadPlugins, loadPluginsErrors } from './state/actions';
 import useAsync from 'react-use/lib/useAsync';
-import { connect, ConnectedProps } from 'react-redux';
+import { connect, MapDispatchToProps, MapStateToProps } from 'react-redux';
 import { hot } from 'react-hot-loader';
-import { PluginErrorCode, PluginSignatureStatus } from '@grafana/data';
-import { css } from '@emotion/css';
+import { PluginError } from '@grafana/data';
+import { css } from 'emotion';
 
-const mapStateToProps = (state: StoreState) => ({
-  errors: getAllPluginsErrors(state.plugins),
-});
+interface ConnectedProps {
+  errors: PluginError[];
+}
 
-const mapDispatchToProps = {
-  loadPluginsErrors,
-};
+interface DispatchProps {
+  loadPluginsErrors: typeof loadPluginsErrors;
+}
 
 interface OwnProps {
   children?: React.ReactNode;
 }
-const connector = connect(mapStateToProps, mapDispatchToProps);
-type PluginsErrorsInfoProps = ConnectedProps<typeof connector> & OwnProps;
+
+type PluginsErrorsInfoProps = ConnectedProps & DispatchProps & OwnProps;
 
 export const PluginsErrorsInfoUnconnected: React.FC<PluginsErrorsInfoProps> = ({
   loadPluginsErrors,
@@ -47,8 +48,12 @@ export const PluginsErrorsInfoUnconnected: React.FC<PluginsErrorsInfoProps> = ({
     >
       <div>
         <p>
-          Unsigned plugins were found during plugin initialization. Grafana Labs cannot guarantee the integrity of these
-          plugins. We recommend only using signed plugins.
+          We have encountered{' '}
+          <a href="https://grafana.com/docs/grafana/latest/developers/plugins/backend/" target="_blank">
+            data source backend plugins
+          </a>{' '}
+          that are unsigned. Grafana Labs cannot guarantee the integrity of unsigned plugins and recommends using signed
+          plugins only.
         </p>
         The following plugins are disabled and not shown in the list below:
         <List
@@ -56,7 +61,7 @@ export const PluginsErrorsInfoUnconnected: React.FC<PluginsErrorsInfoProps> = ({
           className={css`
             list-style-type: circle;
           `}
-          renderItem={(e) => (
+          renderItem={e => (
             <div
               className={css`
                 margin-top: ${theme.spacing.sm};
@@ -80,19 +85,16 @@ export const PluginsErrorsInfoUnconnected: React.FC<PluginsErrorsInfoProps> = ({
   );
 };
 
+const mapStateToProps: MapStateToProps<ConnectedProps, OwnProps, StoreState> = (state: StoreState) => {
+  return {
+    errors: getAllPluginsErrors(state.plugins),
+  };
+};
+
+const mapDispatchToProps: MapDispatchToProps<DispatchProps, OwnProps> = {
+  loadPluginsErrors,
+};
+
 export const PluginsErrorsInfo = hot(module)(
   connect(mapStateToProps, mapDispatchToProps)(PluginsErrorsInfoUnconnected)
 );
-
-function mapPluginErrorCodeToSignatureStatus(code: PluginErrorCode) {
-  switch (code) {
-    case PluginErrorCode.invalidSignature:
-      return PluginSignatureStatus.invalid;
-    case PluginErrorCode.missingSignature:
-      return PluginSignatureStatus.missing;
-    case PluginErrorCode.modifiedSignature:
-      return PluginSignatureStatus.modified;
-    default:
-      return PluginSignatureStatus.missing;
-  }
-}

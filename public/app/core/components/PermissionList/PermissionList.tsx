@@ -24,6 +24,7 @@ class PermissionList extends PureComponent<Props> {
             item={{
               name: 'Admin',
               permission: 4,
+              icon: 'fa fa-fw fa-street-view',
             }}
           />
           {items.map((item, idx) => {

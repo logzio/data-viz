@@ -1,5 +1,4 @@
 import {
-  ArrayVector,
   DataFrame,
   FieldType,
   LogLevel,
@@ -9,14 +8,7 @@ import {
   MutableDataFrame,
   toDataFrame,
 } from '@grafana/data';
-import {
-  dataFrameToLogsModel,
-  dedupLogRows,
-  getSeriesProperties,
-  logSeriesToLogsModel,
-  filterLogLevels,
-  LIMIT_LABEL,
-} from './logs_model';
+import { dataFrameToLogsModel, dedupLogRows, getSeriesProperties, logSeriesToLogsModel } from './logs_model';
 
 describe('dedupLogRows()', () => {
   test('should return rows as is when dedup is set to none', () => {
@@ -143,63 +135,6 @@ describe('dedupLogRows()', () => {
   });
 });
 
-describe('filterLogLevels()', () => {
-  test('should correctly filter out log levels', () => {
-    const rows: LogRowModel[] = [
-      {
-        entry: 'DEBUG 1',
-        logLevel: LogLevel.debug,
-      },
-      {
-        entry: 'ERROR 1',
-        logLevel: LogLevel.error,
-      },
-      {
-        entry: 'TRACE 1',
-        logLevel: LogLevel.trace,
-      },
-    ] as any;
-    const filteredLogs = filterLogLevels(rows, new Set([LogLevel.debug]));
-    expect(filteredLogs.length).toBe(2);
-    expect(filteredLogs).toEqual([
-      { entry: 'ERROR 1', logLevel: 'error' },
-      { entry: 'TRACE 1', logLevel: 'trace' },
-    ]);
-  });
-  test('should correctly filter out log levels and then deduplicate', () => {
-    const rows: LogRowModel[] = [
-      {
-        entry: 'DEBUG 1',
-        logLevel: LogLevel.debug,
-      },
-      {
-        entry: 'DEBUG 2',
-        logLevel: LogLevel.debug,
-      },
-      {
-        entry: 'DEBUG 2',
-        logLevel: LogLevel.debug,
-      },
-      {
-        entry: 'ERROR 1',
-        logLevel: LogLevel.error,
-      },
-      {
-        entry: 'TRACE 1',
-        logLevel: LogLevel.trace,
-      },
-    ] as any;
-    const filteredLogs = filterLogLevels(rows, new Set([LogLevel.error]));
-    const deduplicatedLogs = dedupLogRows(filteredLogs, LogsDedupStrategy.exact);
-    expect(deduplicatedLogs.length).toBe(3);
-    expect(deduplicatedLogs).toEqual([
-      { duplicates: 0, entry: 'DEBUG 1', logLevel: 'debug' },
-      { duplicates: 1, entry: 'DEBUG 2', logLevel: 'debug' },
-      { duplicates: 0, entry: 'TRACE 1', logLevel: 'trace' },
-    ]);
-  });
-});
-
 const emptyLogsModel: any = {
   hasUniqueLabels: false,
   rows: [],
@@ -209,7 +144,7 @@ const emptyLogsModel: any = {
 
 describe('dataFrameToLogsModel', () => {
   it('given empty series should return empty logs model', () => {
-    expect(dataFrameToLogsModel([] as DataFrame[], 0)).toMatchObject(emptyLogsModel);
+    expect(dataFrameToLogsModel([] as DataFrame[], 0, 'utc')).toMatchObject(emptyLogsModel);
   });
 
   it('given series without correct series name should return empty logs model', () => {
@@ -218,7 +153,7 @@ describe('dataFrameToLogsModel', () => {
         fields: [],
       }),
     ];
-    expect(dataFrameToLogsModel(series, 0)).toMatchObject(emptyLogsModel);
+    expect(dataFrameToLogsModel(series, 0, 'utc')).toMatchObject(emptyLogsModel);
   });
 
   it('given series without a time field should return empty logs model', () => {
@@ -233,7 +168,7 @@ describe('dataFrameToLogsModel', () => {
         ],
       }),
     ];
-    expect(dataFrameToLogsModel(series, 0)).toMatchObject(emptyLogsModel);
+    expect(dataFrameToLogsModel(series, 0, 'utc')).toMatchObject(emptyLogsModel);
   });
 
   it('given series without a string field should return empty logs model', () => {
@@ -248,7 +183,7 @@ describe('dataFrameToLogsModel', () => {
         ],
       }),
     ];
-    expect(dataFrameToLogsModel(series, 0)).toMatchObject(emptyLogsModel);
+    expect(dataFrameToLogsModel(series, 0, 'utc')).toMatchObject(emptyLogsModel);
   });
 
   it('given one series should return expected logs model', () => {
@@ -283,7 +218,7 @@ describe('dataFrameToLogsModel', () => {
         },
       }),
     ];
-    const logsModel = dataFrameToLogsModel(series, 1);
+    const logsModel = dataFrameToLogsModel(series, 1, 'utc');
     expect(logsModel.hasUniqueLabels).toBeFalsy();
     expect(logsModel.rows).toHaveLength(2);
     expect(logsModel.rows).toMatchObject([
@@ -304,22 +239,6 @@ describe('dataFrameToLogsModel', () => {
     ]);
 
     expect(logsModel.series).toHaveLength(2);
-    expect(logsModel.series).toMatchObject([
-      {
-        name: 'info',
-        fields: [
-          { type: 'time', values: new ArrayVector([1556270891000, 1556289770000]) },
-          { type: 'number', values: new ArrayVector([1, 0]) },
-        ],
-      },
-      {
-        name: 'error',
-        fields: [
-          { type: 'time', values: new ArrayVector([1556289770000]) },
-          { type: 'number', values: new ArrayVector([1]) },
-        ],
-      },
-    ]);
     expect(logsModel.meta).toHaveLength(2);
     expect(logsModel.meta![0]).toMatchObject({
       label: 'Common labels',
@@ -327,7 +246,7 @@ describe('dataFrameToLogsModel', () => {
       kind: LogsMetaKind.LabelsMap,
     });
     expect(logsModel.meta![1]).toMatchObject({
-      label: LIMIT_LABEL,
+      label: 'Limit',
       value: `1000 (2 returned)`,
       kind: LogsMetaKind.String,
     });
@@ -369,7 +288,7 @@ describe('dataFrameToLogsModel', () => {
         },
       }),
     ];
-    const logsModel = dataFrameToLogsModel(series, 1);
+    const logsModel = dataFrameToLogsModel(series, 1, 'utc');
     expect(logsModel.hasUniqueLabels).toBeFalsy();
     expect(logsModel.rows).toHaveLength(2);
     expect(logsModel.rows).toMatchObject([
@@ -397,7 +316,7 @@ describe('dataFrameToLogsModel', () => {
       kind: LogsMetaKind.LabelsMap,
     });
     expect(logsModel.meta![1]).toMatchObject({
-      label: LIMIT_LABEL,
+      label: 'Limit',
       value: `1000 (2 returned)`,
       kind: LogsMetaKind.String,
     });
@@ -430,7 +349,7 @@ describe('dataFrameToLogsModel', () => {
         ],
       }),
     ];
-    const logsModel = dataFrameToLogsModel(series, 1);
+    const logsModel = dataFrameToLogsModel(series, 1, 'utc');
     expect(logsModel.rows).toHaveLength(1);
     expect(logsModel.rows).toMatchObject([
       {
@@ -494,7 +413,7 @@ describe('dataFrameToLogsModel', () => {
         ],
       }),
     ];
-    const logsModel = dataFrameToLogsModel(series, 1);
+    const logsModel = dataFrameToLogsModel(series, 1, 'utc');
     expect(logsModel.hasUniqueLabels).toBeTruthy();
     expect(logsModel.rows).toHaveLength(3);
     expect(logsModel.rows).toMatchObject([
@@ -519,22 +438,6 @@ describe('dataFrameToLogsModel', () => {
     ]);
 
     expect(logsModel.series).toHaveLength(2);
-    expect(logsModel.series).toMatchObject([
-      {
-        name: 'error',
-        fields: [
-          { type: 'time', values: new ArrayVector([0, 1000, 2000]) },
-          { type: 'number', values: new ArrayVector([1, 0, 1]) },
-        ],
-      },
-      {
-        name: 'debug',
-        fields: [
-          { type: 'time', values: new ArrayVector([1000, 2000]) },
-          { type: 'number', values: new ArrayVector([1, 0]) },
-        ],
-      },
-    ]);
     expect(logsModel.meta).toHaveLength(1);
     expect(logsModel.meta![0]).toMatchObject({
       label: 'Common labels',
@@ -620,7 +523,7 @@ describe('dataFrameToLogsModel', () => {
         ],
       }),
     ];
-    const logsModel = dataFrameToLogsModel(series, 1);
+    const logsModel = dataFrameToLogsModel(series, 1, 'utc');
     expect(logsModel.hasUniqueLabels).toBeTruthy();
     expect(logsModel.rows).toHaveLength(4);
     expect(logsModel.rows).toMatchObject([
@@ -651,52 +554,6 @@ describe('dataFrameToLogsModel', () => {
     ]);
   });
 
-  it('should return expected line limit meta info when returned number of series equal the log limit', () => {
-    const series: DataFrame[] = [
-      new MutableDataFrame({
-        fields: [
-          {
-            name: 'time',
-            type: FieldType.time,
-            values: ['2019-04-26T09:28:11.352440161Z', '2019-04-26T14:42:50.991981292Z'],
-          },
-          {
-            name: 'message',
-            type: FieldType.string,
-            values: [
-              't=2019-04-26T11:05:28+0200 lvl=info msg="Initializing DatasourceCacheService" logger=server',
-              't=2019-04-26T16:42:50+0200 lvl=eror msg="new token…t unhashed token=56d9fdc5c8b7400bd51b060eea8ca9d7',
-            ],
-            labels: {
-              filename: '/var/log/grafana/grafana.log',
-              job: 'grafana',
-            },
-          },
-          {
-            name: 'id',
-            type: FieldType.string,
-            values: ['foo', 'bar'],
-          },
-        ],
-        meta: {
-          limit: 2,
-        },
-      }),
-    ];
-    const logsModel = dataFrameToLogsModel(series, 1, { from: 1556270591353, to: 1556289770991 });
-    expect(logsModel.meta).toHaveLength(2);
-    expect(logsModel.meta![0]).toMatchObject({
-      label: 'Common labels',
-      value: series[0].fields[1].labels,
-      kind: LogsMetaKind.LabelsMap,
-    });
-    expect(logsModel.meta![1]).toMatchObject({
-      label: LIMIT_LABEL,
-      value: `2 reached, received logs cover 98.44% (5h 14min 40sec) of your selected time range (5h 19min 40sec)`,
-      kind: LogsMetaKind.String,
-    });
-  });
-
   it('should fallback to row index if no id', () => {
     const series: DataFrame[] = [
       toDataFrame({
@@ -715,8 +572,102 @@ describe('dataFrameToLogsModel', () => {
         ],
       }),
     ];
-    const logsModel = dataFrameToLogsModel(series, 1);
+    const logsModel = dataFrameToLogsModel(series, 1, 'utc');
     expect(logsModel.rows[0].uid).toBe('0');
+  });
+
+  it('given multiple series with equal ids should return expected logs model', () => {
+    const series: DataFrame[] = [
+      toDataFrame({
+        fields: [
+          {
+            name: 'ts',
+            type: FieldType.time,
+            values: ['1970-01-01T00:00:00Z'],
+          },
+          {
+            name: 'line',
+            type: FieldType.string,
+            values: ['WARN boooo 1'],
+            labels: {
+              foo: 'bar',
+              baz: '1',
+              level: 'dbug',
+            },
+          },
+          {
+            name: 'id',
+            type: FieldType.string,
+            values: ['0'],
+          },
+        ],
+      }),
+      toDataFrame({
+        fields: [
+          {
+            name: 'ts',
+            type: FieldType.time,
+            values: ['1970-01-01T00:00:01Z'],
+          },
+          {
+            name: 'line',
+            type: FieldType.string,
+            values: ['WARN boooo 2'],
+            labels: {
+              foo: 'bar',
+              baz: '2',
+              level: 'dbug',
+            },
+          },
+          {
+            name: 'id',
+            type: FieldType.string,
+            values: ['1'],
+          },
+        ],
+      }),
+      toDataFrame({
+        fields: [
+          {
+            name: 'ts',
+            type: FieldType.time,
+            values: ['1970-01-01T00:00:01Z'],
+          },
+          {
+            name: 'line',
+            type: FieldType.string,
+            values: ['WARN boooo 2'],
+            labels: {
+              foo: 'bar',
+              baz: '2',
+              level: 'dbug',
+            },
+          },
+          {
+            name: 'id',
+            type: FieldType.string,
+            values: ['1'],
+          },
+        ],
+      }),
+    ];
+    const logsModel = dataFrameToLogsModel(series, 0, 'utc');
+    expect(logsModel.hasUniqueLabels).toBeTruthy();
+    expect(logsModel.rows).toHaveLength(2);
+    expect(logsModel.rows).toMatchObject([
+      {
+        entry: 'WARN boooo 1',
+        labels: { foo: 'bar' },
+        logLevel: LogLevel.debug,
+        uniqueLabels: { baz: '1' },
+      },
+      {
+        entry: 'WARN boooo 2',
+        labels: { foo: 'bar' },
+        logLevel: LogLevel.debug,
+        uniqueLabels: { baz: '2' },
+      },
+    ]);
   });
 });
 
@@ -741,8 +692,8 @@ describe('logSeriesToLogsModel', () => {
     const metaData = {
       hasUniqueLabels: false,
       meta: [
-        { label: LIMIT_LABEL, value: 1000, kind: 0 },
-        { label: 'Total bytes processed', value: '97.0  kB', kind: 1 },
+        { label: 'Limit', value: '1000 (0 returned)', kind: 1 },
+        { label: 'Total bytes processed', value: '97  kB', kind: 1 },
       ],
       rows: [],
     };
@@ -796,10 +747,10 @@ describe('logSeriesToLogsModel', () => {
       }),
     ];
 
-    const logsModel = dataFrameToLogsModel(logSeries, 0);
+    const logsModel = dataFrameToLogsModel(logSeries, 0, 'utc');
     expect(logsModel.meta).toMatchObject([
       { kind: 2, label: 'Common labels', value: { foo: 'bar', level: 'dbug' } },
-      { kind: 0, label: LIMIT_LABEL, value: 2000 },
+      { kind: 1, label: 'Limit', value: '2000 (3 returned)' },
       { kind: 1, label: 'Total bytes processed', value: '194  kB' },
     ]);
     expect(logsModel.rows).toHaveLength(3);
@@ -820,86 +771,6 @@ describe('logSeriesToLogsModel', () => {
         logLevel: LogLevel.debug,
       },
     ]);
-  });
-
-  it('should return empty string if message field is undefined', () => {
-    const logSeries: DataFrame[] = [
-      toDataFrame({
-        fields: [
-          {
-            name: 'ts',
-            type: FieldType.time,
-            values: ['1970-01-01T00:00:01Z', '1970-02-01T00:00:01Z', '1970-03-01T00:00:01Z'],
-          },
-          {
-            name: 'line',
-            type: FieldType.string,
-            values: ['WARN boooo 0', undefined, 'WARN boooo 2'],
-            labels: {
-              foo: 'bar',
-              level: 'dbug',
-            },
-          },
-          {
-            name: 'id',
-            type: FieldType.string,
-            values: ['0', '1', '2'],
-          },
-        ],
-        refId: 'A',
-        meta: {},
-      }),
-    ];
-
-    const logsModel = dataFrameToLogsModel(logSeries, 0);
-    expect(logsModel.rows).toHaveLength(3);
-    expect(logsModel.rows).toMatchObject([
-      {
-        entry: 'WARN boooo 0',
-        labels: { foo: 'bar' },
-        logLevel: LogLevel.debug,
-      },
-      {
-        entry: '',
-        labels: { foo: 'bar' },
-        logLevel: LogLevel.debug,
-      },
-      {
-        entry: 'WARN boooo 2',
-        labels: { foo: 'bar' },
-        logLevel: LogLevel.debug,
-      },
-    ]);
-  });
-
-  it('should correctly get the log level if the message has ANSI color', () => {
-    const logSeries: DataFrame[] = [
-      toDataFrame({
-        fields: [
-          {
-            name: 'ts',
-            type: FieldType.time,
-            values: ['1970-01-01T00:00:01Z'],
-          },
-          {
-            name: 'line',
-            type: FieldType.string,
-            values: ['Line with ANSI \u001B[31mwarn\u001B[0m et dolor'],
-          },
-          {
-            name: 'id',
-            type: FieldType.string,
-            values: ['0'],
-          },
-        ],
-        refId: 'A',
-        meta: {},
-      }),
-    ];
-
-    const logsModel = dataFrameToLogsModel(logSeries, 0);
-    expect(logsModel.rows).toHaveLength(1);
-    expect(logsModel.rows[0].logLevel).toEqual(LogLevel.warn);
   });
 });
 

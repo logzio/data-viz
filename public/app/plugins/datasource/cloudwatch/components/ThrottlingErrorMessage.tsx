@@ -9,7 +9,6 @@ export const ThrottlingErrorMessage: FunctionComponent<Props> = ({ region }) => 
     Please visit the&nbsp;
     <a
       target="_blank"
-      rel="noreferrer"
       className="text-link"
       href={`https://${region}.console.aws.amazon.com/servicequotas/home?region=${region}#!/services/monitoring/quotas/L-5E141212`}
     >
@@ -18,9 +17,8 @@ export const ThrottlingErrorMessage: FunctionComponent<Props> = ({ region }) => 
     &nbsp;to request a quota increase or see our&nbsp;
     <a
       target="_blank"
-      rel="noreferrer"
       className="text-link"
-      href="https://grafana.com/docs/grafana/latest/datasources/cloudwatch/#service-quotas"
+      href={`https://grafana.com/docs/features/datasources/cloudwatch/#service-quotas`}
     >
       documentation
     </a>

@@ -14,15 +14,6 @@ import { PanelModel } from '../dashboard/state/PanelModel';
 import { TestRuleResult } from './TestRuleResult';
 import { AppNotificationSeverity, StoreState } from 'app/types';
 import { PanelNotSupported } from '../dashboard/components/PanelEditor/PanelNotSupported';
-import { AlertState } from '../../plugins/datasource/alertmanager/types';
-import { EventBusSrv } from '@grafana/data';
-
-interface AngularPanelController {
-  _enableAlert: () => void;
-  alertState: AlertState | null;
-  render: () => void;
-  refresh: () => void;
-}
 
 interface OwnProps {
   dashboard: DashboardModel;
@@ -45,9 +36,9 @@ interface State {
 }
 
 class UnConnectedAlertTab extends PureComponent<Props, State> {
-  element?: HTMLDivElement | null;
-  component?: AngularComponent;
-  panelCtrl?: AngularPanelController;
+  element: any;
+  component: AngularComponent;
+  panelCtrl: any;
 
   state: State = {
     validationMessage: '',
@@ -77,28 +68,24 @@ class UnConnectedAlertTab extends PureComponent<Props, State> {
   async loadAlertTab() {
     const { panel, angularPanelComponent } = this.props;
 
-    if (!this.element || this.component) {
+    if (!this.element || !angularPanelComponent || this.component) {
       return;
     }
 
-    if (angularPanelComponent) {
-      const scope = angularPanelComponent.getScope();
+    const scope = angularPanelComponent.getScope();
 
-      // When full page reloading in edit mode the angular panel has on fully compiled & instantiated yet
-      if (!scope.$$childHead) {
-        setTimeout(() => {
-          this.forceUpdate();
-        });
-        return;
-      }
-
-      this.panelCtrl = scope.$$childHead.ctrl;
-    } else {
-      this.panelCtrl = this.getReactAlertPanelCtrl();
+    // When full page reloading in edit mode the angular panel has on fully compiled & instantiated yet
+    if (!scope.$$childHead) {
+      setTimeout(() => {
+        this.forceUpdate();
+      });
+      return;
     }
 
+    this.panelCtrl = scope.$$childHead.ctrl;
     const loader = getAngularLoader();
     const template = '<alert-tab />';
+
     const scopeProps = { ctrl: this.panelCtrl };
 
     this.component = loader.load(this.element, scopeProps, template);
@@ -115,19 +102,9 @@ class UnConnectedAlertTab extends PureComponent<Props, State> {
     }
   }
 
-  getReactAlertPanelCtrl() {
-    return {
-      panel: this.props.panel,
-      events: new EventBusSrv(),
-      render: () => {
-        this.props.panel.render();
-      },
-    } as any;
-  }
-
   onAddAlert = () => {
-    this.panelCtrl?._enableAlert();
-    this.component?.digest();
+    this.panelCtrl._enableAlert();
+    this.component.digest();
     this.forceUpdate();
   };
 
@@ -171,16 +148,14 @@ class UnConnectedAlertTab extends PureComponent<Props, State> {
             <small>You need to save dashboard for the delete to take effect.</small>
           </div>
         }
-        confirmText="Delete alert"
+        confirmText="Delete Alert"
         onDismiss={onDismiss}
         onConfirm={() => {
           delete panel.alert;
           panel.thresholds = [];
-          if (this.panelCtrl) {
-            this.panelCtrl.alertState = null;
-            this.panelCtrl.render();
-          }
-          this.component?.digest();
+          this.panelCtrl.alertState = null;
+          this.panelCtrl.render();
+          this.component.digest();
           onDismiss();
         }}
       />
@@ -200,7 +175,7 @@ class UnConnectedAlertTab extends PureComponent<Props, State> {
         <StateHistory
           dashboard={dashboard}
           panelId={panel.editSourceId ?? panel.id}
-          onRefresh={() => this.panelCtrl?.refresh()}
+          onRefresh={() => this.panelCtrl.refresh()}
         />
       </Modal>
     );
@@ -234,7 +209,7 @@ class UnConnectedAlertTab extends PureComponent<Props, State> {
                 />
               )}
 
-              <div ref={(element) => (this.element = element)} />
+              <div ref={element => (this.element = element)} />
               {alert && (
                 <HorizontalGroup>
                   <Button onClick={() => this.onToggleModal('showStateHistory')} variant="secondary">

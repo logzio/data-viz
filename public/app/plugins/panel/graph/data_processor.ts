@@ -1,14 +1,14 @@
-import { find } from 'lodash';
+import _ from 'lodash';
 import { colors } from '@grafana/ui';
 import {
-  DataFrame,
-  dateTime,
-  Field,
-  FieldType,
-  getColorForTheme,
-  getFieldDisplayName,
-  getTimeField,
   TimeRange,
+  FieldType,
+  Field,
+  DataFrame,
+  getTimeField,
+  dateTime,
+  getFieldDisplayName,
+  getColorForTheme,
 } from '@grafana/data';
 import TimeSeries from 'app/core/time_series2';
 import config from 'app/core/config';
@@ -95,11 +95,7 @@ export class DataProcessor {
       const from = range.from;
 
       if (last - from.valueOf() < -10000) {
-        // If the data is in reverse order
-        const first = datapoints[0][1];
-        if (first - from.valueOf() < -10000) {
-          series.isOutsideRange = true;
-        }
+        series.isOutsideRange = true;
       }
     }
     return series;
@@ -147,7 +143,7 @@ export class DataProcessor {
         }
 
         const validOptions = this.getXAxisValueOptions({});
-        const found: any = find(validOptions, { value: this.panel.xaxis.values[0] });
+        const found: any = _.find(validOptions, { value: this.panel.xaxis.values[0] });
         if (!found) {
           this.panel.xaxis.values = ['total'];
         }

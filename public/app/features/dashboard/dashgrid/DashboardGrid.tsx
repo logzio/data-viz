@@ -1,5 +1,6 @@
-// Libraries
+// Libaries
 import React, { PureComponent } from 'react';
+import { hot } from 'react-hot-loader';
 import ReactGridLayout, { ItemCallback } from 'react-grid-layout';
 import classNames from 'classnames';
 // @ts-ignore
@@ -13,8 +14,8 @@ import { DashboardRow } from '../components/DashboardRow';
 import { GRID_CELL_HEIGHT, GRID_CELL_VMARGIN, GRID_COLUMN_COUNT } from 'app/core/constants';
 import { DashboardPanel } from './DashboardPanel';
 import { DashboardModel, PanelModel } from '../state';
-import { Subscription } from 'rxjs';
-import { DashboardPanelsChangedEvent } from 'app/types/events';
+import { CoreEvents } from 'app/types';
+import { panelAdded, panelRemoved } from '../state/PanelModel';
 
 let lastGridWidth = 1200;
 let ignoreNextWidthChange = false;
@@ -27,6 +28,7 @@ interface GridWrapperProps {
   onDragStop: ItemCallback;
   onResize: ItemCallback;
   onResizeStop: ItemCallback;
+  onWidthChange: () => void;
   className: string;
   isResizable?: boolean;
   isDraggable?: boolean;
@@ -41,6 +43,7 @@ function GridWrapper({
   onDragStop,
   onResize,
   onResizeStop,
+  onWidthChange,
   className,
   isResizable,
   isDraggable,
@@ -53,6 +56,7 @@ function GridWrapper({
     if (ignoreNextWidthChange) {
       ignoreNextWidthChange = false;
     } else if (!viewPanel && Math.abs(width - lastGridWidth) > 8) {
+      onWidthChange();
       lastGridWidth = width;
     }
   }
@@ -97,29 +101,27 @@ export interface Props {
   isPanelEditorOpen?: boolean;
 }
 
-export interface State {
-  isLayoutInitialized: boolean;
-}
-export class DashboardGrid extends PureComponent<Props, State> {
-  private panelMap: { [id: string]: PanelModel } = {};
-  private panelRef: { [id: string]: HTMLElement } = {};
-  private eventSubs = new Subscription();
-
-  constructor(props: Props) {
-    super(props);
-
-    this.state = {
-      isLayoutInitialized: false,
-    };
-  }
+export class DashboardGrid extends PureComponent<Props> {
+  panelMap: { [id: string]: PanelModel };
+  panelRef: { [id: string]: HTMLElement } = {};
 
   componentDidMount() {
     const { dashboard } = this.props;
-    this.eventSubs.add(dashboard.events.subscribe(DashboardPanelsChangedEvent, this.triggerForceUpdate));
+
+    dashboard.on(panelAdded, this.triggerForceUpdate);
+    dashboard.on(panelRemoved, this.triggerForceUpdate);
+    dashboard.on(CoreEvents.repeatsProcessed, this.triggerForceUpdate);
+    dashboard.on(CoreEvents.rowCollapsed, this.triggerForceUpdate);
+    dashboard.on(CoreEvents.rowExpanded, this.triggerForceUpdate);
   }
 
   componentWillUnmount() {
-    this.eventSubs.unsubscribe();
+    const { dashboard } = this.props;
+    dashboard.off(panelAdded, this.triggerForceUpdate);
+    dashboard.off(panelRemoved, this.triggerForceUpdate);
+    dashboard.off(CoreEvents.repeatsProcessed, this.triggerForceUpdate);
+    dashboard.off(CoreEvents.rowCollapsed, this.triggerForceUpdate);
+    dashboard.off(CoreEvents.rowExpanded, this.triggerForceUpdate);
   }
 
   buildLayout() {
@@ -162,6 +164,8 @@ export class DashboardGrid extends PureComponent<Props, State> {
     }
 
     this.props.dashboard.sortPanelsByGridPos();
+
+    // Call render() after any changes.  This is called when the layour loads
     this.forceUpdate();
   };
 
@@ -169,8 +173,18 @@ export class DashboardGrid extends PureComponent<Props, State> {
     this.forceUpdate();
   };
 
+  onWidthChange = () => {
+    for (const panel of this.props.dashboard.panels) {
+      panel.resizeDone();
+    }
+  };
+
   updateGridPos = (item: ReactGridLayout.Layout, layout: ReactGridLayout.Layout[]) => {
     this.panelMap[item.i!].updateGridPos(item);
+
+    // react-grid-layout has a bug (#670), and onLayoutChange() is only called when the component is mounted.
+    // So it's required to call it explicitly when panel resized or moved to save layout changes.
+    this.onLayoutChange(layout);
   };
 
   onResize: ItemCallback = (layout, oldItem, newItem) => {
@@ -179,6 +193,7 @@ export class DashboardGrid extends PureComponent<Props, State> {
 
   onResizeStop: ItemCallback = (layout, oldItem, newItem) => {
     this.updateGridPos(newItem, layout);
+    this.panelMap[newItem.i!].resizeDone();
   };
 
   onDragStop: ItemCallback = (layout, oldItem, newItem) => {
@@ -232,7 +247,7 @@ export class DashboardGrid extends PureComponent<Props, State> {
       panel.isInView = this.isInView(panel);
 
       panelElements.push(
-        <div key={id} className={panelClasses} data-panelid={id} ref={(elem) => elem && (this.panelRef[id] = elem)}>
+        <div key={id} className={panelClasses} id={'panel-' + id} ref={elem => elem && (this.panelRef[id] = elem)}>
           {this.renderPanel(panel)}
         </div>
       );
@@ -263,6 +278,7 @@ export class DashboardGrid extends PureComponent<Props, State> {
 
   render() {
     const { dashboard, viewPanel } = this.props;
+
     return (
       <SizedReactLayoutGrid
         className={classNames({ layout: true })}
@@ -270,6 +286,7 @@ export class DashboardGrid extends PureComponent<Props, State> {
         isResizable={dashboard.meta.canEdit}
         isDraggable={dashboard.meta.canEdit}
         onLayoutChange={this.onLayoutChange}
+        onWidthChange={this.onWidthChange}
         onDragStop={this.onDragStop}
         onResize={this.onResize}
         onResizeStop={this.onResizeStop}
@@ -280,3 +297,5 @@ export class DashboardGrid extends PureComponent<Props, State> {
     );
   }
 }
+
+export default hot(module)(DashboardGrid);

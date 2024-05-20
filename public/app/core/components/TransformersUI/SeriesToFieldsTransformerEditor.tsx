@@ -3,7 +3,7 @@ import {
   DataTransformerID,
   SelectableValue,
   standardTransformers,
-  TransformerRegistryItem,
+  TransformerRegistyItem,
   TransformerUIProps,
 } from '@grafana/data';
 import { getAllFieldNamesFromDataFrames } from './OrganizeFieldsTransformerEditor';
@@ -33,13 +33,19 @@ export const SeriesToFieldsTransformerEditor: React.FC<TransformerUIProps<Series
     <div className="gf-form-inline">
       <div className="gf-form gf-form--grow">
         <div className="gf-form-label width-8">Field name</div>
-        <Select options={fieldNameOptions} value={options.byField} onChange={onSelectField} isClearable />
+        <Select
+          options={fieldNameOptions}
+          value={options.byField}
+          onChange={onSelectField}
+          isClearable
+          menuPlacement="bottom"
+        />
       </div>
     </div>
   );
 };
 
-export const seriesToFieldsTransformerRegistryItem: TransformerRegistryItem<SeriesToColumnsOptions> = {
+export const seriesToFieldsTransformerRegistryItem: TransformerRegistyItem<SeriesToColumnsOptions> = {
   id: DataTransformerID.seriesToColumns,
   editor: SeriesToFieldsTransformerEditor,
   transformation: standardTransformers.seriesToColumnsTransformer,

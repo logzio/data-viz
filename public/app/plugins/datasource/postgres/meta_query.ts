@@ -1,4 +1,4 @@
-import QueryModel from './postgres_query_model';
+import QueryModel from './postgres_query';
 
 export class PostgresMetaQuery {
   constructor(private target: { table: string; timeColumn: string }, private queryModel: QueryModel) {}

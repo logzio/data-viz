@@ -1,19 +1,19 @@
 import React from 'react';
 import { InfoBox, InfoBoxProps } from './InfoBox';
 import { FeatureState, GrafanaTheme } from '@grafana/data';
-import { stylesFactory, useStyles } from '../../themes';
+import { stylesFactory, useTheme } from '../../themes';
 import { Badge, BadgeProps } from '../Badge/Badge';
-import { css } from '@emotion/css';
+import { css } from 'emotion';
 
-export interface FeatureInfoBoxProps extends Omit<InfoBoxProps, 'title' | 'urlTitle'> {
+interface FeatureInfoBoxProps extends Omit<InfoBoxProps, 'branded' | 'title' | 'urlTitle'> {
   title: string;
   featureState?: FeatureState;
 }
 
-/** @deprecated use Alert with severity info */
 export const FeatureInfoBox = React.memo(
   React.forwardRef<HTMLDivElement, FeatureInfoBoxProps>(({ title, featureState, ...otherProps }, ref) => {
-    const styles = useStyles(getFeatureInfoBoxStyles);
+    const theme = useTheme();
+    const styles = getFeatureInfoBoxStyles(theme);
 
     const titleEl = featureState ? (
       <>
@@ -25,11 +25,9 @@ export const FeatureInfoBox = React.memo(
     ) : (
       <h3>{title}</h3>
     );
-    return <InfoBox branded title={titleEl} urlTitle="Read documentation" ref={ref} {...otherProps} />;
+    return <InfoBox branded title={titleEl} urlTitle="Read documentation" {...otherProps} />;
   })
 );
-
-FeatureInfoBox.displayName = 'FeatureInfoBox';
 
 const getFeatureInfoBoxStyles = stylesFactory((theme: GrafanaTheme) => {
   return {
@@ -41,12 +39,11 @@ const getFeatureInfoBoxStyles = stylesFactory((theme: GrafanaTheme) => {
 
 interface FeatureBadgeProps {
   featureState: FeatureState;
-  tooltip?: string;
 }
 
-export const FeatureBadge: React.FC<FeatureBadgeProps> = ({ featureState, tooltip }) => {
+export const FeatureBadge: React.FC<FeatureBadgeProps> = ({ featureState }) => {
   const display = getPanelStateBadgeDisplayModel(featureState);
-  return <Badge text={display.text} color={display.color} icon={display.icon} tooltip={tooltip} />;
+  return <Badge text={display.text} color={display.color} icon={display.icon} />;
 };
 
 function getPanelStateBadgeDisplayModel(featureState: FeatureState): BadgeProps {

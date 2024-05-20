@@ -5,8 +5,9 @@ import { toDataFrame } from '../../dataframe';
 import { transformDataFrame } from '../transformDataFrame';
 import { ArrayVector } from '../../vector';
 import { mergeTransformer, MergeTransformerOptions } from './merge';
+import { observableTester } from '../../utils/tests/observableTester';
 
-describe('Merge multiple to single', () => {
+describe('Merge multipe to single', () => {
   const cfg: DataTransformerConfig<MergeTransformerOptions> = {
     id: DataTransformerID.merge,
     options: {},
@@ -16,7 +17,7 @@ describe('Merge multiple to single', () => {
     mockTransformationsRegistry([mergeTransformer]);
   });
 
-  it('combine two series into one', async () => {
+  it('combine two series into one', done => {
     const seriesA = toDataFrame({
       name: 'A',
       fields: [
@@ -33,18 +34,21 @@ describe('Merge multiple to single', () => {
       ],
     });
 
-    await expect(transformDataFrame([cfg], [seriesA, seriesB])).toEmitValuesWith((received) => {
-      const result = received[0];
-      const expected: Field[] = [
-        createField('Time', FieldType.time, [1000, 2000]),
-        createField('Temp', FieldType.number, [1, -1]),
-      ];
+    observableTester().subscribeAndExpectOnNext({
+      observable: transformDataFrame([cfg], [seriesA, seriesB]),
+      expect: result => {
+        const expected: Field[] = [
+          createField('Time', FieldType.time, [1000, 2000]),
+          createField('Temp', FieldType.number, [1, -1]),
+        ];
 
-      expect(unwrap(result[0].fields)).toEqual(expected);
+        expect(unwrap(result[0].fields)).toEqual(expected);
+      },
+      done,
     });
   });
 
-  it('combine two series with multiple values into one', async () => {
+  it('combine two series with multiple values into one', done => {
     const seriesA = toDataFrame({
       name: 'A',
       fields: [
@@ -61,18 +65,21 @@ describe('Merge multiple to single', () => {
       ],
     });
 
-    await expect(transformDataFrame([cfg], [seriesA, seriesB])).toEmitValuesWith((received) => {
-      const result = received[0];
-      const expected: Field[] = [
-        createField('Time', FieldType.time, [100, 150, 200, 100, 125, 126]),
-        createField('Temp', FieldType.number, [1, 4, 5, -1, 2, 3]),
-      ];
+    observableTester().subscribeAndExpectOnNext({
+      observable: transformDataFrame([cfg], [seriesA, seriesB]),
+      expect: result => {
+        const expected: Field[] = [
+          createField('Time', FieldType.time, [100, 150, 200, 100, 125, 126]),
+          createField('Temp', FieldType.number, [1, 4, 5, -1, 2, 3]),
+        ];
 
-      expect(unwrap(result[0].fields)).toEqual(expected);
+        expect(unwrap(result[0].fields)).toEqual(expected);
+      },
+      done,
     });
   });
 
-  it('combine three series into one', async () => {
+  it('combine three series into one', done => {
     const seriesA = toDataFrame({
       name: 'A',
       fields: [
@@ -97,18 +104,21 @@ describe('Merge multiple to single', () => {
       ],
     });
 
-    await expect(transformDataFrame([cfg], [seriesA, seriesB, seriesC])).toEmitValuesWith((received) => {
-      const result = received[0];
-      const expected: Field[] = [
-        createField('Time', FieldType.time, [1000, 2000, 500]),
-        createField('Temp', FieldType.number, [1, -1, 2]),
-      ];
+    observableTester().subscribeAndExpectOnNext({
+      observable: transformDataFrame([cfg], [seriesA, seriesB, seriesC]),
+      expect: result => {
+        const expected: Field[] = [
+          createField('Time', FieldType.time, [1000, 2000, 500]),
+          createField('Temp', FieldType.number, [1, -1, 2]),
+        ];
 
-      expect(unwrap(result[0].fields)).toEqual(expected);
+        expect(unwrap(result[0].fields)).toEqual(expected);
+      },
+      done,
     });
   });
 
-  it('combine one serie and two tables into one table', async () => {
+  it('combine one serie and two tables into one table', done => {
     const tableA = toDataFrame({
       name: 'A',
       fields: [
@@ -135,19 +145,22 @@ describe('Merge multiple to single', () => {
       ],
     });
 
-    await expect(transformDataFrame([cfg], [tableA, seriesB, tableB])).toEmitValuesWith((received) => {
-      const result = received[0];
-      const expected: Field[] = [
-        createField('Time', FieldType.time, [1000, 1000, 500]),
-        createField('Temp', FieldType.number, [1, -1, 2]),
-        createField('Humidity', FieldType.number, [10, undefined, 5]),
-      ];
+    observableTester().subscribeAndExpectOnNext({
+      observable: transformDataFrame([cfg], [tableA, seriesB, tableB]),
+      expect: result => {
+        const expected: Field[] = [
+          createField('Time', FieldType.time, [1000, 1000, 500]),
+          createField('Temp', FieldType.number, [1, -1, 2]),
+          createField('Humidity', FieldType.number, [10, null, 5]),
+        ];
 
-      expect(unwrap(result[0].fields)).toEqual(expected);
+        expect(unwrap(result[0].fields)).toEqual(expected);
+      },
+      done,
     });
   });
 
-  it('combine one serie and two tables with ISO dates into one table', async () => {
+  it('combine one serie and two tables with ISO dates into one table', done => {
     const tableA = toDataFrame({
       name: 'A',
       fields: [
@@ -174,19 +187,22 @@ describe('Merge multiple to single', () => {
       ],
     });
 
-    await expect(transformDataFrame([cfg], [tableA, seriesB, tableC])).toEmitValuesWith((received) => {
-      const result = received[0];
-      const expected: Field[] = [
-        createField('Time', FieldType.time, ['2019-10-01T11:10:23Z', '2019-09-01T11:10:23Z', '2019-11-01T11:10:23Z']),
-        createField('Temp', FieldType.number, [1, -1, 2]),
-        createField('Humidity', FieldType.number, [10, undefined, 5]),
-      ];
+    observableTester().subscribeAndExpectOnNext({
+      observable: transformDataFrame([cfg], [tableA, seriesB, tableC]),
+      expect: result => {
+        const expected: Field[] = [
+          createField('Time', FieldType.time, ['2019-10-01T11:10:23Z', '2019-09-01T11:10:23Z', '2019-11-01T11:10:23Z']),
+          createField('Temp', FieldType.number, [1, -1, 2]),
+          createField('Humidity', FieldType.number, [10, null, 5]),
+        ];
 
-      expect(unwrap(result[0].fields)).toEqual(expected);
+        expect(unwrap(result[0].fields)).toEqual(expected);
+      },
+      done,
     });
   });
 
-  it('combine two tables, where first is partial overlapping, into one', async () => {
+  it('combine two tables, where first is partial overlapping, into one', done => {
     const tableA = toDataFrame({
       name: 'A',
       fields: [
@@ -212,36 +228,39 @@ describe('Merge multiple to single', () => {
       ],
     });
 
-    await expect(transformDataFrame([cfg], [tableA, tableB])).toEmitValuesWith((received) => {
-      const result = received[0];
-      const expected: Field[] = [
-        createField('Country', FieldType.string, [
-          'United States',
-          'United States',
-          'Mexico',
-          'Germany',
-          'Canada',
-          'Canada',
-          undefined,
-        ]),
-        createField('AgeGroup', FieldType.string, [
-          '50 or over',
-          '35 - 49',
-          '0 - 17',
-          '35 - 49',
-          '35 - 49',
-          '25 - 34',
-          '18 - 24',
-        ]),
-        createField('Sum', FieldType.number, [998, 1193, 1675, 146, 166, 219, undefined]),
-        createField('Count', FieldType.number, [2, 4, 1, 4, 4, 2, 3]),
-      ];
+    observableTester().subscribeAndExpectOnNext({
+      observable: transformDataFrame([cfg], [tableA, tableB]),
+      expect: result => {
+        const expected: Field[] = [
+          createField('Country', FieldType.string, [
+            'United States',
+            'United States',
+            'Mexico',
+            'Germany',
+            'Canada',
+            'Canada',
+            null,
+          ]),
+          createField('AgeGroup', FieldType.string, [
+            '50 or over',
+            '35 - 49',
+            '0 - 17',
+            '35 - 49',
+            '35 - 49',
+            '25 - 34',
+            '18 - 24',
+          ]),
+          createField('Sum', FieldType.number, [998, 1193, 1675, 146, 166, 219, null]),
+          createField('Count', FieldType.number, [2, 4, 1, 4, 4, 2, 3]),
+        ];
 
-      expect(unwrap(result[0].fields)).toEqual(expected);
+        expect(unwrap(result[0].fields)).toEqual(expected);
+      },
+      done,
     });
   });
 
-  it('combine two tables, where second is partial overlapping, into one', async () => {
+  it('combine two tables, where second is partial overlapping, into one', done => {
     /**
      * This behavior feels wrong. I would expect the same behavior regardless of the order
      * of the frames. But when testing the old table panel it had this behavior so I am
@@ -272,36 +291,39 @@ describe('Merge multiple to single', () => {
       ],
     });
 
-    await expect(transformDataFrame([cfg], [tableA, tableB])).toEmitValuesWith((received) => {
-      const result = received[0];
-      const expected: Field[] = [
-        createField('AgeGroup', FieldType.string, [
-          '0 - 17',
-          '18 - 24',
-          '25 - 34',
-          '35 - 49',
-          '50 or over',
-          '35 - 49',
-          '35 - 49',
-        ]),
-        createField('Count', FieldType.number, [1, 3, 2, 4, 2, undefined, undefined]),
-        createField('Country', FieldType.string, [
-          'Mexico',
-          undefined,
-          'Canada',
-          'United States',
-          'United States',
-          'Germany',
-          'Canada',
-        ]),
-        createField('Sum', FieldType.number, [1675, undefined, 219, 1193, 998, 146, 166]),
-      ];
+    observableTester().subscribeAndExpectOnNext({
+      observable: transformDataFrame([cfg], [tableA, tableB]),
+      expect: result => {
+        const expected: Field[] = [
+          createField('AgeGroup', FieldType.string, [
+            '0 - 17',
+            '18 - 24',
+            '25 - 34',
+            '35 - 49',
+            '50 or over',
+            '35 - 49',
+            '35 - 49',
+          ]),
+          createField('Count', FieldType.number, [1, 3, 2, 4, 2, null, null]),
+          createField('Country', FieldType.string, [
+            'Mexico',
+            null,
+            'Canada',
+            'United States',
+            'United States',
+            'Germany',
+            'Canada',
+          ]),
+          createField('Sum', FieldType.number, [1675, null, 219, 1193, 998, 146, 166]),
+        ];
 
-      expect(unwrap(result[0].fields)).toEqual(expected);
+        expect(unwrap(result[0].fields)).toEqual(expected);
+      },
+      done,
     });
   });
 
-  it('combine three tables with multiple values into one', async () => {
+  it('combine three tables with multiple values into one', done => {
     const tableA = toDataFrame({
       name: 'A',
       fields: [
@@ -329,30 +351,23 @@ describe('Merge multiple to single', () => {
       ],
     });
 
-    await expect(transformDataFrame([cfg], [tableA, tableB, tableC])).toEmitValuesWith((received) => {
-      const result = received[0];
-      const expected: Field[] = [
-        createField('Time', FieldType.time, [100, 150, 200, 100, 125, 126, 100, 124, 149]),
-        createField('Temp', FieldType.number, [1, 4, 5, -1, 2, 3, 1, 4, 5]),
-        createField('Humidity', FieldType.number, [10, 14, 55, undefined, undefined, undefined, 22, 25, 30]),
-        createField('Enabled', FieldType.boolean, [
-          undefined,
-          undefined,
-          undefined,
-          true,
-          false,
-          true,
-          undefined,
-          undefined,
-          undefined,
-        ]),
-      ];
+    observableTester().subscribeAndExpectOnNext({
+      observable: transformDataFrame([cfg], [tableA, tableB, tableC]),
+      expect: result => {
+        const expected: Field[] = [
+          createField('Time', FieldType.time, [100, 150, 200, 100, 125, 126, 100, 124, 149]),
+          createField('Temp', FieldType.number, [1, 4, 5, -1, 2, 3, 1, 4, 5]),
+          createField('Humidity', FieldType.number, [10, 14, 55, null, null, null, 22, 25, 30]),
+          createField('Enabled', FieldType.boolean, [null, null, null, true, false, true, null, null, null]),
+        ];
 
-      expect(unwrap(result[0].fields)).toEqual(expected);
+        expect(unwrap(result[0].fields)).toEqual(expected);
+      },
+      done,
     });
   });
 
-  it('combine two time series, where first serie fields has displayName, into one', async () => {
+  it('combine two time series, where first serie fields has displayName, into one', done => {
     const serieA = toDataFrame({
       name: 'A',
       fields: [
@@ -369,21 +384,24 @@ describe('Merge multiple to single', () => {
       ],
     });
 
-    await expect(transformDataFrame([cfg], [serieA, serieB])).toEmitValuesWith((received) => {
-      const result = received[0];
-      const expected: Field[] = [
-        createField('Time', FieldType.time, [100, 150, 200, 100, 125, 126]),
-        createField('Temp', FieldType.number, [1, 4, 5, -1, 2, 3]),
-      ];
+    observableTester().subscribeAndExpectOnNext({
+      observable: transformDataFrame([cfg], [serieA, serieB]),
+      expect: result => {
+        const expected: Field[] = [
+          createField('Time', FieldType.time, [100, 150, 200, 100, 125, 126]),
+          createField('Temp', FieldType.number, [1, 4, 5, -1, 2, 3]),
+        ];
 
-      const fields = unwrap(result[0].fields);
+        const fields = unwrap(result[0].fields);
 
-      expect(fields[1].config).toEqual({});
-      expect(fields).toEqual(expected);
+        expect(fields[1].config).toEqual({});
+        expect(fields).toEqual(expected);
+      },
+      done,
     });
   });
 
-  it('combine two time series, where first serie fields has display processor, into one', async () => {
+  it('combine two time series, where first serie fields has display processor, into one', done => {
     const displayProcessor: DisplayProcessor = jest.fn();
 
     const serieA = toDataFrame({
@@ -402,21 +420,24 @@ describe('Merge multiple to single', () => {
       ],
     });
 
-    await expect(transformDataFrame([cfg], [serieA, serieB])).toEmitValuesWith((received) => {
-      const result = received[0];
-      const expected: Field[] = [
-        createField('Time', FieldType.time, [100, 150, 200, 100, 125, 126], {}, displayProcessor),
-        createField('Temp', FieldType.number, [1, 4, 5, -1, 2, 3]),
-      ];
+    observableTester().subscribeAndExpectOnNext({
+      observable: transformDataFrame([cfg], [serieA, serieB]),
+      expect: result => {
+        const expected: Field[] = [
+          createField('Time', FieldType.time, [100, 150, 200, 100, 125, 126], {}, displayProcessor),
+          createField('Temp', FieldType.number, [1, 4, 5, -1, 2, 3]),
+        ];
 
-      const fields = unwrap(result[0].fields);
+        const fields = unwrap(result[0].fields);
 
-      expect(fields[0].display).toBe(displayProcessor);
-      expect(fields).toEqual(expected);
+        expect(fields[0].display).toBe(displayProcessor);
+        expect(fields).toEqual(expected);
+      },
+      done,
     });
   });
 
-  it('combine two time series, where first serie fields has units, into one', async () => {
+  it('combine two time series, where first serie fields has units, into one', done => {
     const serieA = toDataFrame({
       name: 'A',
       fields: [
@@ -433,21 +454,24 @@ describe('Merge multiple to single', () => {
       ],
     });
 
-    await expect(transformDataFrame([cfg], [serieA, serieB])).toEmitValuesWith((received) => {
-      const result = received[0];
-      const expected: Field[] = [
-        createField('Time', FieldType.time, [100, 150, 200, 100, 125, 126]),
-        createField('Temp', FieldType.number, [1, 4, 5, -1, 2, 3], { units: 'celsius' }),
-      ];
+    observableTester().subscribeAndExpectOnNext({
+      observable: transformDataFrame([cfg], [serieA, serieB]),
+      expect: result => {
+        const expected: Field[] = [
+          createField('Time', FieldType.time, [100, 150, 200, 100, 125, 126]),
+          createField('Temp', FieldType.number, [1, 4, 5, -1, 2, 3], { units: 'celsius' }),
+        ];
 
-      const fields = unwrap(result[0].fields);
+        const fields = unwrap(result[0].fields);
 
-      expect(fields[1].config).toEqual({ units: 'celsius' });
-      expect(fields).toEqual(expected);
+        expect(fields[1].config).toEqual({ units: 'celsius' });
+        expect(fields).toEqual(expected);
+      },
+      done,
     });
   });
 
-  it('combine two time series, where second serie fields has units, into one', async () => {
+  it('combine two time series, where second serie fields has units, into one', done => {
     const serieA = toDataFrame({
       name: 'A',
       fields: [
@@ -464,21 +488,24 @@ describe('Merge multiple to single', () => {
       ],
     });
 
-    await expect(transformDataFrame([cfg], [serieA, serieB])).toEmitValuesWith((received) => {
-      const result = received[0];
-      const expected: Field[] = [
-        createField('Time', FieldType.time, [100, 150, 200, 100, 125, 126]),
-        createField('Temp', FieldType.number, [1, 4, 5, -1, 2, 3]),
-      ];
+    observableTester().subscribeAndExpectOnNext({
+      observable: transformDataFrame([cfg], [serieA, serieB]),
+      expect: result => {
+        const expected: Field[] = [
+          createField('Time', FieldType.time, [100, 150, 200, 100, 125, 126]),
+          createField('Temp', FieldType.number, [1, 4, 5, -1, 2, 3]),
+        ];
 
-      const fields = unwrap(result[0].fields);
+        const fields = unwrap(result[0].fields);
 
-      expect(fields[1].config).toEqual({});
-      expect(fields).toEqual(expected);
+        expect(fields[1].config).toEqual({});
+        expect(fields).toEqual(expected);
+      },
+      done,
     });
   });
 
-  it('combine one regular serie with an empty serie should return the regular serie', async () => {
+  it('combine one regular serie with an empty serie should return the regular serie', done => {
     const serieA = toDataFrame({
       name: 'A',
       fields: [
@@ -492,21 +519,24 @@ describe('Merge multiple to single', () => {
       fields: [],
     });
 
-    await expect(transformDataFrame([cfg], [serieA, serieB])).toEmitValuesWith((received) => {
-      const result = received[0];
-      const expected: Field[] = [
-        createField('Time', FieldType.time, [100, 150, 200]),
-        createField('Temp', FieldType.number, [1, 4, 5]),
-      ];
+    observableTester().subscribeAndExpectOnNext({
+      observable: transformDataFrame([cfg], [serieA, serieB]),
+      expect: result => {
+        const expected: Field[] = [
+          createField('Time', FieldType.time, [100, 150, 200]),
+          createField('Temp', FieldType.number, [1, 4, 5]),
+        ];
 
-      const fields = unwrap(result[0].fields);
+        const fields = unwrap(result[0].fields);
 
-      expect(fields[1].config).toEqual({});
-      expect(fields).toEqual(expected);
+        expect(fields[1].config).toEqual({});
+        expect(fields).toEqual(expected);
+      },
+      done,
     });
   });
 
-  it('combine two regular series with an empty serie should return the combination of the regular series', async () => {
+  it('combine two regular series with an empty serie should return the combination of the regular series', done => {
     const serieA = toDataFrame({
       name: 'A',
       fields: [
@@ -528,22 +558,25 @@ describe('Merge multiple to single', () => {
       ],
     });
 
-    await expect(transformDataFrame([cfg], [serieA, serieB, serieC])).toEmitValuesWith((received) => {
-      const result = received[0];
-      const expected: Field[] = [
-        createField('Time', FieldType.time, [100, 150, 200]),
-        createField('Temp', FieldType.number, [1, 4, 5]),
-        createField('Humidity', FieldType.number, [6, 7, 8]),
-      ];
+    observableTester().subscribeAndExpectOnNext({
+      observable: transformDataFrame([cfg], [serieA, serieB, serieC]),
+      expect: result => {
+        const expected: Field[] = [
+          createField('Time', FieldType.time, [100, 150, 200]),
+          createField('Temp', FieldType.number, [1, 4, 5]),
+          createField('Humidity', FieldType.number, [6, 7, 8]),
+        ];
 
-      const fields = unwrap(result[0].fields);
+        const fields = unwrap(result[0].fields);
 
-      expect(fields[1].config).toEqual({});
-      expect(fields).toEqual(expected);
+        expect(fields[1].config).toEqual({});
+        expect(fields).toEqual(expected);
+      },
+      done,
     });
   });
 
-  it('combine multiple empty series should return one empty serie', async () => {
+  it('combine multiple empty series should return one empty serie', done => {
     const serieA = toDataFrame({
       name: 'A',
       fields: [],
@@ -559,13 +592,16 @@ describe('Merge multiple to single', () => {
       fields: [],
     });
 
-    await expect(transformDataFrame([cfg], [serieA, serieB, serieC])).toEmitValuesWith((received) => {
-      const result = received[0];
-      const expected: Field[] = [];
-      const fields = unwrap(result[0].fields);
+    observableTester().subscribeAndExpectOnNext({
+      observable: transformDataFrame([cfg], [serieA, serieB, serieC]),
+      expect: result => {
+        const expected: Field[] = [];
+        const fields = unwrap(result[0].fields);
 
-      expect(fields).toEqual(expected);
-      expect(result.length).toEqual(1);
+        expect(fields).toEqual(expected);
+        expect(result.length).toEqual(1);
+      },
+      done,
     });
   });
 });
@@ -575,7 +611,7 @@ const createField = (name: string, type: FieldType, values: any[], config = {}, 
 };
 
 const unwrap = (fields: Field[]): Field[] => {
-  return fields.map((field) =>
+  return fields.map(field =>
     createField(
       field.name,
       field.type,

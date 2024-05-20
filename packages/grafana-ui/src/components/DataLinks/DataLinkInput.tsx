@@ -1,24 +1,22 @@
-import React, { memo, RefObject, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useState, useMemo, useContext, useRef, RefObject, memo, useEffect } from 'react';
 import usePrevious from 'react-use/lib/usePrevious';
 import { DataLinkSuggestions } from './DataLinkSuggestions';
-import { makeValue } from '../../index';
+import { ThemeContext, makeValue } from '../../index';
 import { SelectionReference } from './SelectionReference';
-import { Portal } from '../index';
+import { Portal, getFormStyles } from '../index';
 
 // @ts-ignore
-import Prism, { Grammar, LanguageMap } from 'prismjs';
-import { Editor } from 'slate-react';
+import Prism from 'prismjs';
+import { Editor } from '@grafana/slate-react';
 import { Value } from 'slate';
 import Plain from 'slate-plain-serializer';
 import { Popper as ReactPopper } from 'react-popper';
-import { css, cx } from '@emotion/css';
+import { css, cx } from 'emotion';
 
 import { SlatePrism } from '../../slate-plugins';
 import { SCHEMA } from '../../utils/slate';
-import { useStyles2 } from '../../themes';
-import { DataLinkBuiltInVars, GrafanaTheme2, VariableOrigin, VariableSuggestion } from '@grafana/data';
-import { getInputStyles } from '../Input/Input';
-import CustomScrollbar from '../CustomScrollbar/CustomScrollbar';
+import { stylesFactory } from '../../themes';
+import { GrafanaTheme, VariableSuggestion, VariableOrigin, DataLinkBuiltInVars } from '@grafana/data';
 
 const modulo = (a: number, n: number) => a - n * Math.floor(a / n);
 
@@ -29,34 +27,22 @@ interface DataLinkInputProps {
   placeholder?: string;
 }
 
-const datalinksSyntax: Grammar = {
-  builtInVariable: {
-    pattern: /(\${\S+?})/,
-  },
-};
-
 const plugins = [
-  SlatePrism(
-    {
-      onlyIn: (node: any) => node.type === 'code_block',
-      getSyntax: () => 'links',
-    },
-    { ...(Prism.languages as LanguageMap), links: datalinksSyntax }
-  ),
+  SlatePrism({
+    onlyIn: (node: any) => node.type === 'code_block',
+    getSyntax: () => 'links',
+  }),
 ];
 
-const getStyles = (theme: GrafanaTheme2) => ({
-  input: getInputStyles({ theme, invalid: false }).input,
+const getStyles = stylesFactory((theme: GrafanaTheme) => ({
+  input: getFormStyles(theme, { variant: 'primary', size: 'md', invalid: false }).input.input,
   editor: css`
     .token.builtInVariable {
-      color: ${theme.colors.success.text};
+      color: ${theme.palette.queryGreen};
     }
     .token.variable {
-      color: ${theme.colors.primary.text};
+      color: ${theme.colors.textBlue};
     }
-  `,
-  suggestionsWrapper: css`
-    box-shadow: ${theme.shadows.z2};
   `,
   // Wrapper with child selector needed.
   // When classnames are applied to the same element as the wrapper, it causes the suggestions to stop working
@@ -68,14 +54,24 @@ const getStyles = (theme: GrafanaTheme2) => ({
       border: none;
     }
   `,
-});
+}));
+
+export const enableDatalinksPrismSyntax = () => {
+  Prism.languages['links'] = {
+    builtInVariable: {
+      pattern: /(\${\S+?})/,
+    },
+  };
+};
 
 // This memoised also because rerendering the slate editor grabs focus which created problem in some cases this
 // was used and changes to different state were propagated here.
 export const DataLinkInput: React.FC<DataLinkInputProps> = memo(
   ({ value, onChange, suggestions, placeholder = 'http://your-grafana.com/d/000000010/annotations' }) => {
+    enableDatalinksPrismSyntax();
     const editorRef = useRef<Editor>() as RefObject<Editor>;
-    const styles = useStyles2(getStyles);
+    const theme = useContext(ThemeContext);
+    const styles = getStyles(theme);
     const [showingSuggestions, setShowingSuggestions] = useState(false);
     const [suggestionsIndex, setSuggestionsIndex] = useState(0);
     const [linkUrl, setLinkUrl] = useState<Value>(makeValue(value));
@@ -85,16 +81,10 @@ export const DataLinkInput: React.FC<DataLinkInputProps> = memo(
     const stateRef = useRef({ showingSuggestions, suggestions, suggestionsIndex, linkUrl, onChange });
     stateRef.current = { showingSuggestions, suggestions, suggestionsIndex, linkUrl, onChange };
 
-    // Used to get the height of the suggestion elements in order to scroll to them.
-    const activeRef = useRef<HTMLDivElement>(null);
-    const activeIndexPosition = useMemo(() => getElementPosition(activeRef.current, suggestionsIndex), [
-      suggestionsIndex,
-    ]);
-
     // SelectionReference is used to position the variables suggestion relatively to current DOM selection
-    const selectionRef = useMemo(() => new SelectionReference(), []);
+    const selectionRef = useMemo(() => new SelectionReference(), [setShowingSuggestions, linkUrl]);
 
-    const onKeyDown = React.useCallback((event, next: () => any) => {
+    const onKeyDown = React.useCallback((event: KeyboardEvent, next: () => any) => {
       if (!stateRef.current.showingSuggestions) {
         if (event.key === '=' || event.key === '$' || (event.keyCode === 32 && event.ctrlKey)) {
           return setShowingSuggestions(true);
@@ -116,7 +106,7 @@ export const DataLinkInput: React.FC<DataLinkInputProps> = memo(
         case 'ArrowUp':
           event.preventDefault();
           const direction = event.key === 'ArrowDown' ? 1 : -1;
-          return setSuggestionsIndex((index) => modulo(index + direction, stateRef.current.suggestions.length));
+          return setSuggestionsIndex(index => modulo(index + direction, stateRef.current.suggestions.length));
         default:
           return next();
       }
@@ -140,7 +130,7 @@ export const DataLinkInput: React.FC<DataLinkInputProps> = memo(
       if (item.origin !== VariableOrigin.Template || item.value === DataLinkBuiltInVars.includeVars) {
         editor.insertText(`${includeDollarSign ? '$' : ''}\{${item.value}}`);
       } else {
-        editor.insertText(`\${${item.value}:queryparam}`);
+        editor.insertText(`var-${item.value}=$\{${item.value}}`);
       }
 
       setLinkUrl(editor.value);
@@ -158,39 +148,22 @@ export const DataLinkInput: React.FC<DataLinkInputProps> = memo(
               <Portal>
                 <ReactPopper
                   referenceElement={selectionRef}
-                  placement="bottom-end"
-                  modifiers={[
-                    {
-                      name: 'preventOverflow',
-                      enabled: true,
-                      options: {
-                        rootBoundary: 'viewport',
-                      },
-                    },
-                    {
-                      name: 'arrow',
-                      enabled: false,
-                    },
-                    {
-                      name: 'offset',
-                      options: {
-                        offset: [250, 0],
-                      },
-                    },
-                  ]}
+                  placement="top-end"
+                  modifiers={{
+                    preventOverflow: { enabled: true, boundariesElement: 'window' },
+                    arrow: { enabled: false },
+                    offset: { offset: 250 }, // width of the suggestions menu
+                  }}
                 >
                   {({ ref, style, placement }) => {
                     return (
-                      <div ref={ref} style={style} data-placement={placement} className={styles.suggestionsWrapper}>
-                        <CustomScrollbar scrollTop={activeIndexPosition} autoHeightMax="300px">
-                          <DataLinkSuggestions
-                            activeRef={activeRef}
-                            suggestions={stateRef.current.suggestions}
-                            onSuggestionSelect={onVariableSelect}
-                            onClose={() => setShowingSuggestions(false)}
-                            activeIndex={suggestionsIndex}
-                          />
-                        </CustomScrollbar>
+                      <div ref={ref} style={style} data-placement={placement}>
+                        <DataLinkSuggestions
+                          suggestions={stateRef.current.suggestions}
+                          onSuggestionSelect={onVariableSelect}
+                          onClose={() => setShowingSuggestions(false)}
+                          activeIndex={suggestionsIndex}
+                        />
                       </div>
                     );
                   }}
@@ -203,7 +176,7 @@ export const DataLinkInput: React.FC<DataLinkInputProps> = memo(
               placeholder={placeholder}
               value={stateRef.current.linkUrl}
               onChange={onUrlChange}
-              onKeyDown={(event, _editor, next) => onKeyDown(event, next)}
+              onKeyDown={(event, _editor, next) => onKeyDown(event as KeyboardEvent, next)}
               plugins={plugins}
               className={cx(
                 styles.editor,
@@ -221,7 +194,3 @@ export const DataLinkInput: React.FC<DataLinkInputProps> = memo(
 );
 
 DataLinkInput.displayName = 'DataLinkInput';
-
-function getElementPosition(suggestionElement: HTMLElement | null, activeIndex: number) {
-  return (suggestionElement?.clientHeight ?? 0) * activeIndex;
-}

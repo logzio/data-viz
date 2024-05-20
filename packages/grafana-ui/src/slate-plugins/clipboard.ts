@@ -1,4 +1,5 @@
-import { Plugin, Editor as CoreEditor } from 'slate-react';
+import { Plugin } from '@grafana/slate-react';
+import { Editor as CoreEditor } from 'slate';
 
 const getCopiedText = (textBlocks: string[], startOffset: number, endOffset: number) => {
   if (!textBlocks.length) {
@@ -11,8 +12,8 @@ const getCopiedText = (textBlocks: string[], startOffset: number, endOffset: num
 
 export function ClipboardPlugin(): Plugin {
   const clipboardPlugin: Plugin = {
-    onCopy(event, editor: CoreEditor, next: () => any) {
-      const clipEvent = event;
+    onCopy(event: Event, editor: CoreEditor, next: () => any) {
+      const clipEvent = event as ClipboardEvent;
       clipEvent.preventDefault();
 
       const { document, selection } = editor.value;
@@ -23,7 +24,7 @@ export function ClipboardPlugin(): Plugin {
       const selectedBlocks = document
         .getLeafBlocksAtRange(selection)
         .toArray()
-        .map((block) => block.text);
+        .map(block => block.text);
 
       const copiedText = getCopiedText(selectedBlocks, startOffset, endOffset);
       if (copiedText && clipEvent.clipboardData) {
@@ -33,8 +34,8 @@ export function ClipboardPlugin(): Plugin {
       return true;
     },
 
-    onPaste(event, editor: CoreEditor, next: () => any) {
-      const clipEvent = event;
+    onPaste(event: Event, editor: CoreEditor, next: () => any) {
+      const clipEvent = event as ClipboardEvent;
       clipEvent.preventDefault();
       if (clipEvent.clipboardData) {
         const pastedValue = clipEvent.clipboardData.getData('Text');
@@ -54,8 +55,8 @@ export function ClipboardPlugin(): Plugin {
 
   return {
     ...clipboardPlugin,
-    onCut(event, editor: CoreEditor, next: () => any) {
-      const clipEvent = event;
+    onCut(event: Event, editor: CoreEditor, next: () => any) {
+      const clipEvent = event as ClipboardEvent;
       clipboardPlugin.onCopy!(clipEvent, editor, next);
       editor.deleteAtRange(editor.value.selection);
 

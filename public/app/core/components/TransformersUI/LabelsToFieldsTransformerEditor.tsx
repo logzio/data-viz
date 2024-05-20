@@ -1,10 +1,10 @@
 import React from 'react';
 import {
   DataTransformerID,
-  SelectableValue,
   standardTransformers,
-  TransformerRegistryItem,
+  TransformerRegistyItem,
   TransformerUIProps,
+  SelectableValue,
 } from '@grafana/data';
 import { Select } from '@grafana/ui';
 
@@ -49,13 +49,14 @@ export const LabelsAsFieldsTransformerEditor: React.FC<TransformerUIProps<Labels
           className="min-width-18 gf-form-spacing"
           value={options?.valueLabel}
           onChange={onValueLabelChange}
+          menuPlacement="bottom"
         />
       </div>
     </div>
   );
 };
 
-export const labelsToFieldsTransformerRegistryItem: TransformerRegistryItem<LabelsToFieldsOptions> = {
+export const labelsToFieldsTransformerRegistryItem: TransformerRegistyItem<LabelsToFieldsOptions> = {
   id: DataTransformerID.labelsToFields,
   editor: LabelsAsFieldsTransformerEditor,
   transformation: standardTransformers.labelsToFieldsTransformer,

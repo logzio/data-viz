@@ -1,22 +1,44 @@
 import React from 'react';
-import { css, cx } from '@emotion/css';
-import { useStyles2 } from '../../themes/ThemeContext';
-import { GrafanaTheme2 } from '@grafana/data';
+import { Themeable } from '../../types/theme';
+import { GrafanaTheme } from '@grafana/data';
+import { css, cx } from 'emotion';
+import { stylesFactory } from '../../themes';
 
-export interface CallToActionCardProps {
+export interface CallToActionCardProps extends Themeable {
   message?: string | JSX.Element;
   callToActionElement: JSX.Element;
   footer?: string | JSX.Element;
   className?: string;
 }
 
+const getCallToActionCardStyles = stylesFactory((theme: GrafanaTheme) => ({
+  wrapper: css`
+    label: call-to-action-card;
+    padding: ${theme.spacing.lg};
+    background: ${theme.colors.bg2};
+    border-radius: ${theme.border.radius.md};
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  `,
+  message: css`
+    margin-bottom: ${theme.spacing.lg};
+    font-style: italic;
+  `,
+  footer: css`
+    margin-top: ${theme.spacing.lg};
+  `,
+}));
+
 export const CallToActionCard: React.FunctionComponent<CallToActionCardProps> = ({
   message,
   callToActionElement,
   footer,
+  theme,
   className,
 }) => {
-  const css = useStyles2(getStyles);
+  const css = getCallToActionCardStyles(theme);
 
   return (
     <div className={cx([css.wrapper, className])}>
@@ -26,24 +48,3 @@ export const CallToActionCard: React.FunctionComponent<CallToActionCardProps> = 
     </div>
   );
 };
-
-const getStyles = (theme: GrafanaTheme2) => ({
-  wrapper: css`
-    label: call-to-action-card;
-    padding: ${theme.spacing(3)};
-    background: ${theme.colors.background.secondary};
-    border-radius: ${theme.shape.borderRadius(2)};
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    flex-grow: 1;
-  `,
-  message: css`
-    margin-bottom: ${theme.spacing(3)};
-    font-style: italic;
-  `,
-  footer: css`
-    margin-top: ${theme.spacing(3)}};
-  `,
-});

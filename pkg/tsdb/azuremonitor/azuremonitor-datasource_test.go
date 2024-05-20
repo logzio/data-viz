@@ -14,7 +14,7 @@ import (
 	"github.com/grafana/grafana-plugin-sdk-go/data"
 	"github.com/grafana/grafana/pkg/components/simplejson"
 	"github.com/grafana/grafana/pkg/models"
-	"github.com/grafana/grafana/pkg/plugins"
+	"github.com/grafana/grafana/pkg/tsdb"
 	"github.com/stretchr/testify/require"
 	ptr "github.com/xorcare/pointer"
 )
@@ -125,12 +125,12 @@ func TestAzureMonitorBuildQueries(t *testing.T) {
 			for k, v := range commonAzureModelProps {
 				tt.azureMonitorVariedProperties[k] = v
 			}
-			tsdbQuery := plugins.DataQuery{
-				TimeRange: &plugins.DataTimeRange{
+			tsdbQuery := &tsdb.TsdbQuery{
+				TimeRange: &tsdb.TimeRange{
 					From: fmt.Sprintf("%v", fromStart.Unix()*1000),
 					To:   fmt.Sprintf("%v", fromStart.Add(34*time.Minute).Unix()*1000),
 				},
-				Queries: []plugins.DataSubQuery{
+				Queries: []*tsdb.Query{
 					{
 						DataSource: &models.DataSource{
 							JsonData: simplejson.NewFromAny(map[string]interface{}{
@@ -142,8 +142,8 @@ func TestAzureMonitorBuildQueries(t *testing.T) {
 							"azureMonitor": tt.azureMonitorVariedProperties,
 						},
 						),
-						RefID:      "A",
-						IntervalMS: tt.queryIntervalMS,
+						RefId:      "A",
+						IntervalMs: tt.queryIntervalMS,
 					},
 				},
 			}
@@ -161,7 +161,7 @@ func TestAzureMonitorBuildQueries(t *testing.T) {
 				Alias:  "testalias",
 			}
 
-			queries, err := datasource.buildQueries(tsdbQuery.Queries, *tsdbQuery.TimeRange)
+			queries, err := datasource.buildQueries(tsdbQuery.Queries, tsdbQuery.TimeRange)
 			require.NoError(t, err)
 			if diff := cmp.Diff(azureMonitorQuery, queries[0], cmpopts.IgnoreUnexported(simplejson.Json{}), cmpopts.IgnoreFields(AzureMonitorQuery{}, "Params")); diff != "" {
 				t.Errorf("Result mismatch (-want +got):\n%s", diff)
@@ -430,17 +430,16 @@ func TestAzureMonitorParseResponse(t *testing.T) {
 	}
 
 	datasource := &AzureMonitorDatasource{}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			azData := loadTestFile(t, "azuremonitor/"+tt.responseFile)
-			//nolint: staticcheck // plugins.DataPlugin deprecated
-			res := plugins.DataQueryResult{Meta: simplejson.New(), RefID: "A"}
-			require.NotNil(t, res)
-			dframes, err := datasource.parseResponse(azData, tt.mockQuery)
+			azData, err := loadTestFile("azuremonitor/" + tt.responseFile)
 			require.NoError(t, err)
-			require.NotNil(t, dframes)
+			res := &tsdb.QueryResult{Meta: simplejson.New(), RefId: "A"}
+			err = datasource.parseResponse(res, azData, tt.mockQuery)
+			require.NoError(t, err)
 
-			frames, err := dframes.Decoded()
+			frames, err := res.Dataframes.Decoded()
 			require.NoError(t, err)
 			if diff := cmp.Diff(tt.expectedFrames, frames, data.FrameTestCompareOptions()...); diff != "" {
 				t.Errorf("Result mismatch (-want +got):\n%s", diff)
@@ -497,17 +496,14 @@ func TestFindClosestAllowIntervalMS(t *testing.T) {
 	}
 }
 
-func loadTestFile(t *testing.T, name string) AzureMonitorResponse {
-	t.Helper()
+func loadTestFile(name string) (AzureMonitorResponse, error) {
+	var azData AzureMonitorResponse
 
 	path := filepath.Join("testdata", name)
-	// Ignore gosec warning G304 since it's a test
-	// nolint:gosec
 	jsonBody, err := ioutil.ReadFile(path)
-	require.NoError(t, err)
-
-	var azData AzureMonitorResponse
+	if err != nil {
+		return azData, err
+	}
 	err = json.Unmarshal(jsonBody, &azData)
-	require.NoError(t, err)
-	return azData
+	return azData, err
 }

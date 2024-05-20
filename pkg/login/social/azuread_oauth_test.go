@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/grafana/grafana/pkg/setting"
 	"golang.org/x/oauth2"
 	"gopkg.in/square/go-jose.v2"
 	"gopkg.in/square/go-jose.v2/jwt"
@@ -22,13 +21,12 @@ func TestSocialAzureAD_UserInfo(t *testing.T) {
 	}
 
 	tests := []struct {
-		name                     string
-		fields                   fields
-		claims                   *azureClaims
-		args                     args
-		settingAutoAssignOrgRole string
-		want                     *BasicUserInfo
-		wantErr                  bool
+		name    string
+		fields  fields
+		claims  *azureClaims
+		args    args
+		want    *BasicUserInfo
+		wantErr bool
 	}{
 		{
 			name: "Email in email claim",
@@ -39,7 +37,6 @@ func TestSocialAzureAD_UserInfo(t *testing.T) {
 				Name:              "My Name",
 				ID:                "1234",
 			},
-			settingAutoAssignOrgRole: "Viewer",
 			want: &BasicUserInfo{
 				Id:      "1234",
 				Name:    "My Name",
@@ -77,7 +74,6 @@ func TestSocialAzureAD_UserInfo(t *testing.T) {
 				Name:              "My Name",
 				ID:                "1234",
 			},
-			settingAutoAssignOrgRole: "Viewer",
 			want: &BasicUserInfo{
 				Id:      "1234",
 				Name:    "My Name",
@@ -145,26 +141,7 @@ func TestSocialAzureAD_UserInfo(t *testing.T) {
 				Groups:  []string{},
 			},
 		},
-		{
-			name: "role from env variable",
-			claims: &azureClaims{
-				Email:             "me@example.com",
-				PreferredUsername: "",
-				Roles:             []string{},
-				Name:              "My Name",
-				ID:                "1234",
-			},
-			settingAutoAssignOrgRole: "Editor",
-			want: &BasicUserInfo{
-				Id:      "1234",
-				Name:    "My Name",
-				Email:   "me@example.com",
-				Login:   "me@example.com",
-				Company: "",
-				Role:    "Editor",
-				Groups:  []string{},
-			},
-		},
+
 		{
 			name: "Editor role",
 			claims: &azureClaims{
@@ -232,7 +209,6 @@ func TestSocialAzureAD_UserInfo(t *testing.T) {
 				Name:              "My Name",
 				ID:                "1234",
 			},
-			settingAutoAssignOrgRole: "Viewer",
 			want: &BasicUserInfo{
 				Id:      "1234",
 				Name:    "My Name",
@@ -281,8 +257,6 @@ func TestSocialAzureAD_UserInfo(t *testing.T) {
 			if tt.claims != nil {
 				token = token.WithExtra(map[string]interface{}{"id_token": raw})
 			}
-
-			setting.AutoAssignOrgRole = tt.settingAutoAssignOrgRole
 
 			got, err := s.UserInfo(tt.args.client, token)
 			if (err != nil) != tt.wantErr {

@@ -122,17 +122,17 @@ func addDataSourceMigration(mg *Migrator) {
 	}))
 
 	const setVersionToOneWhereZero = `UPDATE data_source SET version = 1 WHERE version = 0`
-	mg.AddMigration("Update initial version to 1", NewRawSQLMigration(setVersionToOneWhereZero))
+	mg.AddMigration("Update initial version to 1", NewRawSqlMigration(setVersionToOneWhereZero))
 
 	mg.AddMigration("Add read_only data column", NewAddColumnMigration(tableV2, &Column{
 		Name: "read_only", Type: DB_Bool, Nullable: true,
 	}))
 
 	const migrateLoggingToLoki = `UPDATE data_source SET type = 'loki' WHERE type = 'logging'`
-	mg.AddMigration("Migrate logging ds to loki ds", NewRawSQLMigration(migrateLoggingToLoki))
+	mg.AddMigration("Migrate logging ds to loki ds", NewRawSqlMigration(migrateLoggingToLoki))
 
 	const setEmptyJSONWhereNullJSON = `UPDATE data_source SET json_data = '{}' WHERE json_data is null`
-	mg.AddMigration("Update json_data with nulls", NewRawSQLMigration(setEmptyJSONWhereNullJSON))
+	mg.AddMigration("Update json_data with nulls", NewRawSqlMigration(setEmptyJSONWhereNullJSON))
 
 	// add column uid for linking
 	mg.AddMigration("Add uid column", NewAddColumnMigration(tableV2, &Column{
@@ -142,8 +142,8 @@ func addDataSourceMigration(mg *Migrator) {
 	// Initialize as id as that is unique already
 	mg.AddMigration(
 		"Update uid value",
-		NewRawSQLMigration("").
-			SQLite("UPDATE data_source SET uid=printf('%09d',id);").
+		NewRawSqlMigration("").
+			Sqlite("UPDATE data_source SET uid=printf('%09d',id);").
 			Postgres("UPDATE data_source SET uid=lpad('' || id::text,9,'0');").
 			Mysql("UPDATE data_source SET uid=lpad(id,9,'0');"),
 	)
@@ -151,7 +151,4 @@ func addDataSourceMigration(mg *Migrator) {
 	mg.AddMigration("Add unique index datasource_org_id_uid", NewAddIndexMigration(tableV2, &Index{
 		Cols: []string{"org_id", "uid"}, Type: UniqueIndex,
 	}))
-
-	mg.AddMigration("add unique index datasource_org_id_is_default", NewAddIndexMigration(tableV2, &Index{
-		Cols: []string{"org_id", "is_default"}}))
 }

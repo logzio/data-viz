@@ -1,10 +1,10 @@
 import React from 'react';
-import { VizTooltipContentProps } from '../../VizTooltip';
+import { TooltipContentProps } from '../../Chart/Tooltip';
 import { SingleModeGraphTooltip } from './SingleModeGraphTooltip';
 import { MultiModeGraphTooltip } from './MultiModeGraphTooltip';
 import { GraphDimensions } from './types';
 
-export const GraphTooltip: React.FC<VizTooltipContentProps<GraphDimensions>> = ({
+export const GraphTooltip: React.FC<TooltipContentProps<GraphDimensions>> = ({
   mode = 'single',
   dimensions,
   activeDimensions,

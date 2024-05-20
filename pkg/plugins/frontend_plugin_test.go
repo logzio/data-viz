@@ -26,8 +26,7 @@ func TestFrontendPlugin(t *testing.T) {
 				},
 			},
 		}
-		cfg := setting.NewCfg()
-		fp.setPathsBasedOnApp(app, cfg)
+		fp.setPathsBasedOnApp(app)
 
 		So(fp.Module, ShouldEqual, "app/plugins/app/testdata/datasources/datasource/module")
 	})

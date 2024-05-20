@@ -1,18 +1,18 @@
-import React, { FC } from 'react';
-import { css } from '@emotion/css';
-import { stylesFactory, useStyles2 } from '../../themes';
-import { GrafanaTheme2, locale } from '@grafana/data';
+import React, { FC, useContext } from 'react';
+import { css } from 'emotion';
+import { stylesFactory, ThemeContext } from '../../themes';
+import { GrafanaTheme, locale } from '@grafana/data';
 
-const getStyles = stylesFactory((theme: GrafanaTheme2) => {
+const getStyles = stylesFactory((theme: GrafanaTheme) => {
   return {
     counter: css`
       label: counter;
-      margin-left: ${theme.spacing(1)};
-      border-radius: ${theme.spacing(3)};
-      background-color: ${theme.colors.action.hover};
-      padding: ${theme.spacing(0.25, 1)};
-      color: ${theme.colors.text.secondary};
-      font-weight: ${theme.typography.fontWeightMedium};
+      margin-left: ${theme.spacing.sm};
+      border-radius: ${theme.spacing.lg};
+      background-color: ${theme.colors.bg2};
+      padding: ${theme.spacing.xxs} ${theme.spacing.sm};
+      color: ${theme.colors.textWeak};
+      font-weight: ${theme.typography.weight.semibold};
       font-size: ${theme.typography.size.sm};
     `,
   };
@@ -23,7 +23,8 @@ export interface CounterProps {
 }
 
 export const Counter: FC<CounterProps> = ({ value }) => {
-  const styles = useStyles2(getStyles);
+  const theme = useContext(ThemeContext);
+  const styles = getStyles(theme);
 
   return <span className={styles.counter}>{locale(value, 0).text}</span>;
 };

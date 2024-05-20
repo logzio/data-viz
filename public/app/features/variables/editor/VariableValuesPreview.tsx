@@ -1,73 +1,54 @@
-import React, { MouseEvent, useCallback, useEffect, useState } from 'react';
-import { VariableOption, VariableWithOptions } from '../types';
+import React, { useCallback, useEffect, useState } from 'react';
+import { VariableModel, VariableOption, VariableWithOptions } from '../types';
 import { selectors } from '@grafana/e2e-selectors';
-import { Button, InlineFieldRow, InlineLabel, useStyles, VerticalGroup } from '@grafana/ui';
-import { GrafanaTheme } from '@grafana/data';
-import { css } from '@emotion/css';
 
 export interface VariableValuesPreviewProps {
-  variable: VariableWithOptions;
+  variable: VariableModel;
 }
 
-export const VariableValuesPreview: React.FunctionComponent<VariableValuesPreviewProps> = ({
-  variable: { options },
-}) => {
+export const VariableValuesPreview: React.FunctionComponent<VariableValuesPreviewProps> = ({ variable }) => {
   const [previewLimit, setPreviewLimit] = useState(20);
   const [previewOptions, setPreviewOptions] = useState<VariableOption[]>([]);
-  const showMoreOptions = useCallback(
-    (event: MouseEvent) => {
-      event.preventDefault();
-      setPreviewLimit(previewLimit + 20);
-    },
-    [previewLimit, setPreviewLimit]
-  );
-  const styles = useStyles(getStyles);
-  useEffect(() => setPreviewOptions(options.slice(0, previewLimit)), [previewLimit, options]);
+  const showMoreOptions = useCallback(() => setPreviewLimit(previewLimit + 20), [previewLimit, setPreviewLimit]);
+  useEffect(() => {
+    if (!variable || !variable.hasOwnProperty('options')) {
+      return;
+    }
+    const variableWithOptions = variable as VariableWithOptions;
+    setPreviewOptions(variableWithOptions.options.slice(0, previewLimit));
+  }, [previewLimit, variable]);
 
   if (!previewOptions.length) {
     return null;
   }
 
   return (
-    <VerticalGroup spacing="none">
+    <div className="gf-form-group">
       <h5>Preview of values</h5>
-      <InlineFieldRow>
+      <div className="gf-form-inline">
         {previewOptions.map((o, index) => (
-          <InlineFieldRow key={`${o.value}-${index}`} className={styles.optionContainer}>
-            <InlineLabel aria-label={selectors.pages.Dashboard.Settings.Variables.Edit.General.previewOfValuesOption}>
-              <div className={styles.label}>{o.text}</div>
-            </InlineLabel>
-          </InlineFieldRow>
+          <div className="gf-form" key={`${o.value}-${index}`}>
+            <span
+              className="gf-form-label"
+              aria-label={selectors.pages.Dashboard.Settings.Variables.Edit.General.previewOfValuesOption}
+            >
+              {o.text}
+            </span>
+          </div>
         ))}
-      </InlineFieldRow>
-      {options.length > previewLimit && (
-        <InlineFieldRow className={styles.optionContainer}>
-          <Button
-            onClick={showMoreOptions}
-            variant="secondary"
-            size="sm"
-            aria-label="Variable editor Preview of Values Show More link"
-          >
-            Show more
-          </Button>
-        </InlineFieldRow>
-      )}
-    </VerticalGroup>
+        {previewOptions.length > previewLimit && (
+          <div className="gf-form" ng-if="current.options.length > optionsLimit">
+            <a
+              className="gf-form-label btn-secondary"
+              onClick={showMoreOptions}
+              aria-label="Variable editor Preview of Values Show More link"
+            >
+              Show more
+            </a>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 VariableValuesPreview.displayName = 'VariableValuesPreview';
-
-function getStyles(theme: GrafanaTheme) {
-  return {
-    optionContainer: css`
-      margin-left: ${theme.spacing.xs};
-      margin-bottom: ${theme.spacing.xs};
-    `,
-    label: css`
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 50vw;
-    `,
-  };
-}

@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SelectableValue } from '@grafana/data';
 import { Segment, SegmentAsync } from '@grafana/ui';
-import { CloudWatchMetricsQuery, SelectableStrings } from '../types';
+import { SelectableStrings, CloudWatchMetricsQuery } from '../types';
 import { CloudWatchDatasource } from '../datasource';
-import { Dimensions, QueryInlineField, Stats } from '.';
+import { Stats, Dimensions, QueryInlineField } from '.';
 
 export type Props = {
   query: CloudWatchMetricsQuery;
@@ -39,20 +39,20 @@ export function MetricsQueryFieldsEditor({
   useEffect(() => {
     const variableOptionGroup = {
       label: 'Template Variables',
-      options: datasource.getVariables().map(toOption),
+      options: datasource.variables.map(toOption),
     };
 
     Promise.all([datasource.metricFindQuery('regions()'), datasource.metricFindQuery('namespaces()')]).then(
       ([regions, namespaces]) => {
-        setState((prevState) => ({
-          ...prevState,
+        setState({
+          ...state,
           regions: [...regions, variableOptionGroup],
           namespaces: [...namespaces, variableOptionGroup],
           variableOptionGroup,
-        }));
+        });
       }
     );
-  }, [datasource]);
+  }, []);
 
   const loadMetricNames = async () => {
     const { namespace, region } = query;
@@ -61,7 +61,7 @@ export function MetricsQueryFieldsEditor({
 
   const appendTemplateVariables = (values: SelectableValue[]) => [
     ...values,
-    { label: 'Template Variables', options: datasource.getVariables().map(toOption) },
+    { label: 'Template Variables', options: datasource.variables.map(toOption) },
   ];
 
   const toOption = (value: any) => ({ label: value, value });
@@ -81,7 +81,7 @@ export function MetricsQueryFieldsEditor({
     );
     return datasource
       .getDimensionValues(query.region, query.namespace, metricsQuery.metricName, newKey, newDimensions)
-      .then((values) => (values.length ? [{ value: '*', text: '*', label: '*' }, ...values] : values))
+      .then(values => (values.length ? [{ value: '*', text: '*', label: '*' }, ...values] : values))
       .then(appendTemplateVariables);
   };
 
@@ -124,7 +124,7 @@ export function MetricsQueryFieldsEditor({
             <Stats
               stats={datasource.standardStatistics.map(toOption)}
               values={metricsQuery.statistics}
-              onChange={(statistics) => onQueryChange({ ...metricsQuery, statistics })}
+              onChange={statistics => onQueryChange({ ...metricsQuery, statistics })}
               variableOptionGroup={variableOptionGroup}
             />
           </QueryInlineField>
@@ -132,7 +132,7 @@ export function MetricsQueryFieldsEditor({
           <QueryInlineField label="Dimensions">
             <Dimensions
               dimensions={metricsQuery.dimensions}
-              onChange={(dimensions) => onQueryChange({ ...metricsQuery, dimensions })}
+              onChange={dimensions => onQueryChange({ ...metricsQuery, dimensions })}
               loadKeys={() => datasource.getDimensionKeys(query.namespace, query.region).then(appendTemplateVariables)}
               loadValues={loadDimensionValues}
             />

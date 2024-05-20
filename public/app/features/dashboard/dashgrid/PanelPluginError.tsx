@@ -1,4 +1,5 @@
 // Libraries
+import _ from 'lodash';
 import React, { PureComponent, ReactNode } from 'react';
 
 // Types
@@ -38,7 +39,7 @@ export function getPanelPluginLoadError(meta: PanelPluginMeta, err: any): PanelP
       const text = (
         <>
           Check the server startup logs for more information. <br />
-          If this plugin was loaded from Git, then make sure it was compiled.
+          If this plugin was loaded from git, make sure it was compiled.
         </>
       );
       return <PanelPluginError title={`Error loading: ${meta.id}`} text={text} />;
@@ -50,15 +51,14 @@ export function getPanelPluginLoadError(meta: PanelPluginMeta, err: any): PanelP
   return plugin;
 }
 
-export function getPanelPluginNotFound(id: string, silent?: boolean): PanelPlugin {
+export function getPanelPluginNotFound(id: string): PanelPlugin {
   const NotFound = class NotFound extends PureComponent<PanelProps> {
     render() {
       return <PanelPluginError title={`Panel plugin not found: ${id}`} />;
     }
   };
 
-  const plugin = new PanelPlugin(silent ? () => null : NotFound);
-
+  const plugin = new PanelPlugin(NotFound);
   plugin.meta = {
     id: id,
     name: id,
@@ -74,7 +74,7 @@ export function getPanelPluginNotFound(id: string, silent?: boolean): PanelPlugi
       links: [],
       logos: {
         large: '',
-        small: 'public/img/grafana_icon.svg',
+        small: '',
       },
       screenshots: [],
       updated: '',

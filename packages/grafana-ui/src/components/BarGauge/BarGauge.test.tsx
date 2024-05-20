@@ -1,14 +1,6 @@
 import React from 'react';
 import { shallow } from 'enzyme';
-import {
-  DisplayValue,
-  VizOrientation,
-  ThresholdsMode,
-  Field,
-  FieldType,
-  getDisplayProcessor,
-  createTheme,
-} from '@grafana/data';
+import { DisplayValue, VizOrientation, ThresholdsMode, Field, FieldType, getDisplayProcessor } from '@grafana/data';
 import {
   BarGauge,
   Props,
@@ -18,8 +10,8 @@ import {
   getTitleStyles,
   getValuePercent,
   BarGaugeDisplayMode,
-  calculateBarAndValueDimensions,
 } from './BarGauge';
+import { getTheme } from '../../themes';
 
 const green = '#73BF69';
 const orange = '#FF9830';
@@ -40,7 +32,7 @@ function getProps(propOverrides?: Partial<Props>): Props {
       },
     },
   };
-  const theme = createTheme();
+  const theme = getTheme();
   field.display = getDisplayProcessor({ field, theme });
 
   const props: Props = {
@@ -217,20 +209,6 @@ describe('BarGauge', () => {
     it('should render', () => {
       const { wrapper } = setup();
       expect(wrapper).toMatchSnapshot();
-    });
-  });
-
-  describe('calculateBarAndValueDimensions', () => {
-    it('valueWidth should including paddings in valueWidth', () => {
-      const result = calculateBarAndValueDimensions(
-        getProps({
-          height: 30,
-          width: 100,
-          value: getValue(1, 'AA'),
-          orientation: VizOrientation.Horizontal,
-        })
-      );
-      expect(result.valueWidth).toBe(21);
     });
   });
 });

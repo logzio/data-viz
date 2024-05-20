@@ -46,6 +46,10 @@ exports[`BarGauge Render with basic options should render 1`] = `
           "prefix": undefined,
           "suffix": undefined,
           "text": "25",
+          "threshold": Object {
+            "color": "green",
+            "value": -Infinity,
+          },
         }
       }
     />

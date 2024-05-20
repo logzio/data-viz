@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/grafana/grafana/pkg/models"
-	"github.com/grafana/grafana/pkg/setting"
 	"github.com/grafana/grafana/pkg/util/errutil"
 
 	"golang.org/x/oauth2"
@@ -57,7 +56,7 @@ func (s *SocialAzureAD) UserInfo(_ *http.Client, token *oauth2.Token) (*BasicUse
 
 	groups := extractGroups(claims)
 	if !s.IsGroupMember(groups) {
-		return nil, errMissingGroupMembership
+		return nil, ErrMissingGroupMembership
 	}
 
 	return &BasicUserInfo{
@@ -98,7 +97,7 @@ func extractEmail(claims azureClaims) string {
 
 func extractRole(claims azureClaims) models.RoleType {
 	if len(claims.Roles) == 0 {
-		return models.RoleType(setting.AutoAssignOrgRole)
+		return models.ROLE_VIEWER
 	}
 
 	roleOrder := []models.RoleType{

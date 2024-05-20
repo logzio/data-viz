@@ -11,15 +11,15 @@ type PanelPlugin struct {
 	SkipDataQuery bool `json:"skipDataQuery"`
 }
 
-func (p *PanelPlugin) Load(decoder *json.Decoder, base *PluginBase, backendPluginManager backendplugin.Manager) (
-	interface{}, error) {
+func (p *PanelPlugin) Load(decoder *json.Decoder, base *PluginBase, backendPluginManager backendplugin.Manager) error {
 	if err := decoder.Decode(p); err != nil {
-		return nil, err
+		return err
 	}
 
-	if p.Id == "grafana-piechart-panel" {
-		p.Name = "Pie Chart (old)"
+	if err := p.registerPlugin(base); err != nil {
+		return err
 	}
 
-	return p, nil
+	Panels[p.Id] = p
+	return nil
 }

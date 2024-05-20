@@ -1,7 +1,6 @@
 import React, { FC } from 'react';
-import { css, cx } from '@emotion/css';
-import { useTheme2 } from '@grafana/ui';
-import { colorManipulator } from '@grafana/data';
+import { css, cx } from 'emotion';
+import { useTheme } from '@grafana/ui';
 
 export interface BrandComponentProps {
   className?: string;
@@ -13,21 +12,10 @@ const LoginLogo: FC<BrandComponentProps> = ({ className }) => {
 };
 
 const LoginBackground: FC<BrandComponentProps> = ({ className, children }) => {
-  const theme = useTheme2();
-
+  const theme = useTheme();
   const background = css`
-    &:before {
-      content: '';
-      position: absolute;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      top: 0;
-      background: url(public/img/g8_login_${theme.isDark ? 'dark' : 'light'}.svg);
-      background-size: cover;
-      opacity: 0;
-      transition: opacity 3s ease-in-out;
-    }
+    background: url(public/img/login_background_${theme.isDark ? 'dark' : 'light'}.svg);
+    background-size: cover;
   `;
 
   return <div className={cx(background, className)}>{children}</div>;
@@ -38,9 +26,9 @@ const MenuLogo: FC<BrandComponentProps> = ({ className }) => {
 };
 
 const LoginBoxBackground = () => {
-  const theme = useTheme2();
+  const theme = useTheme();
   return css`
-    background: ${colorManipulator.alpha(theme.colors.background.primary, 0.7)};
+    background: ${theme.isLight ? 'rgba(6, 30, 200, 0.1 )' : 'rgba(18, 28, 41, 0.65)'};
     background-size: cover;
   `;
 };
@@ -52,7 +40,14 @@ export class Branding {
   static LoginBoxBackground = LoginBoxBackground;
   static AppTitle = 'Grafana';
   static LoginTitle = 'Welcome to Grafana';
-  static GetLoginSubTitle = (): null | string => {
-    return null;
+  static GetLoginSubTitle = () => {
+    const slogans = [
+      "Don't get in the way of the data",
+      'Your single pane of glass',
+      'Built better together',
+      'Democratising data',
+    ];
+    const count = slogans.length;
+    return slogans[Math.floor(Math.random() * count)];
   };
 }

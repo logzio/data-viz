@@ -7,7 +7,6 @@ export const initialState: UsersState = {
   invitees: [] as Invitee[],
   users: [] as OrgUser[],
   searchQuery: '',
-  searchPage: 1,
   canInvite: !config.externalUserMngLinkName,
   externalUserMngInfo: config.externalUserMngInfo,
   externalUserMngLinkName: config.externalUserMngLinkName,
@@ -26,16 +25,12 @@ const usersSlice = createSlice({
       return { ...state, hasFetched: true, invitees: action.payload };
     },
     setUsersSearchQuery: (state, action: PayloadAction<string>): UsersState => {
-      // reset searchPage otherwise search results won't appear
-      return { ...state, searchQuery: action.payload, searchPage: initialState.searchPage };
-    },
-    setUsersSearchPage: (state, action: PayloadAction<number>): UsersState => {
-      return { ...state, searchPage: action.payload };
+      return { ...state, searchQuery: action.payload };
     },
   },
 });
 
-export const { inviteesLoaded, setUsersSearchQuery, setUsersSearchPage, usersLoaded } = usersSlice.actions;
+export const { inviteesLoaded, setUsersSearchQuery, usersLoaded } = usersSlice.actions;
 
 export const usersReducer = usersSlice.reducer;
 

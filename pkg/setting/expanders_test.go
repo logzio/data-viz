@@ -16,8 +16,7 @@ import (
 func TestExpandVar_EnvSuccessful(t *testing.T) {
 	const key = "GF_TEST_SETTING_EXPANDER_ENV"
 	const expected = "aurora borealis"
-	err := os.Setenv(key, expected)
-	require.NoError(t, err)
+	os.Setenv(key, expected)
 
 	// expanded format
 	{
@@ -40,14 +39,12 @@ func TestExpandVar_FileSuccessful(t *testing.T) {
 	file := f.Name()
 
 	defer func() {
-		err := os.Remove(file)
-		require.NoError(t, err)
+		os.Remove(file)
 	}()
 
 	_, err = f.WriteString("hello, world")
 	require.NoError(t, err)
-	err = f.Close()
-	require.NoError(t, err)
+	f.Close()
 
 	got, err := ExpandVar(fmt.Sprintf("$__file{%s}", file))
 	assert.NoError(t, err)

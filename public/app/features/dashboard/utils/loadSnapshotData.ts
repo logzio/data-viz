@@ -1,18 +1,14 @@
-import { applyFieldOverrides, ArrayDataFrame, getDefaultTimeRange, LoadingState, PanelData } from '@grafana/data';
+import { applyFieldOverrides, DefaultTimeRange, LoadingState, PanelData } from '@grafana/data';
 import { config } from 'app/core/config';
+import { getDatasourceSrv } from 'app/features/plugins/datasource_srv';
 import { DashboardModel, PanelModel } from '../state';
-import { getProcessedDataFrames } from '../../query/state/runRequest';
-import { SnapshotWorker } from '../../query/state/DashboardQueryRunner/SnapshotWorker';
+import { getProcessedDataFrames } from '../state/runRequest';
 
 export function loadSnapshotData(panel: PanelModel, dashboard: DashboardModel): PanelData {
   const data = getProcessedDataFrames(panel.snapshotData);
-  const worker = new SnapshotWorker();
-  const options = { dashboard, range: getDefaultTimeRange() };
-  const annotationEvents = worker.canWork(options) ? worker.getAnnotationsInSnapshot(dashboard, panel.id) : [];
-  const annotations = [new ArrayDataFrame(annotationEvents)];
 
   return {
-    timeRange: getDefaultTimeRange(),
+    timeRange: DefaultTimeRange,
     state: LoadingState.Done,
     series: applyFieldOverrides({
       data,
@@ -20,11 +16,12 @@ export function loadSnapshotData(panel: PanelModel, dashboard: DashboardModel): 
         defaults: {},
         overrides: [],
       },
+      autoMinMax: true,
       replaceVariables: panel.replaceVariables,
+      getDataSourceSettingsByUid: getDatasourceSrv().getDataSourceSettingsByUid.bind(getDatasourceSrv()),
       fieldConfigRegistry: panel.plugin!.fieldConfigRegistry,
-      theme: config.theme2,
+      theme: config.theme,
       timeZone: dashboard.getTimezone(),
     }),
-    annotations,
   };
 }

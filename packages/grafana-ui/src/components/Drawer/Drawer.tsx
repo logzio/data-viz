@@ -1,12 +1,12 @@
 import React, { CSSProperties, FC, ReactNode, useState } from 'react';
-import { GrafanaTheme2 } from '@grafana/data';
+import { GrafanaTheme } from '@grafana/data';
 import RcDrawer from 'rc-drawer';
-import { css } from '@emotion/css';
+import { css } from 'emotion';
 import { selectors } from '@grafana/e2e-selectors';
 
-import { CustomScrollbar } from '../CustomScrollbar/CustomScrollbar';
+import CustomScrollbar from '../CustomScrollbar/CustomScrollbar';
 import { IconButton } from '../IconButton/IconButton';
-import { stylesFactory, useTheme2 } from '../../themes';
+import { stylesFactory, useTheme } from '../../themes';
 
 export interface Props {
   children: ReactNode;
@@ -30,34 +30,22 @@ export interface Props {
   onClose: () => void;
 }
 
-const getStyles = stylesFactory((theme: GrafanaTheme2, scrollableContent: boolean) => {
+const getStyles = stylesFactory((theme: GrafanaTheme, scrollableContent: boolean) => {
   return {
     drawer: css`
       .drawer-content {
-        background-color: ${theme.colors.background.primary};
+        background-color: ${theme.colors.bodyBg};
         display: flex;
         flex-direction: column;
         overflow: hidden;
       }
-      &.drawer-open .drawer-mask {
-        background-color: ${theme.components.overlay.background};
-        backdrop-filter: blur(1px);
-        opacity: 1;
-      }
-      .drawer-mask {
-        background-color: ${theme.components.overlay.background};
-        backdrop-filter: blur(1px);
-      }
-      .drawer-open .drawer-content-wrapper {
-        box-shadow: ${theme.shadows.z3};
-      }
       z-index: ${theme.zIndex.dropdown};
     `,
     header: css`
-      background-color: ${theme.colors.background.canvas};
+      background-color: ${theme.colors.bg2};
       z-index: 1;
       flex-grow: 0;
-      padding-top: ${theme.spacing(0.5)};
+      padding-top: ${theme.spacing.xs};
     `,
     actions: css`
       display: flex;
@@ -65,15 +53,14 @@ const getStyles = stylesFactory((theme: GrafanaTheme2, scrollableContent: boolea
       justify-content: flex-end;
     `,
     titleWrapper: css`
-      margin-bottom: ${theme.spacing(3)};
-      padding: ${theme.spacing(0, 1, 0, 3)};
-      overflow-wrap: break-word;
+      margin-bottom: ${theme.spacing.lg};
+      padding: 0 ${theme.spacing.sm} 0 ${theme.spacing.lg};
     `,
     titleSpacing: css`
-      margin-bottom: ${theme.spacing(2)};
+      margin-bottom: ${theme.spacing.md};
     `,
     content: css`
-      padding: ${theme.spacing(2)};
+      padding: ${theme.spacing.md};
       flex-grow: 1;
       overflow: ${!scrollableContent ? 'hidden' : 'auto'};
       z-index: 0;
@@ -93,7 +80,7 @@ export const Drawer: FC<Props> = ({
   width = '40%',
   expandable = false,
 }) => {
-  const theme = useTheme2();
+  const theme = useTheme();
   const drawerStyles = getStyles(theme, scrollableContent);
   const [isExpanded, setIsExpanded] = useState(false);
   const currentWidth = isExpanded ? '100%' : width;

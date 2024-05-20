@@ -1,6 +1,6 @@
 import angular from 'angular';
 import coreModule from 'app/core/core_module';
-import { assign } from 'lodash';
+import _ from 'lodash';
 
 import {
   AngularComponent,
@@ -16,7 +16,7 @@ export class AngularLoader implements AngularLoaderInterface {
   load(elem: any, scopeProps: any, template: string): AngularComponent {
     const scope = this.$rootScope.$new();
 
-    assign(scope, scopeProps);
+    _.assign(scope, scopeProps);
 
     const compiledElem = this.$compile(template)(scope);
     const rootNode = angular.element(elem);

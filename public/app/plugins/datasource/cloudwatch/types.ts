@@ -1,5 +1,4 @@
-import { DataQuery, SelectableValue } from '@grafana/data';
-import { AwsAuthDataSourceSecureJsonData, AwsAuthDataSourceJsonData } from '@grafana/aws-sdk';
+import { DataQuery, SelectableValue, DataSourceJsonData } from '@grafana/data';
 
 export interface CloudWatchMetricsQuery extends DataQuery {
   queryMode?: 'Metrics';
@@ -31,7 +30,6 @@ export enum CloudWatchLogsQueryStatus {
   Complete = 'Complete',
   Failed = 'Failed',
   Cancelled = 'Cancelled',
-  Timeout = 'Timeout',
 }
 
 export interface CloudWatchLogsQuery extends DataQuery {
@@ -57,14 +55,15 @@ export interface AnnotationQuery extends CloudWatchMetricsQuery {
 
 export type SelectableStrings = Array<SelectableValue<string>>;
 
-export interface CloudWatchJsonData extends AwsAuthDataSourceJsonData {
+export interface CloudWatchJsonData extends DataSourceJsonData {
   timeField?: string;
+  assumeRoleArn?: string;
+  externalId?: string;
   database?: string;
   customMetricsNamespaces?: string;
-  endpoint?: string;
 }
 
-export interface CloudWatchSecureJsonData extends AwsAuthDataSourceSecureJsonData {
+export interface CloudWatchSecureJsonData {
   accessKey: string;
   secretKey: string;
 }
@@ -176,6 +175,7 @@ export interface TSDBQueryResult<T = any> {
   refId: string;
   series: TSDBTimeSeries[];
   tables: Array<TSDBTable<T>>;
+  dataframes: number[][];
 
   error?: string;
   meta?: any;

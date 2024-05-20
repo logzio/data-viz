@@ -17,7 +17,7 @@ export const DataLinksValueEditor: React.FC<FieldConfigEditorProps<DataLink[], D
       links={value}
       onChange={onChange}
       data={context.data}
-      getSuggestions={() => (context.getSuggestions ? context.getSuggestions(VariableSuggestionsScope.Values) : [])}
+      suggestions={context.getSuggestions ? context.getSuggestions(VariableSuggestionsScope.Values) : []}
     />
   );
 };

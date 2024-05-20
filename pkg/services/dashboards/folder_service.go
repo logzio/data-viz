@@ -1,34 +1,27 @@
 package dashboards
 
 import (
-	"errors"
-	"strings"
-
 	"github.com/grafana/grafana/pkg/bus"
-	"github.com/grafana/grafana/pkg/dashboards"
 	"github.com/grafana/grafana/pkg/models"
 	"github.com/grafana/grafana/pkg/services/guardian"
 	"github.com/grafana/grafana/pkg/services/search"
 )
 
-// FolderService is a service for operating on folders.
+// FolderService service for operating on folders
 type FolderService interface {
 	GetFolders(limit int64) ([]*models.Folder, error)
 	GetFolderByID(id int64) (*models.Folder, error)
 	GetFolderByUID(uid string) (*models.Folder, error)
-	GetFolderByTitle(title string) (*models.Folder, error)
-	CreateFolder(title, uid string) (*models.Folder, error)
+	CreateFolder(cmd *models.CreateFolderCommand) error
 	UpdateFolder(uid string, cmd *models.UpdateFolderCommand) error
 	DeleteFolder(uid string) (*models.Folder, error)
-	MakeUserAdmin(orgID int64, userID, folderID int64, setViewAndEditPermissions bool) error
 }
 
-// NewFolderService is a factory for creating a new folder service.
-var NewFolderService = func(orgID int64, user *models.SignedInUser, store dashboards.Store) FolderService {
+// NewFolderService factory for creating a new folder service
+var NewFolderService = func(orgId int64, user *models.SignedInUser) FolderService {
 	return &dashboardServiceImpl{
-		orgId:          orgID,
-		user:           user,
-		dashboardStore: store,
+		orgId: orgId,
+		user:  user,
 	}
 }
 
@@ -51,8 +44,8 @@ func (dr *dashboardServiceImpl) GetFolders(limit int64) ([]*models.Folder, error
 
 	for _, hit := range searchQuery.Result {
 		folders = append(folders, &models.Folder{
-			Id:    hit.ID,
-			Uid:   hit.UID,
+			Id:    hit.Id,
+			Uid:   hit.Uid,
 			Title: hit.Title,
 		})
 	}
@@ -63,6 +56,7 @@ func (dr *dashboardServiceImpl) GetFolders(limit int64) ([]*models.Folder, error
 func (dr *dashboardServiceImpl) GetFolderByID(id int64) (*models.Folder, error) {
 	query := models.GetDashboardQuery{OrgId: dr.orgId, Id: id}
 	dashFolder, err := getFolder(query)
+
 	if err != nil {
 		return nil, toFolderError(err)
 	}
@@ -97,34 +91,8 @@ func (dr *dashboardServiceImpl) GetFolderByUID(uid string) (*models.Folder, erro
 	return dashToFolder(dashFolder), nil
 }
 
-func (dr *dashboardServiceImpl) GetFolderByTitle(title string) (*models.Folder, error) {
-	dashFolder, err := dr.dashboardStore.GetFolderByTitle(dr.orgId, title)
-	if err != nil {
-		return nil, toFolderError(err)
-	}
-
-	g := guardian.New(dashFolder.Id, dr.orgId, dr.user)
-	if canView, err := g.CanView(); err != nil || !canView {
-		if err != nil {
-			return nil, toFolderError(err)
-		}
-		return nil, models.ErrFolderAccessDenied
-	}
-
-	return dashToFolder(dashFolder), nil
-}
-
-func (dr *dashboardServiceImpl) CreateFolder(title, uid string) (*models.Folder, error) {
-	dashFolder := models.NewDashboardFolder(title)
-	dashFolder.OrgId = dr.orgId
-	dashFolder.SetUid(strings.TrimSpace(uid))
-	userID := dr.user.UserId
-	if userID == 0 {
-		userID = -1
-	}
-	dashFolder.CreatedBy = userID
-	dashFolder.UpdatedBy = userID
-	dashFolder.UpdateSlug()
+func (dr *dashboardServiceImpl) CreateFolder(cmd *models.CreateFolderCommand) error {
+	dashFolder := cmd.GetDashboardModel(dr.orgId, dr.user.UserId)
 
 	dto := &SaveDashboardDTO{
 		Dashboard: dashFolder,
@@ -134,21 +102,23 @@ func (dr *dashboardServiceImpl) CreateFolder(title, uid string) (*models.Folder,
 
 	saveDashboardCmd, err := dr.buildSaveDashboardCommand(dto, false, false)
 	if err != nil {
-		return nil, toFolderError(err)
+		return toFolderError(err)
 	}
 
-	dash, err := dr.dashboardStore.SaveDashboard(*saveDashboardCmd)
+	err = bus.Dispatch(saveDashboardCmd)
 	if err != nil {
-		return nil, toFolderError(err)
+		return toFolderError(err)
 	}
 
-	query := models.GetDashboardQuery{OrgId: dr.orgId, Id: dash.Id}
+	query := models.GetDashboardQuery{OrgId: dr.orgId, Id: saveDashboardCmd.Result.Id}
 	dashFolder, err = getFolder(query)
 	if err != nil {
-		return nil, toFolderError(err)
+		return toFolderError(err)
 	}
 
-	return dashToFolder(dashFolder), nil
+	cmd.Result = dashToFolder(dashFolder)
+
+	return nil
 }
 
 func (dr *dashboardServiceImpl) UpdateFolder(existingUid string, cmd *models.UpdateFolderCommand) error {
@@ -172,12 +142,12 @@ func (dr *dashboardServiceImpl) UpdateFolder(existingUid string, cmd *models.Upd
 		return toFolderError(err)
 	}
 
-	dash, err := dr.dashboardStore.SaveDashboard(*saveDashboardCmd)
+	err = bus.Dispatch(saveDashboardCmd)
 	if err != nil {
 		return toFolderError(err)
 	}
 
-	query = models.GetDashboardQuery{OrgId: dr.orgId, Id: dash.Id}
+	query = models.GetDashboardQuery{OrgId: dr.orgId, Id: saveDashboardCmd.Result.Id}
 	dashFolder, err = getFolder(query)
 	if err != nil {
 		return toFolderError(err)
@@ -239,31 +209,31 @@ func dashToFolder(dash *models.Dashboard) *models.Folder {
 }
 
 func toFolderError(err error) error {
-	if errors.Is(err, models.ErrDashboardTitleEmpty) {
+	if err == models.ErrDashboardTitleEmpty {
 		return models.ErrFolderTitleEmpty
 	}
 
-	if errors.Is(err, models.ErrDashboardUpdateAccessDenied) {
+	if err == models.ErrDashboardUpdateAccessDenied {
 		return models.ErrFolderAccessDenied
 	}
 
-	if errors.Is(err, models.ErrDashboardWithSameNameInFolderExists) {
+	if err == models.ErrDashboardWithSameNameInFolderExists {
 		return models.ErrFolderSameNameExists
 	}
 
-	if errors.Is(err, models.ErrDashboardWithSameUIDExists) {
+	if err == models.ErrDashboardWithSameUIDExists {
 		return models.ErrFolderWithSameUIDExists
 	}
 
-	if errors.Is(err, models.ErrDashboardVersionMismatch) {
+	if err == models.ErrDashboardVersionMismatch {
 		return models.ErrFolderVersionMismatch
 	}
 
-	if errors.Is(err, models.ErrDashboardNotFound) {
+	if err == models.ErrDashboardNotFound {
 		return models.ErrFolderNotFound
 	}
 
-	if errors.Is(err, models.ErrDashboardFailedGenerateUniqueUid) {
+	if err == models.ErrDashboardFailedGenerateUniqueUid {
 		err = models.ErrFolderFailedGenerateUniqueUid
 	}
 

@@ -1,4 +1,4 @@
-import { isArray, reduce } from 'lodash';
+import _ from 'lodash';
 import { QueryPartDef, QueryPart } from 'app/core/components/query_part/query_part';
 
 const alertQueryDef = new QueryPartDef({
@@ -8,7 +8,7 @@ const alertQueryDef = new QueryPartDef({
     {
       name: 'from',
       type: 'string',
-      options: ['10s', '1m', '5m', '10m', '15m', '1h', '2h', '6h', '12h', '24h', '48h'],
+      options: ['10s', '1m', '5m', '10m', '15m', '1h', '24h', '48h'],
     },
     { name: 'to', type: 'string', options: ['now', 'now-1m', 'now-5m', 'now-10m', 'now-1h'] },
   ],
@@ -19,28 +19,18 @@ const conditionTypes = [{ text: 'Query', value: 'query' }];
 
 const alertStateSortScore = {
   alerting: 1,
-  firing: 1,
   no_data: 2,
   pending: 3,
   ok: 4,
   paused: 5,
-  inactive: 5,
 };
 
-export enum EvalFunction {
-  'IsAbove' = 'gt',
-  'IsBelow' = 'lt',
-  'IsOutsideRange' = 'outside_range',
-  'IsWithinRange' = 'within_range',
-  'HasNoValue' = 'no_value',
-}
-
 const evalFunctions = [
-  { value: EvalFunction.IsAbove, text: 'IS ABOVE' },
-  { value: EvalFunction.IsBelow, text: 'IS BELOW' },
-  { value: EvalFunction.IsOutsideRange, text: 'IS OUTSIDE RANGE' },
-  { value: EvalFunction.IsWithinRange, text: 'IS WITHIN RANGE' },
-  { value: EvalFunction.HasNoValue, text: 'HAS NO VALUE' },
+  { text: 'IS ABOVE', value: 'gt' },
+  { text: 'IS BELOW', value: 'lt' },
+  { text: 'IS OUTSIDE RANGE', value: 'outside_range' },
+  { text: 'IS WITHIN RANGE', value: 'within_range' },
+  { text: 'HAS NO VALUE', value: 'no_value' },
 ];
 
 const evalOperators = [
@@ -113,7 +103,7 @@ function getStateDisplayModel(state: string) {
     case 'pending': {
       return {
         text: 'PENDING',
-        iconClass: 'hourglass',
+        iconClass: 'exclamation-triangle',
         stateClass: 'alert-state-warning',
       };
     }
@@ -124,29 +114,13 @@ function getStateDisplayModel(state: string) {
         stateClass: 'alert-state-paused',
       };
     }
-
-    case 'firing': {
-      return {
-        text: 'FIRING',
-        iconClass: 'fire',
-        stateClass: '',
-      };
-    }
-
-    case 'inactive': {
-      return {
-        text: 'INACTIVE',
-        iconClass: 'check',
-        stateClass: '',
-      };
-    }
   }
 
   throw { message: 'Unknown alert state' };
 }
 
 function joinEvalMatches(matches: any, separator: string) {
-  return reduce(
+  return _.reduce(
     matches,
     (res, ev) => {
       if (ev.metric !== undefined && ev.value !== undefined) {
@@ -169,9 +143,9 @@ function getAlertAnnotationInfo(ah: any) {
   // old way stored evalMatches in data property directly,
   // new way stores it in evalMatches property on new data object
 
-  if (isArray(ah.data)) {
+  if (_.isArray(ah.data)) {
     return joinEvalMatches(ah.data, ', ');
-  } else if (isArray(ah.data.evalMatches)) {
+  } else if (_.isArray(ah.data.evalMatches)) {
     return joinEvalMatches(ah.data.evalMatches, ', ');
   }
 

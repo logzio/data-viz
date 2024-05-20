@@ -6,20 +6,16 @@ import (
 	"sync"
 
 	"github.com/grafana/grafana/pkg/infra/log"
-	plugifaces "github.com/grafana/grafana/pkg/plugins"
 	"github.com/grafana/grafana/pkg/registry"
 	"github.com/grafana/grafana/pkg/services/provisioning/dashboards"
 	"github.com/grafana/grafana/pkg/services/provisioning/datasources"
 	"github.com/grafana/grafana/pkg/services/provisioning/notifiers"
 	"github.com/grafana/grafana/pkg/services/provisioning/plugins"
-	"github.com/grafana/grafana/pkg/services/sqlstore"
 	"github.com/grafana/grafana/pkg/setting"
 	"github.com/grafana/grafana/pkg/util/errutil"
 )
 
 type ProvisioningService interface {
-	registry.BackgroundService
-	RunInitProvisioners() error
 	ProvisionDatasources() error
 	ProvisionPlugins() error
 	ProvisionNotifications() error
@@ -30,29 +26,24 @@ type ProvisioningService interface {
 
 func init() {
 	registry.Register(&registry.Descriptor{
-		Name:         "ProvisioningService",
-		Instance:     NewProvisioningServiceImpl(),
+		Name: "ProvisioningService",
+		Instance: NewProvisioningServiceImpl(
+			func(path string) (dashboards.DashboardProvisioner, error) {
+				return dashboards.New(path)
+			},
+			notifiers.Provision,
+			datasources.Provision,
+			plugins.Provision,
+		),
 		InitPriority: registry.Low,
 	})
 }
 
-// Add a public constructor for overriding service to be able to instantiate OSS as fallback
-func NewProvisioningServiceImpl() *provisioningServiceImpl {
-	return &provisioningServiceImpl{
-		log:                     log.New("provisioning"),
-		newDashboardProvisioner: dashboards.New,
-		provisionNotifiers:      notifiers.Provision,
-		provisionDatasources:    datasources.Provision,
-		provisionPlugins:        plugins.Provision,
-	}
-}
-
-// Used for testing purposes
-func newProvisioningServiceImpl(
+func NewProvisioningServiceImpl(
 	newDashboardProvisioner dashboards.DashboardProvisionerFactory,
 	provisionNotifiers func(string) error,
 	provisionDatasources func(string) error,
-	provisionPlugins func(string, plugifaces.Manager) error,
+	provisionPlugins func(string) error,
 ) *provisioningServiceImpl {
 	return &provisioningServiceImpl{
 		log:                     log.New("provisioning"),
@@ -64,24 +55,18 @@ func newProvisioningServiceImpl(
 }
 
 type provisioningServiceImpl struct {
-	Cfg                     *setting.Cfg       `inject:""`
-	SQLStore                *sqlstore.SQLStore `inject:""`
-	PluginManager           plugifaces.Manager `inject:""`
+	Cfg                     *setting.Cfg `inject:""`
 	log                     log.Logger
 	pollingCtxCancel        context.CancelFunc
 	newDashboardProvisioner dashboards.DashboardProvisionerFactory
 	dashboardProvisioner    dashboards.DashboardProvisioner
 	provisionNotifiers      func(string) error
 	provisionDatasources    func(string) error
-	provisionPlugins        func(string, plugifaces.Manager) error
+	provisionPlugins        func(string) error
 	mutex                   sync.Mutex
 }
 
 func (ps *provisioningServiceImpl) Init() error {
-	return ps.RunInitProvisioners()
-}
-
-func (ps *provisioningServiceImpl) RunInitProvisioners() error {
 	err := ps.ProvisionDatasources()
 	if err != nil {
 		return err
@@ -137,7 +122,7 @@ func (ps *provisioningServiceImpl) ProvisionDatasources() error {
 
 func (ps *provisioningServiceImpl) ProvisionPlugins() error {
 	appPath := filepath.Join(ps.Cfg.ProvisioningPath, "plugins")
-	err := ps.provisionPlugins(appPath, ps.PluginManager)
+	err := ps.provisionPlugins(appPath)
 	return errutil.Wrap("app provisioning error", err)
 }
 
@@ -149,7 +134,7 @@ func (ps *provisioningServiceImpl) ProvisionNotifications() error {
 
 func (ps *provisioningServiceImpl) ProvisionDashboards() error {
 	dashboardPath := filepath.Join(ps.Cfg.ProvisioningPath, "dashboards")
-	dashProvisioner, err := ps.newDashboardProvisioner(dashboardPath, ps.SQLStore)
+	dashProvisioner, err := ps.newDashboardProvisioner(dashboardPath)
 	if err != nil {
 		return errutil.Wrap("Failed to create provisioner", err)
 	}

@@ -1,41 +1,15 @@
 import React from 'react';
-import { css } from '@emotion/css';
-import MonacoEditor, { loader as monacoEditorLoader } from '@monaco-editor/react';
-import type * as monacoType from 'monaco-editor/esm/vs/editor/editor.api';
-import { selectors } from '@grafana/e2e-selectors';
-import { GrafanaTheme2, monacoLanguageRegistry } from '@grafana/data';
-
-import { withTheme2 } from '../../themes';
-import { Themeable2 } from '../../types';
-
-import { CodeEditorProps, Monaco, MonacoEditor as MonacoEditorType, MonacoOptions } from './types';
+import { withTheme } from '../../themes';
+import { Themeable } from '../../types';
+import { CodeEditorProps } from './types';
 import { registerSuggestions } from './suggestions';
-import defineThemes from './theme';
+import ReactMonaco from 'react-monaco-editor';
+import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 
-type Props = CodeEditorProps & Themeable2;
-
-let initalized = false;
-function initMonoco() {
-  if (initalized) {
-    return;
-  }
-
-  monacoEditorLoader.config({
-    paths: {
-      vs: (window.__grafana_public_path__ ?? 'public/') + 'lib/monaco/min/vs',
-    },
-  });
-  initalized = true;
-}
+type Props = CodeEditorProps & Themeable;
 
 class UnthemedCodeEditor extends React.PureComponent<Props> {
-  completionCancel?: monacoType.IDisposable;
-  monaco?: Monaco;
-
-  constructor(props: Props) {
-    super(props);
-    initMonoco();
-  }
+  completionCancel?: monaco.IDisposable;
 
   componentWillUnmount() {
     if (this.completionCancel) {
@@ -45,36 +19,16 @@ class UnthemedCodeEditor extends React.PureComponent<Props> {
 
   componentDidUpdate(oldProps: Props) {
     const { getSuggestions, language } = this.props;
-
-    if (language !== oldProps.language) {
-      if (this.completionCancel) {
-        this.completionCancel.dispose();
+    if (getSuggestions) {
+      // Language changed
+      if (language !== oldProps.language) {
+        if (this.completionCancel) {
+          this.completionCancel.dispose();
+        }
+        this.completionCancel = registerSuggestions(language, getSuggestions);
       }
-
-      if (!this.monaco) {
-        console.warn('Monaco instance not loaded yet');
-        return;
-      }
-
-      if (getSuggestions) {
-        this.completionCancel = registerSuggestions(this.monaco, language, getSuggestions);
-      }
-
-      this.loadCustomLanguage();
     }
   }
-
-  loadCustomLanguage = () => {
-    const { language } = this.props;
-
-    const customLanguage = monacoLanguageRegistry.getIfExists(language);
-
-    if (customLanguage) {
-      return customLanguage.init();
-    }
-
-    return Promise.resolve();
-  };
 
   // This is replaced with a real function when the actual editor mounts
   getEditorValue = () => '';
@@ -86,18 +40,16 @@ class UnthemedCodeEditor extends React.PureComponent<Props> {
     }
   };
 
-  handleBeforeMount = (monaco: Monaco) => {
-    this.monaco = monaco;
-    const { language, theme, getSuggestions } = this.props;
-    defineThemes(monaco, theme);
-
+  editorWillMount = (m: typeof monaco) => {
+    const { language, getSuggestions } = this.props;
     if (getSuggestions) {
-      this.completionCancel = registerSuggestions(monaco, language, getSuggestions);
+      this.completionCancel = registerSuggestions(language, getSuggestions);
     }
   };
 
-  handleOnMount = (editor: MonacoEditorType, monaco: Monaco) => {
+  editorDidMount = (editor: monaco.editor.IStandaloneCodeEditor) => {
     const { onSave, onEditorDidMount } = this.props;
+
     this.getEditorValue = () => editor.getValue();
 
     if (onSave) {
@@ -106,76 +58,52 @@ class UnthemedCodeEditor extends React.PureComponent<Props> {
       });
     }
 
-    const languagePromise = this.loadCustomLanguage();
-
     if (onEditorDidMount) {
-      languagePromise.then(() => onEditorDidMount(editor, monaco));
+      onEditorDidMount(editor);
     }
   };
 
   render() {
-    const { theme, language, width, height, showMiniMap, showLineNumbers, readOnly, monacoOptions } = this.props;
+    const { theme, language, width, height, showMiniMap, showLineNumbers, readOnly } = this.props;
     const value = this.props.value ?? '';
     const longText = value.length > 100;
 
-    const styles = getStyles(theme);
-
-    const options: MonacoOptions = {
+    const options: monaco.editor.IEditorConstructionOptions = {
       wordWrap: 'off',
-      tabSize: 2,
-      codeLens: false,
-      contextmenu: false,
-
+      codeLens: false, // not included in the bundle
       minimap: {
         enabled: longText && showMiniMap,
         renderCharacters: false,
       },
-
       readOnly,
       lineNumbersMinChars: 4,
-      lineDecorationsWidth: 1 * theme.spacing.gridSize,
+      lineDecorationsWidth: 0,
       overviewRulerBorder: false,
       automaticLayout: true,
-      padding: {
-        top: 0.5 * theme.spacing.gridSize,
-        bottom: 0.5 * theme.spacing.gridSize,
-      },
     };
-
     if (!showLineNumbers) {
       options.glyphMargin = false;
       options.folding = false;
       options.lineNumbers = 'off';
+      options.lineDecorationsWidth = 5; // left margin when not showing line numbers
       options.lineNumbersMinChars = 0;
     }
 
     return (
-      <div className={styles.container} onBlur={this.onBlur} aria-label={selectors.components.CodeEditor.container}>
-        <MonacoEditor
+      <div onBlur={this.onBlur}>
+        <ReactMonaco
           width={width}
           height={height}
           language={language}
-          theme={theme.isDark ? 'grafana-dark' : 'grafana-light'}
+          theme={theme.isDark ? 'vs-dark' : 'vs-light'}
           value={value}
-          options={{
-            ...options,
-            ...(monacoOptions ?? {}),
-          }}
-          beforeMount={this.handleBeforeMount}
-          onMount={this.handleOnMount}
+          options={options}
+          editorWillMount={this.editorWillMount}
+          editorDidMount={this.editorDidMount}
         />
       </div>
     );
   }
 }
 
-export default withTheme2(UnthemedCodeEditor);
-
-const getStyles = (theme: GrafanaTheme2) => {
-  return {
-    container: css`
-      border-radius: ${theme.shape.borderRadius()};
-      border: 1px solid ${theme.components.input.borderColor};
-    `,
-  };
-};
+export default withTheme(UnthemedCodeEditor);

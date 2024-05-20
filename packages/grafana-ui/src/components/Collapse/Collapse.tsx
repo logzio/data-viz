@@ -1,28 +1,19 @@
-import React, { FunctionComponent, useState } from 'react';
-import { css, cx } from '@emotion/css';
+import React, { FunctionComponent, useContext, useState } from 'react';
+import { css, cx } from 'emotion';
 
-import { useStyles2 } from '../../themes/ThemeContext';
+import { GrafanaTheme } from '@grafana/data';
+import { ThemeContext } from '../../themes/ThemeContext';
+import { stylesFactory } from '../../themes/stylesFactory';
 import { Icon } from '../Icon/Icon';
-import { GrafanaTheme2 } from '@grafana/data';
 
-const getStyles = (theme: GrafanaTheme2) => ({
+const getStyles = stylesFactory((theme: GrafanaTheme) => ({
   collapse: css`
     label: collapse;
-    margin-bottom: ${theme.spacing(1)};
+    margin-bottom: ${theme.spacing.sm};
   `,
   collapseBody: css`
     label: collapse__body;
-    padding: ${theme.spacing(theme.components.panel.padding)};
-    padding-top: 0;
-    flex: 1;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  `,
-  bodyContentWrapper: css`
-    label: bodyContentWrapper;
-    flex: 1;
-    overflow: hidden;
+    padding: ${theme.panelPadding}px;
   `,
   loader: css`
     label: collapse__loader;
@@ -30,7 +21,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     position: relative;
     overflow: hidden;
     background: none;
-    margin: ${theme.spacing(0.5)};
+    margin: ${theme.spacing.xs};
   `,
   loaderActive: css`
     label: collapse__loader_active;
@@ -45,7 +36,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
       animation: loader 2s cubic-bezier(0.17, 0.67, 0.83, 0.67) 500ms;
       animation-iteration-count: 100;
       left: -25%;
-      background: ${theme.colors.primary.main};
+      background: ${theme.palette.blue85};
     }
     @keyframes loader {
       from {
@@ -60,7 +51,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   header: css`
     label: collapse__header;
-    padding: ${theme.spacing(1, 2, 0.5, 2)};
+    padding: ${theme.spacing.sm} ${theme.spacing.md};
     display: flex;
     cursor: inherit;
     transition: all 0.1s linear;
@@ -68,33 +59,40 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   headerCollapsed: css`
     label: collapse__header--collapsed;
-    padding: ${theme.spacing(1, 2, 0.5, 2)};
+    cursor: pointer;
+    padding: ${theme.spacing.sm} ${theme.spacing.md};
+  `,
+  headerButtons: css`
+    label: collapse__header-buttons;
+    margin-right: ${theme.spacing.sm};
+    margin-top: ${theme.spacing.xxs};
+    font-size: ${theme.typography.size.lg};
+    line-height: ${theme.typography.heading.h6};
+    display: inherit;
+  `,
+  headerButtonsCollapsed: css`
+    label: collapse__header-buttons--collapsed;
+    display: none;
   `,
   headerLabel: css`
     label: collapse__header-label;
-    font-weight: ${theme.typography.fontWeightMedium};
-    margin-right: ${theme.spacing(1)};
-    font-size: ${theme.typography.size.md};
+    font-weight: ${theme.typography.weight.semibold};
+    margin-right: ${theme.spacing.sm};
+    font-size: ${theme.typography.heading.h6};
   `,
-  icon: css`
-    label: collapse__icon;
-    margin: ${theme.spacing(0, 1, 0, -1)};
-  `,
-});
+}));
 
 export interface Props {
   /** Expand or collapse te content */
   isOpen?: boolean;
-  /** Element or text for the Collapse header */
-  label: React.ReactNode;
+  /** Text for the Collapse header */
+  label: string;
   /** Indicates loading state of the content */
   loading?: boolean;
   /** Toggle collapsed header icon */
   collapsible?: boolean;
   /** Callback for the toggle functionality */
   onToggle?: (isOpen: boolean) => void;
-  /** Additional class name for the root element */
-  className?: string;
 }
 
 export const ControlledCollapse: FunctionComponent<Props> = ({ isOpen, onToggle, ...otherProps }) => {
@@ -102,7 +100,6 @@ export const ControlledCollapse: FunctionComponent<Props> = ({ isOpen, onToggle,
   return (
     <Collapse
       isOpen={open}
-      collapsible
       {...otherProps}
       onToggle={() => {
         setOpen(!open);
@@ -114,36 +111,32 @@ export const ControlledCollapse: FunctionComponent<Props> = ({ isOpen, onToggle,
   );
 };
 
-export const Collapse: FunctionComponent<Props> = ({
-  isOpen,
-  label,
-  loading,
-  collapsible,
-  onToggle,
-  className,
-  children,
-}) => {
-  const style = useStyles2(getStyles);
+export const Collapse: FunctionComponent<Props> = ({ isOpen, label, loading, collapsible, onToggle, children }) => {
+  const theme = useContext(ThemeContext);
+  const style = getStyles(theme);
   const onClickToggle = () => {
     if (onToggle) {
       onToggle(!isOpen);
     }
   };
 
-  const panelClass = cx([style.collapse, 'panel-container', className]);
+  const panelClass = cx([style.collapse, 'panel-container']);
   const loaderClass = loading ? cx([style.loader, style.loaderActive]) : cx([style.loader]);
   const headerClass = collapsible ? cx([style.header]) : cx([style.headerCollapsed]);
+  const headerButtonsClass = collapsible ? cx([style.headerButtons]) : cx([style.headerButtonsCollapsed]);
 
   return (
     <div className={panelClass}>
       <div className={headerClass} onClick={onClickToggle}>
-        {collapsible && <Icon className={style.icon} name={isOpen ? 'angle-up' : 'angle-down'} />}
+        <div className={headerButtonsClass}>
+          <Icon name={isOpen ? 'angle-up' : 'angle-down'} />
+        </div>
         <div className={cx([style.headerLabel])}>{label}</div>
       </div>
       {isOpen && (
         <div className={cx([style.collapseBody])}>
           <div className={loaderClass} />
-          <div className={style.bodyContentWrapper}>{children}</div>
+          {children}
         </div>
       )}
     </div>

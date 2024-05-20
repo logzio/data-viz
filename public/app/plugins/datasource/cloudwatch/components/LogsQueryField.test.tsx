@@ -4,10 +4,11 @@ import { CloudWatchLogsQueryField } from './LogsQueryField';
 import { ExploreId } from '../../../../types';
 import { DescribeLogGroupsRequest } from '../types';
 import { SelectableValue } from '@grafana/data';
-// eslint-disable-next-line lodash/import-scope
-import _, { Cancelable } from 'lodash';
 
-jest.spyOn(_, 'debounce').mockImplementation((func: ((...args: any) => any) & Cancelable, wait: number) => func);
+jest.mock('lodash/debounce', () => {
+  const fakeDebounce = (func: () => any, period: number) => func;
+  return fakeDebounce;
+});
 
 describe('CloudWatchLogsQueryField', () => {
   it('updates upstream query log groups on region change', async () => {
@@ -16,6 +17,8 @@ describe('CloudWatchLogsQueryField', () => {
       <CloudWatchLogsQueryField
         history={[]}
         absoluteRange={{ from: 1, to: 10 }}
+        syntaxLoaded={false}
+        syntax={{} as any}
         exploreId={ExploreId.left}
         datasource={
           {
@@ -150,6 +153,8 @@ describe('CloudWatchLogsQueryField', () => {
       <CloudWatchLogsQueryField
         history={[]}
         absoluteRange={{ from: 1, to: 10 }}
+        syntaxLoaded={false}
+        syntax={{} as any}
         exploreId={ExploreId.left}
         datasource={
           {
@@ -169,7 +174,7 @@ describe('CloudWatchLogsQueryField', () => {
             },
             describeLogGroups(params: DescribeLogGroupsRequest) {
               const theLogGroups = allLogGroups
-                .filter((logGroupName) => logGroupName.startsWith(params.logGroupNamePrefix ?? ''))
+                .filter(logGroupName => logGroupName.startsWith(params.logGroupNamePrefix ?? ''))
                 .slice(0, Math.max(params.limit ?? 50, 50));
               return Promise.resolve(theLogGroups);
             },
@@ -183,7 +188,7 @@ describe('CloudWatchLogsQueryField', () => {
 
     const initialAvailableGroups = allLogGroups
       .slice(0, 50)
-      .map((logGroupName) => ({ value: logGroupName, label: logGroupName }));
+      .map(logGroupName => ({ value: logGroupName, label: logGroupName }));
     wrapper.setState({
       availableLogGroups: initialAvailableGroups,
     });
@@ -191,19 +196,19 @@ describe('CloudWatchLogsQueryField', () => {
     await wrapper.instance().onLogGroupSearch('Water', 'default', { action: 'input-change' });
 
     let nextAvailableGroups = (wrapper.state('availableLogGroups') as Array<SelectableValue<string>>).map(
-      (logGroup) => logGroup.value
+      logGroup => logGroup.value
     );
     expect(nextAvailableGroups).toEqual(
-      initialAvailableGroups.map((logGroup) => logGroup.value).concat(['WaterGroup', 'WaterGroup2', 'WaterGroup3'])
+      initialAvailableGroups.map(logGroup => logGroup.value).concat(['WaterGroup', 'WaterGroup2', 'WaterGroup3'])
     );
 
     await wrapper.instance().onLogGroupSearch('Velv', 'default', { action: 'input-change' });
     nextAvailableGroups = (wrapper.state('availableLogGroups') as Array<SelectableValue<string>>).map(
-      (logGroup) => logGroup.value
+      logGroup => logGroup.value
     );
     expect(nextAvailableGroups).toEqual(
       initialAvailableGroups
-        .map((logGroup) => logGroup.value)
+        .map(logGroup => logGroup.value)
         .concat(['WaterGroup', 'WaterGroup2', 'WaterGroup3', 'VelvetGroup', 'VelvetGroup2', 'VelvetGroup3'])
     );
   });

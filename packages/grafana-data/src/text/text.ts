@@ -13,14 +13,10 @@ export function findHighlightChunksInText({
   searchWords,
   textToHighlight,
 }: {
-  searchWords: Array<string | RegExp>;
+  searchWords: string[];
   textToHighlight: string;
 }) {
-  const chunks: TextMatch[] = [];
-  for (const term of searchWords) {
-    chunks.push(...findMatchesInText(textToHighlight, term as string));
-  }
-  return chunks;
+  return searchWords.reduce((acc: any, term: string) => [...acc, ...findMatchesInText(textToHighlight, term)], []);
 }
 
 const cleanNeedle = (needle: string): string => {

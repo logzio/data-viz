@@ -1,5 +1,5 @@
-import { EventBusSrv, EventBusExtended } from '@grafana/data';
+import { Emitter } from './utils/emitter';
 
-export const appEvents: EventBusExtended = new EventBusSrv();
+export const appEvents = new Emitter();
 
 export default appEvents;

@@ -17,12 +17,11 @@ type configReader interface {
 }
 
 type configReaderImpl struct {
-	log           log.Logger
-	pluginManager plugins.Manager
+	log log.Logger
 }
 
-func newConfigReader(logger log.Logger, pluginManager plugins.Manager) configReader {
-	return &configReaderImpl{log: logger, pluginManager: pluginManager}
+func newConfigReader(logger log.Logger) configReader {
+	return &configReaderImpl{log: logger}
 }
 
 func (cr *configReaderImpl) readConfig(path string) ([]*pluginsAsConfig, error) {
@@ -56,7 +55,7 @@ func (cr *configReaderImpl) readConfig(path string) ([]*pluginsAsConfig, error) 
 
 	checkOrgIDAndOrgName(apps)
 
-	err = cr.validatePluginsConfig(apps)
+	err = validatePluginsConfig(apps)
 	if err != nil {
 		return nil, err
 	}
@@ -70,8 +69,6 @@ func (cr *configReaderImpl) parsePluginConfig(path string, file os.FileInfo) (*p
 		return nil, err
 	}
 
-	// nolint:gosec
-	// We can ignore the gosec G304 warning on this one because `filename` comes from ps.Cfg.ProvisioningPath
 	yamlFile, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -106,15 +103,15 @@ func validateRequiredField(apps []*pluginsAsConfig) error {
 	return nil
 }
 
-func (cr *configReaderImpl) validatePluginsConfig(apps []*pluginsAsConfig) error {
+func validatePluginsConfig(apps []*pluginsAsConfig) error {
 	for i := range apps {
 		if apps[i].Apps == nil {
 			continue
 		}
 
 		for _, app := range apps[i].Apps {
-			if !cr.pluginManager.IsAppInstalled(app.PluginID) {
-				return fmt.Errorf("app plugin not installed: %q", app.PluginID)
+			if !plugins.IsAppInstalled(app.PluginID) {
+				return fmt.Errorf("app plugin not installed: %s", app.PluginID)
 			}
 		}
 	}

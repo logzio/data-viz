@@ -7,7 +7,7 @@ export function buildNavModel(dataSource: DataSourceSettings, plugin: GenericDat
 
   const navModel: NavModelItem = {
     img: pluginMeta.info.logos.large,
-    id: 'datasource-' + dataSource.uid,
+    id: 'datasource-' + dataSource.id,
     subTitle: `Type: ${pluginMeta.name}`,
     url: '',
     text: dataSource.name,
@@ -16,9 +16,9 @@ export function buildNavModel(dataSource: DataSourceSettings, plugin: GenericDat
       {
         active: false,
         icon: 'sliders-v-alt',
-        id: `datasource-settings-${dataSource.uid}`,
+        id: `datasource-settings-${dataSource.id}`,
         text: 'Settings',
-        url: `datasources/edit/${dataSource.uid}/`,
+        url: `datasources/edit/${dataSource.id}/`,
       },
     ],
   };
@@ -29,7 +29,7 @@ export function buildNavModel(dataSource: DataSourceSettings, plugin: GenericDat
         active: false,
         text: page.title,
         icon: page.icon,
-        url: `datasources/edit/${dataSource.uid}/?page=${page.id}`,
+        url: `datasources/edit/${dataSource.id}/?page=${page.id}`,
         id: `datasource-page-${page.id}`,
       });
     }
@@ -39,9 +39,9 @@ export function buildNavModel(dataSource: DataSourceSettings, plugin: GenericDat
     navModel.children!.push({
       active: false,
       icon: 'apps',
-      id: `datasource-dashboards-${dataSource.uid}`,
+      id: `datasource-dashboards-${dataSource.id}`,
       text: 'Dashboards',
-      url: `datasources/edit/${dataSource.uid}/dashboards`,
+      url: `datasources/edit/${dataSource.id}/dashboards`,
     });
   }
 
@@ -61,37 +61,11 @@ export function buildNavModel(dataSource: DataSourceSettings, plugin: GenericDat
       text: 'Insights',
       url: `datasources/edit/${dataSource.id}/insights`,
     });
-
-    navModel.children!.push({
-      active: false,
-      icon: 'database',
-      id: `datasource-cache-${dataSource.id}`,
-      text: 'Cache',
-      url: `datasources/edit/${dataSource.id}/cache`,
-      hideFromTabs: !pluginMeta.isBackend || !config.caching.enabled,
-    });
   }
 
   return navModel;
 }
 
-export function getDataSourceNav(main: NavModelItem, pageName: string): NavModel {
-  let node: NavModelItem;
-
-  // find active page
-  for (const child of main.children!) {
-    if (child.id!.indexOf(pageName) > 0) {
-      child.active = true;
-      node = child;
-      break;
-    }
-  }
-
-  return {
-    main: main,
-    node: node!,
-  };
-}
 export function getDataSourceLoadingNav(pageName: string): NavModel {
   const main = buildNavModel(
     {
@@ -102,7 +76,6 @@ export function getDataSourceLoadingNav(pageName: string): NavModel {
       withCredentials: false,
       database: '',
       id: 1,
-      uid: 'x',
       isDefault: false,
       jsonData: { authType: 'credentials', defaultRegion: 'eu-west-2' },
       name: 'Loading',
@@ -110,7 +83,6 @@ export function getDataSourceLoadingNav(pageName: string): NavModel {
       password: '',
       readOnly: false,
       type: 'Loading',
-      typeName: 'Loading',
       typeLogoUrl: 'public/img/icn-datasource.svg',
       url: '',
       user: '',
@@ -143,12 +115,26 @@ export function getDataSourceLoadingNav(pageName: string): NavModel {
     } as any
   );
 
-  return getDataSourceNav(main, pageName);
+  let node: NavModelItem;
+
+  // find active page
+  for (const child of main.children!) {
+    if (child.id!.indexOf(pageName) > 0) {
+      child.active = true;
+      node = child;
+      break;
+    }
+  }
+
+  return {
+    main: main,
+    node: node!,
+  };
 }
 
 function hasDashboards(includes: PluginInclude[]): boolean {
   return (
-    includes.find((include) => {
+    includes.find(include => {
       return include.type === 'dashboard';
     }) !== undefined
   );

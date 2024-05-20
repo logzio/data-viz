@@ -1,13 +1,19 @@
 import { stylesFactory } from '../../themes/stylesFactory';
-import { css } from '@emotion/css';
-import { GrafanaTheme2 } from '@grafana/data';
+import { css } from 'emotion';
+import { GrafanaTheme } from '@grafana/data';
 
-export const getSelectStyles = stylesFactory((theme: GrafanaTheme2) => {
+export const getSelectStyles = stylesFactory((theme: GrafanaTheme) => {
+  const bgColor = theme.colors.formInputBg;
+  const menuShadowColor = theme.colors.dropdownShadow;
+  const optionBgHover = theme.colors.dropdownOptionHoverBg;
+  const multiValueContainerBg = theme.colors.bg2;
+  const multiValueColor = theme.colors.text;
+
   return {
     menu: css`
       label: grafana-select-menu;
-      background: ${theme.components.dropdown.background};
-      box-shadow: ${theme.shadows.z3};
+      background: ${bgColor};
+      box-shadow: 0px 4px 4px ${menuShadowColor};
       position: relative;
       min-width: 100%;
       z-index: 1;
@@ -22,9 +28,8 @@ export const getSelectStyles = stylesFactory((theme: GrafanaTheme2) => {
       white-space: nowrap;
       cursor: pointer;
       border-left: 2px solid transparent;
-
       &:hover {
-        background: ${theme.colors.action.hover};
+        background: ${optionBgHover};
       }
     `,
     optionImage: css`
@@ -37,27 +42,30 @@ export const getSelectStyles = stylesFactory((theme: GrafanaTheme2) => {
       label: grafana-select-option-description;
       font-weight: normal;
       font-size: ${theme.typography.size.sm};
-      color: ${theme.colors.text.secondary};
+      color: ${theme.colors.textWeak};
       white-space: normal;
-      line-height: ${theme.typography.body.lineHeight};
     `,
     optionBody: css`
       label: grafana-select-option-body;
       display: flex;
-      font-weight: ${theme.typography.fontWeightMedium};
+      font-weight: ${theme.typography.weight.semibold};
       flex-direction: column;
       flex-grow: 1;
     `,
     optionFocused: css`
       label: grafana-select-option-focused;
-      background: ${theme.colors.action.focus};
-    `,
-    optionSelected: css`
-      background: ${theme.colors.action.selected};
+      background: ${optionBgHover};
+      border-image: linear-gradient(#f05a28 30%, #fbca0a 99%);
+      border-image-slice: 1;
+      border-style: solid;
+      border-top: 0;
+      border-right: 0;
+      border-bottom: 0;
+      border-left-width: 2px;
     `,
     singleValue: css`
       label: grafana-select-single-value;
-      color: ${theme.components.input.text};
+      color: ${theme.colors.formInputText};
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -80,7 +88,7 @@ export const getSelectStyles = stylesFactory((theme: GrafanaTheme2) => {
     `,
     loadingMessage: css`
       label: grafana-select-loading-message;
-      padding: ${theme.spacing(1)};
+      padding: ${theme.spacing.sm};
       text-align: center;
       width: 100%;
     `,
@@ -89,16 +97,16 @@ export const getSelectStyles = stylesFactory((theme: GrafanaTheme2) => {
       display: flex;
       align-items: center;
       line-height: 1;
-      background: ${theme.colors.background.secondary};
-      border-radius: ${theme.shape.borderRadius()};
-      margin: ${theme.spacing(0.25, 1, 0.25, 0)};
-      padding: ${theme.spacing(0.25, 0, 0.25, 1)};
-      color: ${theme.colors.text.primary};
+      background: ${multiValueContainerBg};
+      border-radius: ${theme.border.radius.sm};
+      margin: 0 ${theme.spacing.sm} 0 0;
+      padding: ${theme.spacing.xxs} 0 ${theme.spacing.xxs} ${theme.spacing.sm};
+      color: ${multiValueColor};
       font-size: ${theme.typography.size.sm};
     `,
     multiValueRemove: css`
       label: grafana-select-multi-value-remove;
-      margin: ${theme.spacing(0, 0.5)};
+      margin: 0 ${theme.spacing.xs};
       cursor: pointer;
     `,
   };

@@ -12,7 +12,10 @@ import {
 } from '@grafana/ui';
 import { getConfig } from 'app/core/config';
 import { OrgRole } from 'app/types';
-import { getBackendSrv, locationService } from '@grafana/runtime';
+import { getBackendSrv } from '@grafana/runtime';
+import { updateLocation } from 'app/core/actions';
+import { connect } from 'react-redux';
+import { hot } from 'react-hot-loader';
 import { appEvents } from 'app/core/core';
 import { AppEvents, locationUtil } from '@grafana/data';
 
@@ -30,18 +33,19 @@ interface FormModel {
   email: string;
 }
 
-interface Props {}
+interface Props {
+  updateLocation: typeof updateLocation;
+}
 
-export const UserInviteForm: FC<Props> = ({}) => {
+export const UserInviteForm: FC<Props> = ({ updateLocation }) => {
   const onSubmit = async (formData: FormModel) => {
     try {
       await getBackendSrv().post('/api/org/invites', formData);
     } catch (err) {
-      appEvents.emit(AppEvents.alertError, ['Failed to send invitation.', err.message]);
+      appEvents.emit(AppEvents.alertError, ['Failed to send invite', err.message]);
     }
-    locationService.push('/org/users/');
+    updateLocation({ path: 'org/users/' });
   };
-
   const defaultValues: FormModel = {
     name: '',
     email: '',
@@ -56,23 +60,19 @@ export const UserInviteForm: FC<Props> = ({}) => {
           <>
             <Field
               invalid={!!errors.loginOrEmail}
-              error={!!errors.loginOrEmail ? 'Email or username is required' : undefined}
-              label="Email or username"
+              error={!!errors.loginOrEmail ? 'Email or Username is required' : undefined}
+              label="Email or Username"
             >
-              <Input {...register('loginOrEmail', { required: true })} placeholder="email@example.com" />
+              <Input name="loginOrEmail" placeholder="email@example.com" ref={register({ required: true })} />
             </Field>
             <Field invalid={!!errors.name} label="Name">
-              <Input {...register('name')} placeholder="(optional)" />
+              <Input name="name" placeholder="(optional)" ref={register} />
             </Field>
             <Field invalid={!!errors.role} label="Role">
-              <InputControl
-                render={({ field: { ref, ...field } }) => <RadioButtonGroup {...field} options={roles} />}
-                control={control}
-                name="role"
-              />
+              <InputControl as={RadioButtonGroup} control={control} options={roles} name="role" />
             </Field>
-            <Field label="Send invite email">
-              <Switch {...register('sendEmail')} />
+            <Field invalid={!!errors.sendEmail} label="Send invite email">
+              <Switch name="sendEmail" ref={register} />
             </Field>
             <HorizontalGroup>
               <Button type="submit">Submit</Button>
@@ -87,4 +87,8 @@ export const UserInviteForm: FC<Props> = ({}) => {
   );
 };
 
-export default UserInviteForm;
+const mapDispatchToProps = {
+  updateLocation,
+};
+
+export default hot(module)(connect(null, mapDispatchToProps)(UserInviteForm));

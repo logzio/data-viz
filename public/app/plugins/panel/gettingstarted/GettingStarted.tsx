@@ -3,11 +3,13 @@ import React, { PureComponent } from 'react';
 import { PanelProps } from '@grafana/data';
 import { Button, Spinner, stylesFactory } from '@grafana/ui';
 import { config } from '@grafana/runtime';
-import { css, cx } from '@emotion/css';
+import { css, cx } from 'emotion';
 import { contextSrv } from 'app/core/core';
 import { backendSrv } from 'app/core/services/backend_srv';
 import { getDashboardSrv } from 'app/features/dashboard/services/DashboardSrv';
 import { Step } from './components/Step';
+import imageDark from './img/Onboarding_Panel_dark.svg';
+import imageLight from './img/Onboarding_Panel_light.svg';
 import { getSteps } from './steps';
 import { Card, SetupStep } from './types';
 
@@ -29,14 +31,14 @@ export class GettingStarted extends PureComponent<PanelProps, State> {
 
     const checkedStepsPromises: Array<Promise<SetupStep>> = steps.map(async (step: SetupStep) => {
       const checkedCardsPromises: Array<Promise<Card>> = step.cards.map((card: Card) => {
-        return card.check().then((passed) => {
+        return card.check().then(passed => {
           return { ...card, done: passed };
         });
       });
       const checkedCards = await Promise.all(checkedCardsPromises);
       return {
         ...step,
-        done: checkedCards.every((c) => c.done),
+        done: checkedCards.every(c => c.done),
         cards: checkedCards,
       };
     });
@@ -51,13 +53,13 @@ export class GettingStarted extends PureComponent<PanelProps, State> {
   }
 
   onForwardClick = () => {
-    this.setState((prevState) => ({
+    this.setState(prevState => ({
       currentStep: prevState.currentStep + 1,
     }));
   };
 
   onPreviousClick = () => {
-    this.setState((prevState) => ({
+    this.setState(prevState => ({
       currentStep: prevState.currentStep - 1,
     }));
   };
@@ -65,9 +67,9 @@ export class GettingStarted extends PureComponent<PanelProps, State> {
   dismiss = () => {
     const { id } = this.props;
     const dashboard = getDashboardSrv().getCurrent();
-    const panel = dashboard?.getPanelById(id);
+    const panel = dashboard.getPanelById(id);
 
-    dashboard?.removePanel(panel!);
+    dashboard.removePanel(panel!);
 
     backendSrv
       .request({
@@ -119,12 +121,13 @@ export class GettingStarted extends PureComponent<PanelProps, State> {
 
 const getStyles = stylesFactory(() => {
   const { theme } = config;
+  const backgroundImage = theme.isDark ? imageDark : imageLight;
   return {
     container: css`
       display: flex;
       flex-direction: column;
       height: 100%;
-      // background: url(public/img/getting_started_bg_${theme.type}.svg) no-repeat;
+      background: url(${backgroundImage}) no-repeat;
       background-size: cover;
       padding: ${theme.spacing.xl} ${theme.spacing.md} 0;
     `,

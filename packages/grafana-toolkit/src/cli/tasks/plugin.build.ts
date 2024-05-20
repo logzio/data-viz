@@ -17,7 +17,6 @@ const rimraf = promisify(rimrafCallback);
 interface PluginBuildOptions {
   coverage: boolean;
   maxJestWorkers?: string;
-  preserveConsole?: boolean;
 }
 
 interface Fixable {
@@ -32,7 +31,7 @@ const clean = () => useSpinner('Cleaning', () => rimraf(`${process.cwd()}/dist`)
 const copyIfNonExistent = (srcPath: string, destPath: string) =>
   copyFile(srcPath, destPath, COPYFILE_EXCL)
     .then(() => console.log(`Created: ${destPath}`))
-    .catch((error) => {
+    .catch(error => {
       if (error.code !== 'EEXIST') {
         throw error;
       }
@@ -58,18 +57,6 @@ export const prepare = () =>
     ])
   );
 
-export const versions = async () => {
-  try {
-    const nodeVersion = await execa('node', ['--version']);
-    console.log(`Using Node.js ${nodeVersion.stdout}`);
-
-    const toolkitVersion = await execa('grafana-toolkit', ['--version']);
-    console.log(`Using @grafana/toolkit ${toolkitVersion.stdout}`);
-  } catch (err) {
-    console.log(`Error reading versions`, err);
-  }
-};
-
 // @ts-ignore
 const typecheckPlugin = () => useSpinner('Typechecking', () => execa('tsc', ['--noEmit']));
 
@@ -94,7 +81,7 @@ export const lintPlugin = ({ fix }: Fixable = {}) =>
 
     // @todo should remove this because the config file could be in a parent dir or within package.json
     const configFile = await globby(resolvePath(process.cwd(), '.eslintrc?(.cjs|.js|.json|.yaml|.yml)')).then(
-      (filePaths) => {
+      filePaths => {
         if (filePaths.length > 0) {
           return filePaths[0];
         } else {
@@ -115,29 +102,21 @@ export const lintPlugin = ({ fix }: Fixable = {}) =>
     }
 
     const { errorCount, results, warningCount } = report;
-    const formatter = cli.getFormatter();
 
     if (errorCount > 0 || warningCount > 0) {
+      const formatter = cli.getFormatter();
       console.log('\n');
       console.log(formatter(results));
       console.log('\n');
-    }
-
-    if (errorCount > 0) {
-      throw new Error(`${errorCount} linting errors found in ${results.length} files`);
+      throw new Error(`${errorCount + warningCount} linting errors found in ${results.length} files`);
     }
   });
 
-export const pluginBuildRunner: TaskRunner<PluginBuildOptions> = async ({
-  coverage,
-  maxJestWorkers,
-  preserveConsole,
-}) => {
-  await versions();
+export const pluginBuildRunner: TaskRunner<PluginBuildOptions> = async ({ coverage, maxJestWorkers }) => {
   await prepare();
   await lintPlugin({ fix: false });
   await testPlugin({ updateSnapshot: false, coverage, maxWorkers: maxJestWorkers, watch: false });
-  await bundlePlugin({ watch: false, production: true, preserveConsole });
+  await bundlePlugin({ watch: false, production: true });
 };
 
 export const pluginBuildTask = new Task<PluginBuildOptions>('Build plugin', pluginBuildRunner);

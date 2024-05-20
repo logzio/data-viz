@@ -1,7 +1,7 @@
 import React, { PureComponent } from 'react';
 import classNames from 'classnames';
 import { TimeSeries } from 'app/core/core';
-import { SeriesColorPicker, SeriesIcon } from '@grafana/ui';
+import { Icon, SeriesColorPicker } from '@grafana/ui';
 import { selectors } from '@grafana/e2e-selectors';
 
 export const LEGEND_STATS = ['min', 'max', 'avg', 'current', 'total'];
@@ -105,9 +105,7 @@ export class LegendItem extends PureComponent<LegendItemProps, LegendItemState> 
     if (asTable) {
       return (
         <tr className={`graph-legend-series ${seriesOptionClasses}`}>
-          <td>
-            <div className="graph-legend-series__table-name">{seriesLabel}</div>
-          </td>
+          <td>{seriesLabel}</td>
           {valueItems}
         </tr>
       );
@@ -172,6 +170,10 @@ interface LegendSeriesIconState {
   color: string;
 }
 
+function SeriesIcon({ color }: { color: string }) {
+  return <Icon name="minus" style={{ color }} />;
+}
+
 class LegendSeriesIcon extends PureComponent<LegendSeriesIconProps, LegendSeriesIconState> {
   static defaultProps: Partial<LegendSeriesIconProps> = {
     yaxis: undefined,
@@ -195,13 +197,9 @@ class LegendSeriesIcon extends PureComponent<LegendSeriesIconProps, LegendSeries
         enableNamedColors
       >
         {({ ref, showColorPicker, hideColorPicker }) => (
-          <SeriesIcon
-            color={this.props.color}
-            ref={ref}
-            onClick={showColorPicker}
-            onMouseLeave={hideColorPicker}
-            className="graph-legend-icon"
-          />
+          <span ref={ref} onClick={showColorPicker} onMouseLeave={hideColorPicker} className="graph-legend-icon">
+            <SeriesIcon color={this.props.color} />
+          </span>
         )}
       </SeriesColorPicker>
     );

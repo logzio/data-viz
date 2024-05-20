@@ -1,14 +1,14 @@
 import React, { HTMLProps, useEffect } from 'react';
-import { useForm, Mode, DeepPartial, UnpackNestedValue, SubmitHandler } from 'react-hook-form';
+import { useForm, Mode, OnSubmit, DeepPartial } from 'react-hook-form';
 import { FormAPI } from '../../types';
-import { css } from '@emotion/css';
+import { css } from 'emotion';
 
 interface FormProps<T> extends Omit<HTMLProps<HTMLFormElement>, 'onSubmit'> {
   validateOn?: Mode;
   validateOnMount?: boolean;
-  validateFieldsOnMount?: string | string[];
-  defaultValues?: UnpackNestedValue<DeepPartial<T>>;
-  onSubmit: SubmitHandler<T>;
+  validateFieldsOnMount?: string[];
+  defaultValues?: DeepPartial<T>;
+  onSubmit: OnSubmit<T>;
   children: (api: FormAPI<T>) => React.ReactNode;
   /** Sets max-width for container. Use it instead of setting individual widths on inputs.*/
   maxWidth?: number | 'none';
@@ -24,17 +24,16 @@ export function Form<T>({
   maxWidth = 600,
   ...htmlProps
 }: FormProps<T>) {
-  const { handleSubmit, trigger, formState, ...rest } = useForm<T>({
+  const { handleSubmit, register, errors, control, triggerValidation, getValues, formState, watch } = useForm<T>({
     mode: validateOn,
     defaultValues,
   });
 
   useEffect(() => {
     if (validateOnMount) {
-      //@ts-expect-error
-      trigger(validateFieldsOnMount);
+      triggerValidation(validateFieldsOnMount);
     }
-  }, [trigger, validateFieldsOnMount, validateOnMount]);
+  }, []);
 
   return (
     <form
@@ -45,7 +44,7 @@ export function Form<T>({
       onSubmit={handleSubmit(onSubmit)}
       {...htmlProps}
     >
-      {children({ errors: formState.errors, formState, ...rest })}
+      {children({ register, errors, control, getValues, formState, watch })}
     </form>
   );
 }

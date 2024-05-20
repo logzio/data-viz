@@ -49,22 +49,13 @@
     bottom: $spacer;
     position: absolute;
     padding: $space-md 0 $space-md 0;
-    color: $text-color;
-
-    a {
-      color: $text-color;
-
-      &:hover {
-        color: $text-color-strong;
-      }
-    }
   }
 }
 
-@include media-breakpoint-down(md) {
+@include media-breakpoint-up(sm) {
   .login-page {
     .footer {
-      display: none;
+      padding: 70px 0 $space-md 0;
     }
   }
 }

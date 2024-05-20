@@ -1,13 +1,13 @@
-import { act, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import React, { Component } from 'react';
+import { StoreState } from 'app/types';
+import { Provider } from 'react-redux';
+import configureStore from 'redux-mock-store';
 import AppRootPage from './AppRootPage';
 import { getPluginSettings } from './PluginSettingsCache';
 import { importAppPlugin } from './plugin_loader';
 import { getMockPlugin } from './__mocks__/pluginMocks';
 import { AppPlugin, PluginType, AppRootProps, NavModelItem } from '@grafana/data';
-import { Route, Router } from 'react-router-dom';
-import { locationService } from '@grafana/runtime';
-import { GrafanaRoute } from 'app/core/navigation/GrafanaRoute';
 
 jest.mock('./PluginSettingsCache', () => ({
   getPluginSettings: jest.fn(),
@@ -26,45 +26,28 @@ const getPluginSettingsMock = getPluginSettings as jest.Mock<
   Parameters<typeof getPluginSettings>
 >;
 
-class RootComponent extends Component<AppRootProps> {
-  static timesMounted = 0;
-  componentDidMount() {
-    RootComponent.timesMounted += 1;
-    const node: NavModelItem = {
-      text: 'My Great plugin',
-      children: [
-        {
-          text: 'A page',
-          url: '/apage',
-          id: 'a',
-        },
-        {
-          text: 'Another page',
-          url: '/anotherpage',
-          id: 'b',
-        },
-      ],
-    };
-    this.props.onNavChanged({
-      main: node,
-      node,
-    });
-  }
+const initialState: Partial<StoreState> = {
+  location: {
+    routeParams: {
+      pluginId: 'my-awesome-plugin',
+      slug: 'my-awesome-plugin',
+    },
+    query: {},
+    path: '/a/my-awesome-plugin',
+    url: '',
+    replace: false,
+    lastUpdated: 1,
+  },
+};
 
-  render() {
-    return <p>my great plugin</p>;
-  }
-}
-
-function renderUnderRouter() {
-  const route = { component: AppRootPage };
-  locationService.push('/a/my-awesome-plugin');
-
+function renderWithStore(soreState: Partial<StoreState> = initialState) {
+  const store = configureStore<StoreState>()(soreState as StoreState);
   render(
-    <Router history={locationService.getHistory()}>
-      <Route path="/a/:pluginId" exact render={(props) => <GrafanaRoute {...props} route={route as any} />} />
-    </Router>
+    <Provider store={store}>
+      <AppRootPage />
+    </Provider>
   );
+  return store;
 }
 
 describe('AppRootPage', () => {
@@ -82,33 +65,35 @@ describe('AppRootPage', () => {
       })
     );
 
-    const plugin = new AppPlugin();
-    plugin.root = RootComponent;
+    let timesMounted = 0;
 
-    importAppPluginMock.mockResolvedValue(plugin);
-
-    renderUnderRouter();
-
-    // check that plugin and nav links were rendered, and plugin is mounted only once
-    expect(await screen.findByText('my great plugin')).toBeVisible();
-    expect(await screen.findByLabelText('Tab A page')).toBeVisible();
-    expect(await screen.findByLabelText('Tab Another page')).toBeVisible();
-    expect(RootComponent.timesMounted).toEqual(1);
-  });
-
-  it('should not render component if not at plugin path', async () => {
-    getPluginSettingsMock.mockResolvedValue(
-      getMockPlugin({
-        type: PluginType.app,
-        enabled: true,
-      })
-    );
-
+    // a very basic component that does what most plugins do:
+    // immediately update nav on mounting
     class RootComponent extends Component<AppRootProps> {
-      static timesRendered = 0;
+      componentDidMount() {
+        timesMounted++;
+        const node: NavModelItem = {
+          text: 'My Great plugin',
+          children: [
+            {
+              text: 'A page',
+              url: '/apage',
+              id: 'a',
+            },
+            {
+              text: 'Another page',
+              url: '/anotherpage',
+              id: 'b',
+            },
+          ],
+        };
+        this.props.onNavChanged({
+          main: node,
+          node,
+        });
+      }
       render() {
-        RootComponent.timesRendered += 1;
-        return <p>my great component</p>;
+        return <p>my great plugin</p>;
       }
     }
 
@@ -117,23 +102,12 @@ describe('AppRootPage', () => {
 
     importAppPluginMock.mockResolvedValue(plugin);
 
-    renderUnderRouter();
+    renderWithStore();
 
-    expect(await screen.findByText('my great component')).toBeVisible();
-
-    // renders the first time
-    expect(RootComponent.timesRendered).toEqual(1);
-
-    await act(async () => {
-      locationService.push('/foo');
-    });
-
-    expect(RootComponent.timesRendered).toEqual(1);
-
-    await act(async () => {
-      locationService.push('/a/my-awesome-plugin');
-    });
-
-    expect(RootComponent.timesRendered).toEqual(2);
+    // check that plugin and nav links were rendered, and plugin is mounted only once
+    await screen.findByText('my great plugin');
+    await screen.findByRole('link', { name: /A page/ });
+    await screen.findByRole('link', { name: /Another page/ });
+    expect(timesMounted).toEqual(1);
   });
 });

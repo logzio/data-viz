@@ -18,7 +18,7 @@ export const getDataSourcePlugins = (state: DataSourcesState) => {
 };
 
 export const getDataSource = (state: DataSourcesState, dataSourceId: UrlQueryValue): DataSourceSettings => {
-  if (state.dataSource.uid === dataSourceId) {
+  if (state.dataSource.id === parseInt(dataSourceId as string, 10)) {
     return state.dataSource;
   }
   return {} as DataSourceSettings;

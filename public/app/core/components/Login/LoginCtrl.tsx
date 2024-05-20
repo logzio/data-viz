@@ -1,6 +1,12 @@
-import React, { PureComponent } from 'react';
+import React from 'react';
 import config from 'app/core/config';
+
+import { updateLocation } from 'app/core/actions';
+import { connect } from 'react-redux';
+import { StoreState } from 'app/types';
+import { PureComponent } from 'react';
 import { getBackendSrv } from '@grafana/runtime';
+import { hot } from 'react-hot-loader';
 import appEvents from 'app/core/app_events';
 import { AppEvents } from '@grafana/data';
 
@@ -13,10 +19,9 @@ export interface FormModel {
   password: string;
   email: string;
 }
-
 interface Props {
-  resetCode?: string;
-
+  routeParams?: any;
+  updateLocation?: typeof updateLocation;
   children: (props: {
     isLoggingIn: boolean;
     changePassword: (pw: string) => void;
@@ -40,7 +45,6 @@ interface State {
 
 export class LoginCtrl extends PureComponent<Props, State> {
   result: any = {};
-
   constructor(props: Props) {
     super(props);
     this.state = {
@@ -59,8 +63,7 @@ export class LoginCtrl extends PureComponent<Props, State> {
       confirmNew: password,
       oldPassword: 'admin',
     };
-
-    if (!this.props.resetCode) {
+    if (!this.props.routeParams.code) {
       getBackendSrv()
         .put('/api/user/password', pw)
         .then(() => {
@@ -70,7 +73,7 @@ export class LoginCtrl extends PureComponent<Props, State> {
     }
 
     const resetModel = {
-      code: this.props.resetCode,
+      code: this.props.routeParams.code,
       newPassword: password,
       confirmPassword: password,
     };
@@ -151,4 +154,10 @@ export class LoginCtrl extends PureComponent<Props, State> {
   }
 }
 
-export default LoginCtrl;
+export const mapStateToProps = (state: StoreState) => ({
+  routeParams: state.location.routeParams,
+});
+
+const mapDispatchToProps = { updateLocation };
+
+export default hot(module)(connect(mapStateToProps, mapDispatchToProps)(LoginCtrl));

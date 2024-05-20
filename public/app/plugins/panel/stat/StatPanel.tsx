@@ -2,6 +2,7 @@ import React, { PureComponent } from 'react';
 import {
   BigValue,
   BigValueGraphMode,
+  BigValueSparkline,
   DataLinksContextMenu,
   VizRepeater,
   VizRepeaterRenderValueProps,
@@ -13,6 +14,7 @@ import {
   getDisplayValueAlignmentFactors,
   getFieldDisplayValues,
   PanelProps,
+  ReducerID,
 } from '@grafana/data';
 
 import { config } from 'app/core/config';
@@ -27,9 +29,21 @@ export class StatPanel extends PureComponent<PanelProps<StatPanelOptions>> {
     const { timeRange, options } = this.props;
     const { value, alignmentFactors, width, height, count } = valueProps;
     const { openMenu, targetClassName } = menuProps;
-    let sparkline = value.sparkline;
-    if (sparkline) {
-      sparkline.timeRange = timeRange;
+    let sparkline: BigValueSparkline | undefined;
+
+    if (value.sparkline) {
+      sparkline = {
+        data: value.sparkline,
+        xMin: timeRange.from.valueOf(),
+        xMax: timeRange.to.valueOf(),
+        yMin: value.field.min,
+        yMax: value.field.max,
+      };
+
+      const calc = options.reduceOptions.calcs[0];
+      if (calc === ReducerID.last) {
+        sparkline.highlightIndex = sparkline.data.length - 1;
+      }
     }
 
     return (
@@ -42,10 +56,9 @@ export class StatPanel extends PureComponent<PanelProps<StatPanelOptions>> {
         justifyMode={options.justifyMode}
         textMode={this.getTextMode()}
         alignmentFactors={alignmentFactors}
-        text={options.text}
         width={width}
         height={height}
-        theme={config.theme2}
+        theme={config.theme}
         onClick={openMenu}
         className={targetClassName}
       />
@@ -69,8 +82,8 @@ export class StatPanel extends PureComponent<PanelProps<StatPanelOptions>> {
 
     if (hasLinks && getLinks) {
       return (
-        <DataLinksContextMenu links={getLinks} config={value.field}>
-          {(api) => {
+        <DataLinksContextMenu links={getLinks}>
+          {api => {
             return this.renderComponent(valueProps, api);
           }}
         </DataLinksContextMenu>
@@ -87,9 +100,10 @@ export class StatPanel extends PureComponent<PanelProps<StatPanelOptions>> {
       fieldConfig,
       reduceOptions: options.reduceOptions,
       replaceVariables,
-      theme: config.theme2,
+      theme: config.theme,
       data: data.series,
       sparkline: options.graphMode !== BigValueGraphMode.None,
+      autoMinMax: true,
       timeZone,
     });
   };

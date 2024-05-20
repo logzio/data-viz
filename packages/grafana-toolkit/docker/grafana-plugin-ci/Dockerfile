@@ -1,8 +1,6 @@
-FROM debian:testing-20210111-slim
+FROM circleci/node:12-browsers
 USER root
 COPY scripts scripts
 WORKDIR scripts
-RUN apt-get update && \
-    apt-get install -y wget && \
-    ./deploy.sh
+RUN ./deploy.sh
 COPY install/gget /usr/local/bin/gget

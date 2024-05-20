@@ -156,7 +156,8 @@ func TestInsightsMetricsResultToFrame(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res := loadInsightsMetricsResponse(t, tt.testFile)
+			res, err := loadInsightsMetricsResponse(tt.testFile)
+			require.NoError(t, err)
 
 			frame, err := InsightsMetricsResultToFrame(res, tt.metric, tt.agg, tt.dimensions)
 			require.NoError(t, err)
@@ -170,23 +171,16 @@ func TestInsightsMetricsResultToFrame(t *testing.T) {
 	}
 }
 
-func loadInsightsMetricsResponse(t *testing.T, name string) MetricsResult {
-	t.Helper()
+func loadInsightsMetricsResponse(name string) (MetricsResult, error) {
+	var mr MetricsResult
 
 	path := filepath.Join("testdata", name)
-	// Ignore gosec warning G304 since it's a test
-	// nolint:gosec
 	f, err := os.Open(path)
-	require.NoError(t, err)
-	defer func() {
-		err := f.Close()
-		require.NoError(t, err)
-	}()
-
+	if err != nil {
+		return mr, err
+	}
+	defer f.Close()
 	d := json.NewDecoder(f)
-	var mr MetricsResult
 	err = d.Decode(&mr)
-	require.NoError(t, err)
-
-	return mr
+	return mr, err
 }

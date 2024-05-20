@@ -6,7 +6,6 @@ import { ImportDashboardForm } from './ImportDashboardForm';
 import { clearLoadedDashboard, importDashboard } from '../state/actions';
 import { DashboardInputs, DashboardSource, ImportDashboardDTO } from '../state/reducers';
 import { StoreState } from 'app/types';
-import { locationService } from '@grafana/runtime';
 
 interface OwnProps {}
 
@@ -56,12 +55,11 @@ class ImportDashboardOverviewUnConnected extends PureComponent<Props, State> {
           <div style={{ marginBottom: '24px' }}>
             <div>
               <Legend>
-                Importing dashboard from{' '}
+                Importing Dashboard from{' '}
                 <a
                   href={`https://grafana.com/dashboards/${dashboard.gnetId}`}
                   className="external-link"
                   target="_blank"
-                  rel="noreferrer"
                 >
                   Grafana.com
                 </a>
@@ -88,7 +86,7 @@ class ImportDashboardOverviewUnConnected extends PureComponent<Props, State> {
           validateFieldsOnMount={['title', 'uid']}
           validateOn="onChange"
         >
-          {({ register, errors, control, watch, getValues }) => (
+          {({ register, errors, control, getValues }) => (
             <ImportDashboardForm
               register={register}
               errors={errors}
@@ -99,7 +97,6 @@ class ImportDashboardOverviewUnConnected extends PureComponent<Props, State> {
               onCancel={this.onCancel}
               onUidReset={this.onUidReset}
               onSubmit={this.onSubmit}
-              watch={watch}
               initialFolderId={folder.id}
             />
           )}
@@ -109,17 +106,13 @@ class ImportDashboardOverviewUnConnected extends PureComponent<Props, State> {
   }
 }
 
-const mapStateToProps: MapStateToProps<ConnectedProps, OwnProps, StoreState> = (state: StoreState) => {
-  const searchObj = locationService.getSearchObject();
-
-  return {
-    dashboard: state.importDashboard.dashboard,
-    meta: state.importDashboard.meta,
-    source: state.importDashboard.source,
-    inputs: state.importDashboard.inputs,
-    folder: searchObj.folderId ? { id: Number(searchObj.folderId) } : { id: 0 },
-  };
-};
+const mapStateToProps: MapStateToProps<ConnectedProps, OwnProps, StoreState> = (state: StoreState) => ({
+  dashboard: state.importDashboard.dashboard,
+  meta: state.importDashboard.meta,
+  source: state.importDashboard.source,
+  inputs: state.importDashboard.inputs,
+  folder: state.location.routeParams.folderId ? { id: Number(state.location.routeParams.folderId) } : { id: 0 },
+});
 
 const mapDispatchToProps: MapDispatchToProps<DispatchProps, OwnProps> = {
   clearLoadedDashboard,

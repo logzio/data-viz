@@ -1,4 +1,4 @@
-import { concat, forEach, isEmpty, isEqual, isNumber, sortBy } from 'lodash';
+import _ from 'lodash';
 import { TimeSeries } from 'app/core/core';
 import { Bucket, HeatmapCard, HeatmapCardStats, YBucket, XBucket } from './types';
 
@@ -23,7 +23,7 @@ function histogramToHeatmap(seriesList: TimeSeries[]) {
       const count = point[VALUE_INDEX];
       const time = point[TIME_INDEX];
 
-      if (!isNumber(count)) {
+      if (!_.isNumber(count)) {
         continue;
       }
 
@@ -88,14 +88,14 @@ function parseHistogramLabel(label: string): number {
 /**
  * Convert buckets into linear array of "cards" - objects, represented heatmap elements.
  * @param  {Object} buckets
- * @returns {Object}          Array of "card" objects and stats
+ * @return {Object}          Array of "card" objects and stats
  */
 function convertToCards(buckets: any, hideZero = false): { cards: HeatmapCard[]; cardStats: HeatmapCardStats } {
   let min = 0,
     max = 0;
   const cards: HeatmapCard[] = [];
-  forEach(buckets, (xBucket) => {
-    forEach(xBucket.buckets, (yBucket) => {
+  _.forEach(buckets, xBucket => {
+    _.forEach(xBucket.buckets, yBucket => {
       const card: HeatmapCard = {
         x: xBucket.x,
         y: yBucket.y,
@@ -136,10 +136,10 @@ function convertToCards(buckets: any, hideZero = false): { cards: HeatmapCard[];
  *
  * @param  {Object} buckets  Heatmap buckets
  * @param  {Number} minValue Minimum series value
- * @returns {Object}          Transformed buckets
+ * @return {Object}          Transformed buckets
  */
 function mergeZeroBuckets(buckets: any, minValue: number) {
-  forEach(buckets, (xBucket) => {
+  _.forEach(buckets, xBucket => {
     const yBuckets = xBucket.buckets;
 
     const emptyBucket: any = {
@@ -177,7 +177,7 @@ function mergeZeroBuckets(buckets: any, minValue: number) {
 
 /**
  * Convert set of time series into heatmap buckets
- * @returns {Object}    Heatmap object:
+ * @return {Object}    Heatmap object:
  * {
  *   xBucketBound_1: {
  *     x: xBucketBound_1,
@@ -217,7 +217,7 @@ function convertToHeatMap(seriesList: TimeSeries[], yBucketSize: number, xBucket
     // |** *|    | ***|    |*   |
     // |____|____|____|____|____|_
     //
-    forEach(datapoints, (point) => {
+    _.forEach(datapoints, point => {
       const bucketBound = getBucketBound(point[TIME_INDEX], xBucketSize);
       pushToXBuckets(heatmap, point, bucketBound, seriesName);
     });
@@ -229,7 +229,7 @@ function convertToHeatMap(seriesList: TimeSeries[], yBucketSize: number, xBucket
   // |*   | --/ |1|,
   // |____|     |0|
   //
-  forEach(heatmap, (xBucket: any) => {
+  _.forEach(heatmap, (xBucket: any) => {
     if (logBase !== 1) {
       xBucket.buckets = convertToLogScaleValueBuckets(xBucket, yBucketSize, logBase);
     } else {
@@ -247,7 +247,7 @@ function pushToXBuckets(buckets: any, point: any[], bucketNum: number, seriesNam
   }
 
   // Add series name to point for future identification
-  const pointExt = concat(point, seriesName);
+  const pointExt = _.concat(point, seriesName);
 
   if (buckets[bucketNum] && buckets[bucketNum].values) {
     buckets[bucketNum].values.push(value);
@@ -317,7 +317,7 @@ function convertToValueBuckets(xBucket: { values: any; points: any }, bucketSize
   const points = xBucket.points;
   const buckets = {};
 
-  forEach(values, (val, index) => {
+  _.forEach(values, (val, index) => {
     const bounds = getBucketBounds(val, bucketSize);
     const bucketNum = bounds.bottom;
     pushToYBuckets(buckets, bucketNum, val, points[index], bounds);
@@ -367,7 +367,7 @@ function convertToLogScaleValueBuckets(
   const points = xBucket.points;
 
   const buckets = {};
-  forEach(values, (val, index) => {
+  _.forEach(values, (val, index) => {
     const bounds = getLogScaleBucketBounds(val, yBucketSplitFactor, logBase);
     const bucketNum = bounds.bottom;
     pushToYBuckets(buckets, bucketNum, val, points[index], bounds);
@@ -398,7 +398,7 @@ function calculateBucketSize(bounds: number[], logBase = 1): number {
   } else if (bounds.length === 1) {
     return bounds[0];
   } else {
-    bounds = sortBy(bounds);
+    bounds = _.sortBy(bounds);
     for (let i = 1; i < bounds.length; i++) {
       const distance = getDistance(bounds[i], bounds[i - 1], logBase);
       bucketSize = distance < bucketSize ? distance : bucketSize;
@@ -433,17 +433,17 @@ function getDistance(a: number, b: number, logBase = 1): number {
 function isHeatmapDataEqual(objA: any, objB: any): boolean {
   let isEql = !emptyXOR(objA, objB);
 
-  forEach(objA, (xBucket: XBucket, x) => {
+  _.forEach(objA, (xBucket: XBucket, x) => {
     if (objB[x]) {
       if (emptyXOR(xBucket.buckets, objB[x].buckets)) {
         isEql = false;
         return false;
       }
 
-      forEach(xBucket.buckets, (yBucket: YBucket, y) => {
+      _.forEach(xBucket.buckets, (yBucket: YBucket, y) => {
         if (objB[x].buckets && objB[x].buckets[y]) {
           if (objB[x].buckets[y].values) {
-            isEql = isEqual(sortBy(yBucket.values), sortBy(objB[x].buckets[y].values));
+            isEql = _.isEqual(_.sortBy(yBucket.values), _.sortBy(objB[x].buckets[y].values));
             if (!isEql) {
               return false;
             } else {
@@ -474,7 +474,7 @@ function isHeatmapDataEqual(objA: any, objB: any): boolean {
 }
 
 function emptyXOR(foo: any, bar: any): boolean {
-  return (isEmpty(foo) || isEmpty(bar)) && !(isEmpty(foo) && isEmpty(bar));
+  return (_.isEmpty(foo) || _.isEmpty(bar)) && !(_.isEmpty(foo) && _.isEmpty(bar));
 }
 
 export {

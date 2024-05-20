@@ -1,79 +1,52 @@
-import React, { ComponentProps } from 'react';
-import { screen, render, fireEvent } from '@testing-library/react';
-import { LogDetailsRow } from './LogDetailsRow';
-
-type Props = ComponentProps<typeof LogDetailsRow>;
+import React from 'react';
+import { LogDetailsRow, Props } from './LogDetailsRow';
+import { GrafanaTheme } from '@grafana/data';
+import { mount } from 'enzyme';
+import { LogLabelStats } from './LogLabelStats';
 
 const setup = (propOverrides?: Partial<Props>) => {
   const props: Props = {
+    theme: {} as GrafanaTheme,
     parsedValue: '',
     parsedKey: '',
     isLabel: true,
-    wrapLogMessage: false,
     getStats: () => null,
     onClickFilterLabel: () => {},
     onClickFilterOutLabel: () => {},
-    onClickShowDetectedField: () => {},
-    onClickHideDetectedField: () => {},
-    showDetectedFields: [],
   };
 
   Object.assign(props, propOverrides);
 
-  return render(<LogDetailsRow {...props} />);
+  const wrapper = mount(<LogDetailsRow {...props} />);
+  return wrapper;
 };
 
 describe('LogDetailsRow', () => {
   it('should render parsed key', () => {
-    setup({ parsedKey: 'test key' });
-    expect(screen.getByText('test key')).toBeInTheDocument();
+    const wrapper = setup({ parsedKey: 'test key' });
+    expect(wrapper.text().includes('test key')).toBe(true);
   });
   it('should render parsed value', () => {
-    setup({ parsedValue: 'test value' });
-    expect(screen.getByText('test value')).toBeInTheDocument();
+    const wrapper = setup({ parsedValue: 'test value' });
+    expect(wrapper.text().includes('test value')).toBe(true);
   });
-
   it('should render metrics button', () => {
-    setup();
-    expect(screen.getAllByTitle('Ad-hoc statistics')).toHaveLength(1);
+    const wrapper = setup();
+    expect(wrapper.find({ title: 'Ad-hoc statistics' }).hostNodes()).toHaveLength(1);
   });
-
   describe('if props is a label', () => {
     it('should render filter label button', () => {
-      setup();
-      expect(screen.getAllByTitle('Filter for value')).toHaveLength(1);
+      const wrapper = setup();
+      expect(wrapper.find({ title: 'Filter for value' }).hostNodes()).toHaveLength(1);
     });
     it('should render filter out label button', () => {
-      setup();
-      expect(screen.getAllByTitle('Filter out value')).toHaveLength(1);
-    });
-    it('should not render filtering buttons if no filtering functions provided', () => {
-      setup({ onClickFilterLabel: undefined, onClickFilterOutLabel: undefined });
-      expect(screen.queryByTitle('Filter out value')).not.toBeInTheDocument();
-    });
-  });
-
-  describe('if props is not a label', () => {
-    it('should not render a filter label button', () => {
-      setup({ isLabel: false });
-      expect(screen.queryByTitle('Filter for value')).not.toBeInTheDocument();
-    });
-    it('should render a show toggleFieldButton button', () => {
-      setup({ isLabel: false });
-      expect(screen.getAllByTitle('Show this field instead of the message')).toHaveLength(1);
-    });
-    it('should not render a show toggleFieldButton button if no detected fields toggling functions provided', () => {
-      setup({
-        isLabel: false,
-        onClickShowDetectedField: undefined,
-        onClickHideDetectedField: undefined,
-      });
-      expect(screen.queryByTitle('Show this field instead of the message')).not.toBeInTheDocument();
+      const wrapper = setup();
+      expect(wrapper.find({ title: 'Filter out value' }).hostNodes()).toHaveLength(1);
     });
   });
 
   it('should render stats when stats icon is clicked', () => {
-    setup({
+    const wrapper = setup({
       parsedKey: 'key',
       parsedValue: 'value',
       getStats: () => {
@@ -92,10 +65,12 @@ describe('LogDetailsRow', () => {
       },
     });
 
-    expect(screen.queryByTestId('logLabelStats')).not.toBeInTheDocument();
-    const adHocStatsButton = screen.getByTitle('Ad-hoc statistics');
-    fireEvent.click(adHocStatsButton);
-    expect(screen.getByTestId('logLabelStats')).toBeInTheDocument();
-    expect(screen.getByTestId('logLabelStats')).toHaveTextContent('another value');
+    expect(wrapper.find(LogLabelStats).length).toBe(0);
+    wrapper
+      .find({ title: 'Ad-hoc statistics' })
+      .hostNodes()
+      .simulate('click');
+    expect(wrapper.find(LogLabelStats).length).toBe(1);
+    expect(wrapper.find(LogLabelStats).contains('another value')).toBeTruthy();
   });
 });

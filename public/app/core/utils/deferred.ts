@@ -1,12 +1,10 @@
-export class Deferred<T = any> {
-  resolve?: (reason?: T | PromiseLike<T>) => void;
-  reject?: (reason?: any) => void;
-  promise: Promise<T>;
-
+export class Deferred {
+  resolve: any;
+  reject: any;
+  promise: Promise<any>;
   constructor() {
-    this.resolve = undefined;
-    this.reject = undefined;
-
+    this.resolve = null;
+    this.reject = null;
     this.promise = new Promise((resolve, reject) => {
       this.resolve = resolve;
       this.reject = reject;

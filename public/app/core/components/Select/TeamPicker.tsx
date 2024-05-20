@@ -1,7 +1,9 @@
 import React, { Component } from 'react';
-import { debounce, isNil } from 'lodash';
-import { AsyncSelect } from '@grafana/ui';
+import _ from 'lodash';
+import { LegacyForms } from '@grafana/ui';
+import { debounce } from 'lodash';
 import { getBackendSrv } from '@grafana/runtime';
+const { AsyncSelect } = LegacyForms;
 
 export interface Team {
   id: number;
@@ -36,7 +38,7 @@ export class TeamPicker extends Component<Props, State> {
   search(query?: string) {
     this.setState({ isLoading: true });
 
-    if (isNil(query)) {
+    if (_.isNil(query)) {
       query = '';
     }
 
@@ -70,7 +72,7 @@ export class TeamPicker extends Component<Props, State> {
           onChange={onSelected}
           className={className}
           placeholder="Select a team"
-          noOptionsMessage="No teams found"
+          noOptionsMessage={() => 'No teams found'}
         />
       </div>
     );

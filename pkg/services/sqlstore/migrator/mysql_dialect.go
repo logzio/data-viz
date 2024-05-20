@@ -1,7 +1,6 @@
 package migrator
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -12,38 +11,38 @@ import (
 	"xorm.io/xorm"
 )
 
-type MySQLDialect struct {
+type Mysql struct {
 	BaseDialect
 }
 
 func NewMysqlDialect(engine *xorm.Engine) Dialect {
-	d := MySQLDialect{}
+	d := Mysql{}
 	d.BaseDialect.dialect = &d
 	d.BaseDialect.engine = engine
-	d.BaseDialect.driverName = MySQL
+	d.BaseDialect.driverName = MYSQL
 	return &d
 }
 
-func (db *MySQLDialect) SupportEngine() bool {
+func (db *Mysql) SupportEngine() bool {
 	return true
 }
 
-func (db *MySQLDialect) Quote(name string) string {
+func (db *Mysql) Quote(name string) string {
 	return "`" + name + "`"
 }
 
-func (db *MySQLDialect) AutoIncrStr() string {
+func (db *Mysql) AutoIncrStr() string {
 	return "AUTO_INCREMENT"
 }
 
-func (db *MySQLDialect) BooleanStr(value bool) string {
+func (db *Mysql) BooleanStr(value bool) string {
 	if value {
 		return "1"
 	}
 	return "0"
 }
 
-func (db *MySQLDialect) SQLType(c *Column) string {
+func (db *Mysql) SqlType(c *Column) string {
 	var res string
 	switch c.Type {
 	case DB_Bool:
@@ -92,7 +91,7 @@ func (db *MySQLDialect) SQLType(c *Column) string {
 	return res
 }
 
-func (db *MySQLDialect) UpdateTableSQL(tableName string, columns []*Column) string {
+func (db *Mysql) UpdateTableSql(tableName string, columns []*Column) string {
 	var statements = []string{}
 
 	statements = append(statements, "DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
@@ -104,19 +103,19 @@ func (db *MySQLDialect) UpdateTableSQL(tableName string, columns []*Column) stri
 	return "ALTER TABLE " + db.Quote(tableName) + " " + strings.Join(statements, ", ") + ";"
 }
 
-func (db *MySQLDialect) IndexCheckSQL(tableName, indexName string) (string, []interface{}) {
+func (db *Mysql) IndexCheckSql(tableName, indexName string) (string, []interface{}) {
 	args := []interface{}{tableName, indexName}
 	sql := "SELECT 1 FROM " + db.Quote("INFORMATION_SCHEMA") + "." + db.Quote("STATISTICS") + " WHERE " + db.Quote("TABLE_SCHEMA") + " = DATABASE() AND " + db.Quote("TABLE_NAME") + "=? AND " + db.Quote("INDEX_NAME") + "=?"
 	return sql, args
 }
 
-func (db *MySQLDialect) ColumnCheckSQL(tableName, columnName string) (string, []interface{}) {
+func (db *Mysql) ColumnCheckSql(tableName, columnName string) (string, []interface{}) {
 	args := []interface{}{tableName, columnName}
 	sql := "SELECT 1 FROM " + db.Quote("INFORMATION_SCHEMA") + "." + db.Quote("COLUMNS") + " WHERE " + db.Quote("TABLE_SCHEMA") + " = DATABASE() AND " + db.Quote("TABLE_NAME") + "=? AND " + db.Quote("COLUMN_NAME") + "=?"
 	return sql, args
 }
 
-func (db *MySQLDialect) CleanDB() error {
+func (db *Mysql) CleanDB() error {
 	tables, err := db.engine.DBMetas()
 	if err != nil {
 		return err
@@ -125,17 +124,14 @@ func (db *MySQLDialect) CleanDB() error {
 	defer sess.Close()
 
 	for _, table := range tables {
-		switch table.Name {
-		default:
-			if _, err := sess.Exec("set foreign_key_checks = 0"); err != nil {
-				return errutil.Wrap("failed to disable foreign key checks", err)
-			}
-			if _, err := sess.Exec("drop table " + table.Name + " ;"); err != nil {
-				return errutil.Wrapf(err, "failed to delete table %q", table.Name)
-			}
-			if _, err := sess.Exec("set foreign_key_checks = 1"); err != nil {
-				return errutil.Wrap("failed to disable foreign key checks", err)
-			}
+		if _, err := sess.Exec("set foreign_key_checks = 0"); err != nil {
+			return errutil.Wrap("failed to disable foreign key checks", err)
+		}
+		if _, err := sess.Exec("drop table " + table.Name + " ;"); err != nil {
+			return errutil.Wrapf(err, "failed to delete table %q", table.Name)
+		}
+		if _, err := sess.Exec("set foreign_key_checks = 1"); err != nil {
+			return errutil.Wrap("failed to disable foreign key checks", err)
 		}
 	}
 
@@ -144,7 +140,7 @@ func (db *MySQLDialect) CleanDB() error {
 
 // TruncateDBTables truncates all the tables.
 // A special case is the dashboard_acl table where we keep the default permissions.
-func (db *MySQLDialect) TruncateDBTables() error {
+func (db *Mysql) TruncateDBTables() error {
 	tables, err := db.engine.DBMetas()
 	if err != nil {
 		return err
@@ -172,9 +168,8 @@ func (db *MySQLDialect) TruncateDBTables() error {
 	return nil
 }
 
-func (db *MySQLDialect) isThisError(err error, errcode uint16) bool {
-	var driverErr *mysql.MySQLError
-	if errors.As(err, &driverErr) {
+func (db *Mysql) isThisError(err error, errcode uint16) bool {
+	if driverErr, ok := err.(*mysql.MySQLError); ok {
 		if driverErr.Number == errcode {
 			return true
 		}
@@ -183,43 +178,17 @@ func (db *MySQLDialect) isThisError(err error, errcode uint16) bool {
 	return false
 }
 
-func (db *MySQLDialect) IsUniqueConstraintViolation(err error) bool {
+func (db *Mysql) IsUniqueConstraintViolation(err error) bool {
 	return db.isThisError(err, mysqlerr.ER_DUP_ENTRY)
 }
 
-func (db *MySQLDialect) ErrorMessage(err error) string {
-	var driverErr *mysql.MySQLError
-	if errors.As(err, &driverErr) {
+func (db *Mysql) ErrorMessage(err error) string {
+	if driverErr, ok := err.(*mysql.MySQLError); ok {
 		return driverErr.Message
 	}
 	return ""
 }
 
-func (db *MySQLDialect) IsDeadlock(err error) bool {
+func (db *Mysql) IsDeadlock(err error) bool {
 	return db.isThisError(err, mysqlerr.ER_LOCK_DEADLOCK)
-}
-
-// UpsertSQL returns the upsert sql statement for PostgreSQL dialect
-func (db *MySQLDialect) UpsertSQL(tableName string, keyCols, updateCols []string) string {
-	columnsStr := strings.Builder{}
-	colPlaceHoldersStr := strings.Builder{}
-	setStr := strings.Builder{}
-
-	separator := ", "
-	for i, c := range updateCols {
-		if i == len(updateCols)-1 {
-			separator = ""
-		}
-		columnsStr.WriteString(fmt.Sprintf("%s%s", db.Quote(c), separator))
-		colPlaceHoldersStr.WriteString(fmt.Sprintf("?%s", separator))
-		setStr.WriteString(fmt.Sprintf("%s=VALUES(%s)%s", db.Quote(c), db.Quote(c), separator))
-	}
-
-	s := fmt.Sprintf(`INSERT INTO %s (%s) VALUES (%s) ON DUPLICATE KEY UPDATE %s`,
-		tableName,
-		columnsStr.String(),
-		colPlaceHoldersStr.String(),
-		setStr.String(),
-	)
-	return s
 }

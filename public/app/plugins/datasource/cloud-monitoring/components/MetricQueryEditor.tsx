@@ -1,23 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { SelectableValue } from '@grafana/data';
-import { Project, VisualMetricQueryEditor, AliasBy } from '.';
-import {
-  MetricQuery,
-  MetricDescriptor,
-  EditorMode,
-  MetricKind,
-  PreprocessorType,
-  AlignmentTypes,
-  CustomMetaData,
-  ValueTypes,
-} from '../types';
+import React, { useState, useEffect } from 'react';
+import { Project, Aggregations, Metrics, LabelFilter, GroupBys, Alignments, AlignmentPeriods, AliasBy } from '.';
+import { MetricQuery, MetricDescriptor } from '../types';
 import { getAlignmentPickerData } from '../functions';
 import CloudMonitoringDatasource from '../datasource';
-import { MQLQueryEditor } from './MQLQueryEditor';
+import { SelectableValue } from '@grafana/data';
 
 export interface Props {
   refId: string;
-  customMetaData: CustomMetaData;
+  usedAlignmentPeriod?: number;
   variableOptionGroup: SelectableValue<string>;
   onChange: (query: MetricQuery) => void;
   onRunQuery: () => void;
@@ -34,106 +24,115 @@ export const defaultState: State = {
   labels: {},
 };
 
-export const defaultQuery: (dataSource: CloudMonitoringDatasource) => MetricQuery = (dataSource) => ({
-  editorMode: EditorMode.Visual,
+export const defaultQuery: (dataSource: CloudMonitoringDatasource) => MetricQuery = dataSource => ({
   projectName: dataSource.getDefaultProject(),
   metricType: '',
-  metricKind: MetricKind.GAUGE,
+  metricKind: '',
   valueType: '',
+  unit: '',
   crossSeriesReducer: 'REDUCE_MEAN',
   alignmentPeriod: 'cloud-monitoring-auto',
-  perSeriesAligner: AlignmentTypes.ALIGN_MEAN,
+  perSeriesAligner: 'ALIGN_MEAN',
   groupBys: [],
   filters: [],
   aliasBy: '',
-  query: '',
-  preprocessor: PreprocessorType.None,
 });
 
 function Editor({
   refId,
   query,
   datasource,
-  onChange: onQueryChange,
-  onRunQuery,
-  customMetaData,
+  onChange,
+  usedAlignmentPeriod,
   variableOptionGroup,
 }: React.PropsWithChildren<Props>) {
   const [state, setState] = useState<State>(defaultState);
-  const { projectName, metricType, groupBys, editorMode } = query;
 
   useEffect(() => {
-    if (projectName && metricType) {
+    if (query && query.projectName && query.metricType) {
       datasource
-        .getLabels(metricType, refId, projectName, groupBys)
-        .then((labels) => setState((prevState) => ({ ...prevState, labels })));
+        .getLabels(query.metricType, refId, query.projectName, query.groupBys)
+        .then(labels => setState({ ...state, labels }));
     }
-  }, [datasource, groupBys, metricType, projectName, refId]);
+  }, [query.projectName, query.groupBys, query.metricType]);
 
-  const onChange = useCallback(
-    (metricQuery: MetricQuery) => {
-      onQueryChange({ ...query, ...metricQuery });
-      onRunQuery();
-    },
-    [onQueryChange, onRunQuery, query]
-  );
+  const onMetricTypeChange = async ({ valueType, metricKind, type, unit }: MetricDescriptor) => {
+    const { perSeriesAligner, alignOptions } = getAlignmentPickerData(
+      { valueType, metricKind, perSeriesAligner: state.perSeriesAligner },
+      datasource.templateSrv
+    );
+    setState({
+      ...state,
+      alignOptions,
+    });
+    onChange({ ...query, perSeriesAligner, metricType: type, unit, valueType, metricKind });
+  };
 
-  const onMetricTypeChange = useCallback(
-    ({ valueType, metricKind, type }: MetricDescriptor) => {
-      const preprocessor =
-        metricKind === MetricKind.GAUGE || valueType === ValueTypes.DISTRIBUTION
-          ? PreprocessorType.None
-          : PreprocessorType.Rate;
-      const { perSeriesAligner } = getAlignmentPickerData(valueType, metricKind, state.perSeriesAligner, preprocessor);
-      onChange({
-        ...query,
-        perSeriesAligner,
-        metricType: type,
-        valueType,
-        metricKind,
-        preprocessor,
-      });
-    },
-    [onChange, query, state]
-  );
+  const { labels } = state;
+  const { perSeriesAligner, alignOptions } = getAlignmentPickerData(query, datasource.templateSrv);
 
   return (
     <>
       <Project
         templateVariableOptions={variableOptionGroup.options}
-        projectName={projectName}
+        projectName={query.projectName}
         datasource={datasource}
-        onChange={(projectName) => {
+        onChange={projectName => {
           onChange({ ...query, projectName });
         }}
       />
-
-      {editorMode === EditorMode.Visual && (
-        <VisualMetricQueryEditor
-          labels={state.labels}
-          variableOptionGroup={variableOptionGroup}
-          customMetaData={customMetaData}
-          onMetricTypeChange={onMetricTypeChange}
-          onChange={onChange}
-          datasource={datasource}
-          query={query}
-        />
-      )}
-
-      {editorMode === EditorMode.MQL && (
-        <MQLQueryEditor
-          onChange={(q: string) => onQueryChange({ ...query, query: q })}
-          onRunQuery={onRunQuery}
-          query={query.query}
-        ></MQLQueryEditor>
-      )}
-
-      <AliasBy
-        value={query.aliasBy}
-        onChange={(aliasBy) => {
-          onChange({ ...query, aliasBy });
-        }}
-      />
+      <Metrics
+        templateSrv={datasource.templateSrv}
+        projectName={query.projectName}
+        metricType={query.metricType}
+        templateVariableOptions={variableOptionGroup.options}
+        datasource={datasource}
+        onChange={onMetricTypeChange}
+      >
+        {metric => (
+          <>
+            <LabelFilter
+              labels={labels}
+              filters={query.filters!}
+              onChange={filters => onChange({ ...query, filters })}
+              variableOptionGroup={variableOptionGroup}
+            />
+            <GroupBys
+              groupBys={Object.keys(labels)}
+              values={query.groupBys!}
+              onChange={groupBys => onChange({ ...query, groupBys })}
+              variableOptionGroup={variableOptionGroup}
+            />
+            <Aggregations
+              metricDescriptor={metric}
+              templateVariableOptions={variableOptionGroup.options}
+              crossSeriesReducer={query.crossSeriesReducer}
+              groupBys={query.groupBys!}
+              onChange={crossSeriesReducer => onChange({ ...query, crossSeriesReducer })}
+            >
+              {displayAdvancedOptions =>
+                displayAdvancedOptions && (
+                  <Alignments
+                    alignOptions={alignOptions}
+                    templateVariableOptions={variableOptionGroup.options}
+                    perSeriesAligner={perSeriesAligner || ''}
+                    onChange={perSeriesAligner => onChange({ ...query, perSeriesAligner })}
+                  />
+                )
+              }
+            </Aggregations>
+            <AlignmentPeriods
+              templateSrv={datasource.templateSrv}
+              templateVariableOptions={variableOptionGroup.options}
+              alignmentPeriod={query.alignmentPeriod || ''}
+              perSeriesAligner={query.perSeriesAligner || ''}
+              usedAlignmentPeriod={usedAlignmentPeriod}
+              onChange={alignmentPeriod => onChange({ ...query, alignmentPeriod })}
+            />
+            <AliasBy value={query.aliasBy || ''} onChange={aliasBy => onChange({ ...query, aliasBy })} />
+          </>
+        )}
+      </Metrics>
     </>
   );
 }

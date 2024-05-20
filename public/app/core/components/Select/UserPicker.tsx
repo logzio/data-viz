@@ -1,11 +1,12 @@
 // Libraries
 import React, { Component } from 'react';
-import { debounce, isNil } from 'lodash';
+import _ from 'lodash';
 
 // Components
 import { AsyncSelect } from '@grafana/ui';
 
 // Utils & Services
+import { debounce } from 'lodash';
 import { getBackendSrv } from '@grafana/runtime';
 
 // Types
@@ -37,7 +38,7 @@ export class UserPicker extends Component<Props, State> {
   search(query?: string) {
     this.setState({ isLoading: true });
 
-    if (isNil(query)) {
+    if (_.isNil(query)) {
       query = '';
     }
 

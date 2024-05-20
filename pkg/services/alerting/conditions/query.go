@@ -4,11 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/grafana/grafana/pkg/infra/log" // LOGZ.IO GRAFANA CHANGE :: (ALERTS) DEV-16492 Support external alert evaluation
-	"github.com/grafana/grafana/pkg/tsdb"
 	"strings"
 	"time"
 
-	"github.com/grafana/grafana/pkg/plugins"
 	"github.com/grafana/grafana/pkg/tsdb/prometheus"
 
 	gocontext "context"
@@ -19,6 +17,7 @@ import (
 	"github.com/grafana/grafana/pkg/components/simplejson"
 	"github.com/grafana/grafana/pkg/models"
 	"github.com/grafana/grafana/pkg/services/alerting"
+	"github.com/grafana/grafana/pkg/tsdb"
 	"github.com/grafana/grafana/pkg/util/errutil"
 )
 
@@ -38,11 +37,12 @@ func init() {
 // QueryCondition is responsible for issue and query, reduce the
 // timeseries into single values and evaluate if they are firing or not.
 type QueryCondition struct {
-	Index     int
-	Query     AlertQuery
-	Reducer   *queryReducer
-	Evaluator AlertEvaluator
-	Operator  string
+	Index         int
+	Query         AlertQuery
+	Reducer       *queryReducer
+	Evaluator     AlertEvaluator
+	Operator      string
+	HandleRequest tsdb.HandleRequestFunc
 }
 
 // AlertQuery contains information about what datasource a query
@@ -55,12 +55,11 @@ type AlertQuery struct {
 }
 
 // Eval evaluates the `QueryCondition`.
-// LOGZ.IO GRAFANA CHANGE :: DEV-17927 - Add current time to time range
-func (c *QueryCondition) Eval(context *alerting.EvalContext, time time.Time, requestHandler plugins.DataRequestHandler) (*alerting.ConditionResult, error) {
+func (c *QueryCondition) Eval(context *alerting.EvalContext, time time.Time) (*alerting.ConditionResult, error) {
+	// LOGZ.IO GRAFANA CHANGE :: DEV-17927 - Add current time to time range
 	timeRange := tsdb.CustomNewTimeRange(c.Query.From, c.Query.To, time)
-	// LOGZ.IO GRAFANA CHANGE :: DEV-17927 - end
 
-	seriesList, err := c.executeQuery(context, timeRange, requestHandler)
+	seriesList, err := c.executeQuery(context, timeRange)
 	if err != nil {
 		return nil, err
 	}
@@ -119,9 +118,8 @@ func (c *QueryCondition) Eval(context *alerting.EvalContext, time time.Time, req
 	}, nil
 }
 
-func (c *QueryCondition) executeQuery(context *alerting.EvalContext, timeRange plugins.DataTimeRange,
-	requestHandler plugins.DataRequestHandler) (plugins.DataTimeSeriesSlice, error) {
-	getDsInfo := &models.GetDataSourceQuery{
+func (c *QueryCondition) executeQuery(context *alerting.EvalContext, timeRange *tsdb.TimeRange) (tsdb.TimeSeriesSlice, error) {
+	getDsInfo := &models.GetDataSourceByIdQuery{
 		Id:    c.Query.DatasourceID,
 		OrgId: context.Rule.OrgID,
 	}
@@ -142,7 +140,7 @@ func (c *QueryCondition) executeQuery(context *alerting.EvalContext, timeRange p
 		getDsInfo.Result = customDatasource
 	} else {
 		if err := bus.Dispatch(getDsInfo); err != nil {
-			return nil, fmt.Errorf("could not find datasource: %w", err)
+			return nil, fmt.Errorf("could not find datasource %w", err)
 		}
 		if context.Rule.DataSourceUrl != "" {
 			getDsInfo.Result.Url = context.Rule.DataSourceUrl
@@ -150,16 +148,11 @@ func (c *QueryCondition) executeQuery(context *alerting.EvalContext, timeRange p
 	}
 	// LOGZ.IO GRAFANA CHANGE :: DEV-21780 - end
 
-	err := context.RequestValidator.Validate(getDsInfo.Result.Url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("access denied: %w", err)
-	}
-
 	req := c.getRequestForAlertRule(getDsInfo.Result, timeRange, context.IsDebug)
 
 	req.LogzIoHeaders = context.Rule.LogzIoHeaders // LOGZ.IO GRAFANA CHANGE :: (ALERTS) DEV-16492 Support external alert evaluation
 
-	result := make(plugins.DataTimeSeriesSlice, 0)
+	result := make(tsdb.TimeSeriesSlice, 0)
 
 	if context.IsDebug {
 		data := simplejson.New()
@@ -173,20 +166,20 @@ func (c *QueryCondition) executeQuery(context *alerting.EvalContext, timeRange p
 			Model         *simplejson.Json `json:"model"`
 			Datasource    *simplejson.Json `json:"datasource"`
 			MaxDataPoints int64            `json:"maxDataPoints"`
-			IntervalMS    int64            `json:"intervalMs"`
+			IntervalMs    int64            `json:"intervalMs"`
 		}
 
 		queries := []*queryDto{}
 		for _, q := range req.Queries {
 			queries = append(queries, &queryDto{
-				RefID: q.RefID,
+				RefID: q.RefId,
 				Model: q.Model,
 				Datasource: simplejson.NewFromAny(map[string]interface{}{
 					"id":   q.DataSource.Id,
 					"name": q.DataSource.Name,
 				}),
 				MaxDataPoints: q.MaxDataPoints,
-				IntervalMS:    q.IntervalMS,
+				IntervalMs:    q.IntervalMs,
 			})
 		}
 
@@ -198,30 +191,29 @@ func (c *QueryCondition) executeQuery(context *alerting.EvalContext, timeRange p
 		})
 	}
 
-	resp, err := requestHandler.HandleRequest(context.Ctx, getDsInfo.Result, req)
+	resp, err := c.HandleRequest(context.Ctx, getDsInfo.Result, req)
 	if err != nil {
 		return nil, toCustomError(err)
 	}
 
 	for _, v := range resp.Results {
 		if v.Error != nil {
-			return nil, fmt.Errorf("request handler response error %v", v)
+			return nil, fmt.Errorf("tsdb.HandleRequest() response error %v", v)
 		}
 
 		// If there are dataframes but no series on the result
 		useDataframes := v.Dataframes != nil && (v.Series == nil || len(v.Series) == 0)
 
-		if useDataframes { // convert the dataframes to plugins.DataTimeSeries
+		if useDataframes { // convert the dataframes to tsdb.TimeSeries
 			frames, err := v.Dataframes.Decoded()
 			if err != nil {
-				return nil, errutil.Wrap("request handler failed to unmarshal arrow dataframes from bytes", err)
+				return nil, errutil.Wrap("tsdb.HandleRequest() failed to unmarshal arrow dataframes from bytes", err)
 			}
 
 			for _, frame := range frames {
 				ss, err := FrameToSeriesSlice(frame)
 				if err != nil {
-					return nil, errutil.Wrapf(err,
-						`request handler failed to convert dataframe "%v" to plugins.DataTimeSeriesSlice`, frame.Name)
+					return nil, errutil.Wrapf(err, `tsdb.HandleRequest() failed to convert dataframe "%v" to tsdb.TimeSeriesSlice`, frame.Name)
 				}
 				result = append(result, ss...)
 			}
@@ -253,14 +245,13 @@ func (c *QueryCondition) executeQuery(context *alerting.EvalContext, timeRange p
 	return result, nil
 }
 
-func (c *QueryCondition) getRequestForAlertRule(datasource *models.DataSource, timeRange plugins.DataTimeRange,
-	debug bool) plugins.DataQuery {
+func (c *QueryCondition) getRequestForAlertRule(datasource *models.DataSource, timeRange *tsdb.TimeRange, debug bool) *tsdb.TsdbQuery {
 	queryModel := c.Query.Model
-	req := plugins.DataQuery{
-		TimeRange: &timeRange,
-		Queries: []plugins.DataSubQuery{
+	req := &tsdb.TsdbQuery{
+		TimeRange: timeRange,
+		Queries: []*tsdb.Query{
 			{
-				RefID:      "A",
+				RefId:      "A",
 				Model:      queryModel,
 				DataSource: datasource,
 				QueryType:  queryModel.Get("queryType").MustString(""),
@@ -278,6 +269,7 @@ func (c *QueryCondition) getRequestForAlertRule(datasource *models.DataSource, t
 func newQueryCondition(model *simplejson.Json, index int) (*QueryCondition, error) {
 	condition := QueryCondition{}
 	condition.Index = index
+	condition.HandleRequest = tsdb.HandleRequest
 
 	queryJSON := model.Get("query")
 
@@ -336,23 +328,23 @@ func validateToValue(to string) error {
 }
 
 // FrameToSeriesSlice converts a frame that is a valid time series as per data.TimeSeriesSchema()
-// to a DataTimeSeriesSlice.
-func FrameToSeriesSlice(frame *data.Frame) (plugins.DataTimeSeriesSlice, error) {
+// to a TimeSeriesSlice.
+func FrameToSeriesSlice(frame *data.Frame) (tsdb.TimeSeriesSlice, error) {
 	tsSchema := frame.TimeSeriesSchema()
 	if tsSchema.Type == data.TimeSeriesTypeNot {
-		// If no fields, or only a time field, create an empty plugins.DataTimeSeriesSlice with a single
+		// If no fields, or only a time field, create an empty tsdb.TimeSeriesSlice with a single
 		// time series in order to trigger "no data" in alerting.
 		if len(frame.Fields) == 0 || (len(frame.Fields) == 1 && frame.Fields[0].Type().Time()) {
-			return plugins.DataTimeSeriesSlice{{
+			return tsdb.TimeSeriesSlice{{
 				Name:   frame.Name,
-				Points: make(plugins.DataTimeSeriesPoints, 0),
+				Points: make(tsdb.TimeSeriesPoints, 0),
 			}}, nil
 		}
 		return nil, fmt.Errorf("input frame is not recognized as a time series")
 	}
 
 	seriesCount := len(tsSchema.ValueIndices)
-	seriesSlice := make(plugins.DataTimeSeriesSlice, 0, seriesCount)
+	seriesSlice := make(tsdb.TimeSeriesSlice, 0, seriesCount)
 	timeField := frame.Fields[tsSchema.TimeIndex]
 	timeNullFloatSlice := make([]null.Float, timeField.Len())
 
@@ -366,12 +358,8 @@ func FrameToSeriesSlice(frame *data.Frame) (plugins.DataTimeSeriesSlice, error) 
 
 	for _, fieldIdx := range tsSchema.ValueIndices { // create a TimeSeries for each value Field
 		field := frame.Fields[fieldIdx]
-		ts := plugins.DataTimeSeries{
-			Points: make(plugins.DataTimeSeriesPoints, field.Len()),
-		}
-
-		if len(field.Labels) > 0 {
-			ts.Tags = field.Labels.Copy()
+		ts := &tsdb.TimeSeries{
+			Points: make(tsdb.TimeSeriesPoints, field.Len()),
 		}
 
 		switch {
@@ -380,6 +368,7 @@ func FrameToSeriesSlice(frame *data.Frame) (plugins.DataTimeSeriesSlice, error) 
 		case field.Config != nil && field.Config.DisplayNameFromDS != "":
 			ts.Name = field.Config.DisplayNameFromDS
 		case len(field.Labels) > 0:
+			ts.Tags = field.Labels.Copy()
 			// Tags are appended to the name so they are eventually included in EvalMatch's Metric property
 			// for display in notifications.
 			ts.Name = fmt.Sprintf("%v {%v}", field.Name, field.Labels.String())
@@ -390,10 +379,9 @@ func FrameToSeriesSlice(frame *data.Frame) (plugins.DataTimeSeriesSlice, error) 
 		for rowIdx := 0; rowIdx < field.Len(); rowIdx++ { // for each value in the field, make a TimePoint
 			val, err := field.FloatAt(rowIdx)
 			if err != nil {
-				return nil, errutil.Wrapf(err,
-					"failed to convert frame to DataTimeSeriesSlice, can not convert value %v to float", field.At(rowIdx))
+				return nil, errutil.Wrapf(err, "failed to convert frame to tsdb.series, can not convert value %v to float", field.At(rowIdx))
 			}
-			ts.Points[rowIdx] = plugins.DataTimePoint{
+			ts.Points[rowIdx] = tsdb.TimePoint{
 				null.FloatFrom(val),
 				timeNullFloatSlice[rowIdx],
 			}
@@ -417,5 +405,5 @@ func toCustomError(err error) error {
 	}
 
 	// generic fallback
-	return fmt.Errorf("request handler error: %w", err)
+	return fmt.Errorf("tsdb.HandleRequest() error %v", err)
 }

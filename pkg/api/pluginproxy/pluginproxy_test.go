@@ -1,22 +1,19 @@
 package pluginproxy
 
 import (
-	"io/ioutil"
 	"net/http"
 	"testing"
 
 	"github.com/grafana/grafana/pkg/bus"
-	"github.com/grafana/grafana/pkg/components/securejsondata"
 	"github.com/grafana/grafana/pkg/models"
 	"github.com/grafana/grafana/pkg/plugins"
 	"github.com/grafana/grafana/pkg/setting"
 	"github.com/grafana/grafana/pkg/util"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestPluginProxy(t *testing.T) {
-	t.Run("When getting proxy headers", func(t *testing.T) {
+	Convey("When getting proxy headers", t, func() {
 		route := &plugins.AppPluginRoute{
 			Headers: []plugins.AppPluginRouteHeader{
 				{Name: "x-header", Content: "my secret {{.SecureJsonData.key}}"},
@@ -39,23 +36,16 @@ func TestPluginProxy(t *testing.T) {
 			return nil
 		})
 
-		req := getPluginProxiedRequest(
-			t,
-			&models.ReqContext{
-				SignedInUser: &models.SignedInUser{
-					Login: "test_user",
-				},
-			},
-			&setting.Cfg{SendUserHeader: true},
-			route,
-		)
+		header, err := getHeaders(route, 1, "my-app")
+		So(err, ShouldBeNil)
 
-		assert.Equal(t, "my secret 123", req.Header.Get("x-header"))
+		Convey("Should render header template", func() {
+			So(header.Get("x-header"), ShouldEqual, "my secret 123")
+		})
 	})
 
-	t.Run("When SendUserHeader config is enabled", func(t *testing.T) {
+	Convey("When SendUserHeader config is enabled", t, func() {
 		req := getPluginProxiedRequest(
-			t,
 			&models.ReqContext{
 				SignedInUser: &models.SignedInUser{
 					Login: "test_user",
@@ -65,13 +55,14 @@ func TestPluginProxy(t *testing.T) {
 			nil,
 		)
 
-		// Get will return empty string even if header is not set
-		assert.Equal(t, "test_user", req.Header.Get("X-Grafana-User"))
+		Convey("Should add header with username", func() {
+			// Get will return empty string even if header is not set
+			So(req.Header.Get("X-Grafana-User"), ShouldEqual, "test_user")
+		})
 	})
 
-	t.Run("When SendUserHeader config is disabled", func(t *testing.T) {
+	Convey("When SendUserHeader config is disabled", t, func() {
 		req := getPluginProxiedRequest(
-			t,
 			&models.ReqContext{
 				SignedInUser: &models.SignedInUser{
 					Login: "test_user",
@@ -80,13 +71,14 @@ func TestPluginProxy(t *testing.T) {
 			&setting.Cfg{SendUserHeader: false},
 			nil,
 		)
-		// Get will return empty string even if header is not set
-		assert.Equal(t, "", req.Header.Get("X-Grafana-User"))
+		Convey("Should not add header with username", func() {
+			// Get will return empty string even if header is not set
+			So(req.Header.Get("X-Grafana-User"), ShouldEqual, "")
+		})
 	})
 
-	t.Run("When SendUserHeader config is enabled but user is anonymous", func(t *testing.T) {
+	Convey("When SendUserHeader config is enabled but user is anonymous", t, func() {
 		req := getPluginProxiedRequest(
-			t,
 			&models.ReqContext{
 				SignedInUser: &models.SignedInUser{IsAnonymous: true},
 			},
@@ -94,11 +86,13 @@ func TestPluginProxy(t *testing.T) {
 			nil,
 		)
 
-		// Get will return empty string even if header is not set
-		assert.Equal(t, "", req.Header.Get("X-Grafana-User"))
+		Convey("Should not add header with username", func() {
+			// Get will return empty string even if header is not set
+			So(req.Header.Get("X-Grafana-User"), ShouldEqual, "")
+		})
 	})
 
-	t.Run("When getting templated url", func(t *testing.T) {
+	Convey("When getting templated url", t, func() {
 		route := &plugins.AppPluginRoute{
 			URL:    "{{.JsonData.dynamicUrl}}",
 			Method: "GET",
@@ -114,7 +108,6 @@ func TestPluginProxy(t *testing.T) {
 		})
 
 		req := getPluginProxiedRequest(
-			t,
 			&models.ReqContext{
 				SignedInUser: &models.SignedInUser{
 					Login: "test_user",
@@ -123,69 +116,22 @@ func TestPluginProxy(t *testing.T) {
 			&setting.Cfg{SendUserHeader: true},
 			route,
 		)
-		assert.Equal(t, "https://dynamic.grafana.com", req.URL.String())
-		assert.Equal(t, "{{.JsonData.dynamicUrl}}", route.URL)
-	})
-
-	t.Run("When getting complex templated url", func(t *testing.T) {
-		route := &plugins.AppPluginRoute{
-			URL:    "{{if .JsonData.apiHost}}{{.JsonData.apiHost}}{{else}}https://example.com{{end}}",
-			Method: "GET",
-		}
-
-		bus.AddHandler("test", func(query *models.GetPluginSettingByIdQuery) error {
-			query.Result = &models.PluginSetting{}
-			return nil
+		Convey("Headers should be updated", func() {
+			header, err := getHeaders(route, 1, "my-app")
+			So(err, ShouldBeNil)
+			So(header.Get("X-Grafana-User"), ShouldEqual, "")
 		})
-
-		req := getPluginProxiedRequest(
-			t,
-			&models.ReqContext{
-				SignedInUser: &models.SignedInUser{
-					Login: "test_user",
-				},
-			},
-			&setting.Cfg{SendUserHeader: true},
-			route,
-		)
-		assert.Equal(t, "https://example.com", req.URL.String())
-	})
-
-	t.Run("When getting templated body", func(t *testing.T) {
-		route := &plugins.AppPluginRoute{
-			Path: "api/body",
-			URL:  "http://www.test.com",
-			Body: []byte(`{ "url": "{{.JsonData.dynamicUrl}}", "secret": "{{.SecureJsonData.key}}"	}`),
-		}
-
-		bus.AddHandler("test", func(query *models.GetPluginSettingByIdQuery) error {
-			query.Result = &models.PluginSetting{
-				JsonData: map[string]interface{}{
-					"dynamicUrl": "https://dynamic.grafana.com",
-				},
-				SecureJsonData: securejsondata.GetEncryptedJsonData(map[string]string{"key": "123"}),
-			}
-			return nil
+		Convey("Should set req.URL to be interpolated value from jsonData", func() {
+			So(req.URL.String(), ShouldEqual, "https://dynamic.grafana.com")
 		})
-
-		req := getPluginProxiedRequest(
-			t,
-			&models.ReqContext{
-				SignedInUser: &models.SignedInUser{
-					Login: "test_user",
-				},
-			},
-			&setting.Cfg{SendUserHeader: true},
-			route,
-		)
-		content, err := ioutil.ReadAll(req.Body)
-		require.NoError(t, err)
-		require.Equal(t, `{ "url": "https://dynamic.grafana.com", "secret": "123"	}`, string(content))
+		Convey("Route url should not be modified", func() {
+			So(route.URL, ShouldEqual, "{{.JsonData.dynamicUrl}}")
+		})
 	})
 }
 
 // getPluginProxiedRequest is a helper for easier setup of tests based on global config and ReqContext.
-func getPluginProxiedRequest(t *testing.T, ctx *models.ReqContext, cfg *setting.Cfg, route *plugins.AppPluginRoute) *http.Request {
+func getPluginProxiedRequest(ctx *models.ReqContext, cfg *setting.Cfg, route *plugins.AppPluginRoute) *http.Request {
 	// insert dummy route if none is specified
 	if route == nil {
 		route = &plugins.AppPluginRoute{
@@ -196,8 +142,8 @@ func getPluginProxiedRequest(t *testing.T, ctx *models.ReqContext, cfg *setting.
 	}
 	proxy := NewApiPluginProxy(ctx, "", route, "", cfg)
 
-	req, err := http.NewRequest(http.MethodGet, "/api/plugin-proxy/grafana-simple-app/api/v4/alerts", nil)
-	require.NoError(t, err)
+	req, err := http.NewRequest(http.MethodGet, route.URL, nil)
+	So(err, ShouldBeNil)
 	proxy.Director(req)
 	return req
 }

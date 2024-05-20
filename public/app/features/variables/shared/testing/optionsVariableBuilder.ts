@@ -28,7 +28,7 @@ export class OptionsVariableBuilder<T extends VariableWithOptions> extends Varia
     return this;
   }
 
-  withQuery(query: any) {
+  withQuery(query: string) {
     this.variable.query = query;
     return this;
   }

@@ -1,8 +1,6 @@
 import React, { PureComponent } from 'react';
 import { ConfirmButton, RadioButtonGroup, Icon } from '@grafana/ui';
-import { cx } from '@emotion/css';
-import { AccessControlAction } from 'app/types';
-import { contextSrv } from 'app/core/core';
+import { cx } from 'emotion';
 
 interface Props {
   isGrafanaAdmin: boolean;
@@ -51,7 +49,6 @@ export class UserPermissions extends PureComponent<Props, State> {
     const { isGrafanaAdmin } = this.props;
     const { isEditing, currentAdminOption } = this.state;
     const changeButtonContainerClass = cx('pull-right');
-    const canChangePermissions = contextSrv.hasPermission(AccessControlAction.UsersPermissionsUpdate);
 
     return (
       <>
@@ -83,17 +80,15 @@ export class UserPermissions extends PureComponent<Props, State> {
                   )}
                   <td>
                     <div className={changeButtonContainerClass}>
-                      {canChangePermissions && (
-                        <ConfirmButton
-                          className="pull-right"
-                          onClick={this.onChangeClick}
-                          onConfirm={this.onGrafanaAdminChange}
-                          onCancel={this.onCancelClick}
-                          confirmText="Change"
-                        >
-                          Change
-                        </ConfirmButton>
-                      )}
+                      <ConfirmButton
+                        className="pull-right"
+                        onClick={this.onChangeClick}
+                        onConfirm={this.onGrafanaAdminChange}
+                        onCancel={this.onCancelClick}
+                        confirmText="Change"
+                      >
+                        Change
+                      </ConfirmButton>
                     </div>
                   </td>
                 </tr>

@@ -1,9 +1,8 @@
 import React from 'react';
-import { Slider } from './Slider';
-import { SliderProps } from './types';
+import { Slider, Props } from './Slider';
 import { mount } from 'enzyme';
 
-const sliderProps: SliderProps = {
+const sliderProps: Props = {
   min: 10,
   max: 20,
 };
@@ -18,10 +17,11 @@ describe('Slider', () => {
     expect(wrapper.html()).toContain('aria-valuemin="10"');
     expect(wrapper.html()).toContain('aria-valuemax="20"');
     expect(wrapper.html()).toContain('aria-valuenow="10"');
+    expect(wrapper.html()).toContain('aria-valuenow="20"');
   });
 
   it('renders correct contents with a value', () => {
-    const wrapper = mount(<Slider {...sliderProps} value={15} />);
+    const wrapper = mount(<Slider {...sliderProps} value={[15]} />);
     expect(wrapper.html()).toContain('aria-valuenow="15"');
     expect(wrapper.html()).not.toContain('aria-valuenow="20"');
     expect(wrapper.html()).not.toContain('aria-valuenow="10"');

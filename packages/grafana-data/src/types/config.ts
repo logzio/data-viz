@@ -2,7 +2,6 @@ import { DataSourceInstanceSettings } from './datasource';
 import { PanelPluginMeta } from './panel';
 import { GrafanaTheme } from './theme';
 import { SystemDateFormatSettings } from '../datetime';
-import { GrafanaTheme2 } from '../themes';
 
 /**
  * Describes the build information that will be available via the Grafana configuration.
@@ -19,19 +18,10 @@ export interface BuildInfo {
    */
   isEnterprise: boolean;
   env: string;
-  edition: GrafanaEdition;
+  edition: string;
   latestVersion: string;
   hasUpdate: boolean;
   hideVersion: boolean;
-}
-
-/**
- * @internal
- */
-export enum GrafanaEdition {
-  OpenSource = 'Open Source',
-  Pro = 'Pro',
-  Enterprise = 'Enterprise',
 }
 
 /**
@@ -42,18 +32,17 @@ export enum GrafanaEdition {
  * @public
  */
 export interface FeatureToggles {
-  [name: string]: boolean;
-
+  live: boolean;
+  expressions: boolean;
   ngalert: boolean;
-  trimDefaults: boolean;
-  accesscontrol: boolean;
+  // Just for demo at the moment
+  traceToLogs: boolean;
 
   /**
    * @remarks
    * Available only in Grafana Enterprise
    */
   meta: boolean;
-  reportVariables: boolean;
 }
 
 /**
@@ -67,19 +56,7 @@ export interface LicenseInfo {
   licenseUrl: string;
   stateInfo: string;
   hasValidLicense: boolean;
-  edition: GrafanaEdition;
-}
-
-/**
- * Describes Sentry integration config
- *
- * @public
- */
-export interface SentryConfig {
-  enabled: boolean;
-  dsn: string;
-  customEndpoint: string;
-  sampleRate: number;
+  edition: string;
 }
 
 /**
@@ -122,14 +99,10 @@ export interface GrafanaConfig {
   viewersCanEdit: boolean;
   editorsCanAdmin: boolean;
   disableSanitizeHtml: boolean;
-  liveEnabled: boolean;
   theme: GrafanaTheme;
-  theme2: GrafanaTheme2;
   pluginsToPreload: string[];
   featureToggles: FeatureToggles;
   licenseInfo: LicenseInfo;
   http2Enabled: boolean;
   dateFormats?: SystemDateFormatSettings;
-  sentry: SentryConfig;
-  customTheme?: any;
 }

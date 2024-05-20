@@ -1,13 +1,9 @@
 import React from 'react';
-import { debounce } from 'lodash';
-import { css } from '@emotion/css';
-import { GrafanaTheme, DataFrame, CSVConfig, readCSV } from '@grafana/data';
+import debounce from 'lodash/debounce';
+import { DataFrame, CSVConfig, readCSV } from '@grafana/data';
 import { Icon } from '../Icon/Icon';
-import { Themeable } from '../../types/theme';
-import { TextArea } from '../TextArea/TextArea';
-import { stylesFactory, withTheme } from '../../themes';
 
-interface Props extends Themeable {
+interface Props {
   config?: CSVConfig;
   text: string;
   width: string | number;
@@ -23,7 +19,7 @@ interface State {
 /**
  * Expects the container div to have size set and will fill it 100%
  */
-export class UnThemedTableInputCSV extends React.PureComponent<Props, State> {
+export class TableInputCSV extends React.PureComponent<Props, State> {
   constructor(props: Props) {
     super(props);
 
@@ -63,20 +59,19 @@ export class UnThemedTableInputCSV extends React.PureComponent<Props, State> {
   };
 
   render() {
-    const { width, height, theme } = this.props;
+    const { width, height } = this.props;
     const { data } = this.state;
-    const styles = getStyles(theme);
     return (
-      <div className={styles.tableInputCsv}>
-        <TextArea
+      <div className="gf-table-input-csv">
+        <textarea
           style={{ width, height }}
           placeholder="Enter CSV here..."
           value={this.state.text}
           onChange={this.onTextChange}
-          className={styles.textarea}
+          className="gf-form-input"
         />
         {data && (
-          <footer className={styles.footer}>
+          <footer>
             {data.map((frame, index) => {
               return (
                 <span key={index}>
@@ -92,26 +87,4 @@ export class UnThemedTableInputCSV extends React.PureComponent<Props, State> {
   }
 }
 
-export const TableInputCSV = withTheme(UnThemedTableInputCSV);
-TableInputCSV.displayName = 'TableInputCSV';
-
-const getStyles = stylesFactory((theme: GrafanaTheme) => {
-  return {
-    tableInputCsv: css`
-      position: relative;
-    `,
-    textarea: css`
-      height: 100%;
-      width: 100%;
-    `,
-    footer: css`
-      position: absolute;
-      bottom: 15px;
-      right: 15px;
-      border: 1px solid #222;
-      background: ${theme.palette.online};
-      padding: 1px ${theme.spacing.xs};
-      font-size: 80%;
-    `,
-  };
-});
+export default TableInputCSV;

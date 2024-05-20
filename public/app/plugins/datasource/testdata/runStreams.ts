@@ -9,16 +9,12 @@ import {
   CSVReader,
   Field,
   LoadingState,
-  StreamingDataFrame,
-  DataFrameSchema,
-  DataFrameData,
 } from '@grafana/data';
 
 import { TestDataQuery, StreamingQuery } from './types';
 import { getRandomLine } from './LogIpsum';
-import { perf } from 'app/features/live/perf';
 
-export const defaultStreamQuery: StreamingQuery = {
+export const defaultQuery: StreamingQuery = {
   type: 'signal',
   speed: 250, // ms
   spread: 3.5,
@@ -27,7 +23,7 @@ export const defaultStreamQuery: StreamingQuery = {
 };
 
 export function runStream(target: TestDataQuery, req: DataQueryRequest<TestDataQuery>): Observable<DataQueryResponse> {
-  const query = defaults(target.stream, defaultStreamQuery);
+  const query = defaults(target.stream, defaultQuery);
   if ('signal' === query.type) {
     return runSignalStream(target, query, req);
   }
@@ -45,38 +41,36 @@ export function runSignalStream(
   query: StreamingQuery,
   req: DataQueryRequest<TestDataQuery>
 ): Observable<DataQueryResponse> {
-  return new Observable<DataQueryResponse>((subscriber) => {
+  return new Observable<DataQueryResponse>(subscriber => {
     const streamId = `signal-${req.panelId}-${target.refId}`;
     const maxDataPoints = req.maxDataPoints || 1000;
 
-    const schema: DataFrameSchema = {
-      refId: target.refId,
-      name: target.alias || 'Signal ' + target.refId,
-      fields: [
-        { name: 'time', type: FieldType.time },
-        { name: 'value', type: FieldType.number },
-      ],
-    };
+    const data = new CircularDataFrame({
+      append: 'tail',
+      capacity: maxDataPoints,
+    });
+    data.refId = target.refId;
+    data.name = target.alias || 'Signal ' + target.refId;
+    data.addField({ name: 'time', type: FieldType.time });
+    data.addField({ name: 'value', type: FieldType.number });
 
     const { spread, speed, bands = 0, noise } = query;
+
     for (let i = 0; i < bands; i++) {
       const suffix = bands > 1 ? ` ${i + 1}` : '';
-      schema.fields.push({ name: 'Min' + suffix, type: FieldType.number });
-      schema.fields.push({ name: 'Max' + suffix, type: FieldType.number });
+      data.addField({ name: 'Min' + suffix, type: FieldType.number });
+      data.addField({ name: 'Max' + suffix, type: FieldType.number });
     }
-
-    const frame = new StreamingDataFrame({ schema }, { maxLength: maxDataPoints });
 
     let value = Math.random() * 100;
     let timeoutId: any = null;
-    let lastSent = -1;
 
     const addNextRow = (time: number) => {
       value += (Math.random() - 0.5) * spread;
 
-      const data: DataFrameData = {
-        values: [[time], [value]],
-      };
+      let idx = 0;
+      data.fields[idx++].values.add(time);
+      data.fields[idx++].values.add(value);
 
       let min = value;
       let max = value;
@@ -85,12 +79,9 @@ export function runSignalStream(
         min = min - Math.random() * noise;
         max = max + Math.random() * noise;
 
-        data.values.push([min]);
-        data.values.push([max]);
+        data.fields[idx++].values.add(min);
+        data.fields[idx++].values.add(max);
       }
-
-      const event = { data };
-      return frame.push(event);
     };
 
     // Fill the buffer on init
@@ -104,16 +95,10 @@ export function runSignalStream(
 
     const pushNextEvent = () => {
       addNextRow(Date.now());
-
-      const elapsed = perf.last - lastSent;
-      if (elapsed > 1000 || perf.ok) {
-        subscriber.next({
-          data: [frame],
-          key: streamId,
-          state: LoadingState.Streaming,
-        });
-        lastSent = perf.last;
-      }
+      subscriber.next({
+        data: [data],
+        key: streamId,
+      });
 
       timeoutId = setTimeout(pushNextEvent, speed);
     };
@@ -133,7 +118,7 @@ export function runLogsStream(
   query: StreamingQuery,
   req: DataQueryRequest<TestDataQuery>
 ): Observable<DataQueryResponse> {
-  return new Observable<DataQueryResponse>((subscriber) => {
+  return new Observable<DataQueryResponse>(subscriber => {
     const streamId = `logs-${req.panelId}-${target.refId}`;
     const maxDataPoints = req.maxDataPoints || 1000;
 
@@ -152,8 +137,8 @@ export function runLogsStream(
     let timeoutId: any = null;
 
     const pushNextEvent = () => {
-      data.fields[0].values.add(Date.now());
-      data.fields[1].values.add(getRandomLine());
+      data.values.time.add(Date.now());
+      data.values.line.add(getRandomLine());
 
       subscriber.next({
         data: [data],
@@ -178,7 +163,7 @@ export function runFetchStream(
   query: StreamingQuery,
   req: DataQueryRequest<TestDataQuery>
 ): Observable<DataQueryResponse> {
-  return new Observable<DataQueryResponse>((subscriber) => {
+  return new Observable<DataQueryResponse>(subscriber => {
     const streamId = `fetch-${req.panelId}-${target.refId}`;
     const maxDataPoints = req.maxDataPoints || 1000;
 
@@ -212,7 +197,7 @@ export function runFetchStream(
       },
     });
 
-    const processChunk = (value: ReadableStreamDefaultReadResult<Uint8Array>): any => {
+    const processChunk = (value: ReadableStreamReadResult<Uint8Array>): any => {
       if (value.value) {
         const text = new TextDecoder().decode(value.value);
         csv.readCSV(text);
@@ -237,7 +222,7 @@ export function runFetchStream(
       throw new Error('query.url is not defined');
     }
 
-    fetch(new Request(query.url)).then((response) => {
+    fetch(new Request(query.url)).then(response => {
       if (response.body) {
         reader = response.body.getReader();
         reader.read().then(processChunk);
