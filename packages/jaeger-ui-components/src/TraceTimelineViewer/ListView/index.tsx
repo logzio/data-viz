@@ -67,7 +67,7 @@ type TListViewProps = {
   itemsWrapperClassName?: string;
   /**
    * When adding new items to the DOM, this is the number of items to add above
-   * and below the current view. E.g. if list is 100 items and is scrolled
+   * and below the current view. E.g. if list is 100 items and is srcolled
    * halfway down (so items [46, 55] are in view), then when a new range of
    * items is rendered, it will render items `46 - viewBuffer` to
    * `55 + viewBuffer`.
@@ -89,20 +89,15 @@ type TListViewProps = {
    * - Ref:https://github.com/bvaughn/react-virtualized/blob/497e2a1942529560681d65a9ef9f5e9c9c9a49ba/docs/WindowScroller.md
    */
   windowScroller?: boolean;
-  /**
-   * You need to pass in scrollElement when windowScroller is set to false.
-   * This element is responsible for tracking scrolling for lazy loading.
-   */
-  scrollElement?: Element;
 };
 
-const DEFAULT_INITIAL_DRAW = 100;
+const DEFAULT_INITIAL_DRAW = 300;
 
 /**
  * Virtualized list view component, for the most part, only renders the window
  * of items that are in-view with some buffer before and after. Listens for
  * scroll events and updates which items are rendered. See react-virtualized
- * for a suite of components with similar, but generalized, functionality.
+ * for a suite of components with similar, but generalized, functinality.
  * https://github.com/bvaughn/react-virtualized
  *
  * Note: Presently, ListView cannot be a PureComponent. This is because ListView
@@ -162,9 +157,9 @@ export default class ListView extends React.Component<TListViewProps> {
   _windowScrollListenerAdded: boolean;
   _htmlElm: HTMLElement;
   /**
-   * Element holding the scroller.
+   * HTMLElement holding the scroller.
    */
-  _wrapperElm: Element | TNil;
+  _wrapperElm: HTMLElement | TNil;
   /**
    * HTMLElement holding the rendered items.
    */
@@ -207,10 +202,6 @@ export default class ListView extends React.Component<TListViewProps> {
       }
       window.addEventListener('scroll', this._onScroll);
       this._windowScrollListenerAdded = true;
-    } else {
-      // The wrapper element should be the one that handles the scrolling. Once we are not using scroll-canvas we can remove this.
-      this._wrapperElm = this.props.scrollElement;
-      this._wrapperElm?.addEventListener('scroll', this._onScroll);
     }
   }
 
@@ -223,8 +214,6 @@ export default class ListView extends React.Component<TListViewProps> {
   componentWillUnmount() {
     if (this._windowScrollListenerAdded) {
       window.removeEventListener('scroll', this._onScroll);
-    } else {
-      this._wrapperElm?.removeEventListener('scroll', this._onScroll);
     }
   }
 
@@ -319,11 +308,8 @@ export default class ListView extends React.Component<TListViewProps> {
   };
 
   _initWrapper = (elm: HTMLElement | TNil) => {
-    if (!this.props.windowScroller) {
-      return;
-    }
     this._wrapperElm = elm;
-    if (elm) {
+    if (!this.props.windowScroller && elm) {
       this._viewHeight = elm.clientHeight;
     }
   };
@@ -388,8 +374,8 @@ export default class ListView extends React.Component<TListViewProps> {
   };
 
   /**
-   * Get the height of the element at index `i`; first check the known heights,
-   * fallback to `.props.itemHeightGetter(...)`.
+   * Get the height of the element at index `i`; first check the known heigths,
+   * fallbck to `.props.itemHeightGetter(...)`.
    */
   _getHeight = (i: number) => {
     const key = this.props.getKeyFromIndex(i);

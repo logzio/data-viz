@@ -22,7 +22,6 @@ import (
 	"github.com/grafana/grafana/pkg/models"
 	"github.com/grafana/grafana/pkg/setting"
 	"github.com/prometheus/client_golang/prometheus"
-	cw "github.com/weaveworks/common/middleware"
 	"gopkg.in/macaron.v1"
 )
 
@@ -34,11 +33,11 @@ func Logger() macaron.Handler {
 		rw := res.(macaron.ResponseWriter)
 		c.Next()
 
-		timeTaken := time.Since(start) / time.Millisecond
+		timeTakenMs := time.Since(start) / time.Millisecond
 
 		if timer, ok := c.Data["perfmon.timer"]; ok {
 			timerTyped := timer.(prometheus.Summary)
-			timerTyped.Observe(float64(timeTaken))
+			timerTyped.Observe(float64(timeTakenMs))
 		}
 
 		status := rw.Status()
@@ -50,25 +49,10 @@ func Logger() macaron.Handler {
 
 		if ctx, ok := c.Data["ctx"]; ok {
 			ctxTyped := ctx.(*models.ReqContext)
-			logParams := []interface{}{
-				"method", req.Method,
-				"path", req.URL.Path,
-				"status", status,
-				"remote_addr", c.RemoteAddr(),
-				"time_ms", int64(timeTaken),
-				"size", rw.Size(),
-				"referer", req.Referer(),
-			}
-
-			traceID, exist := cw.ExtractTraceID(ctxTyped.Req.Request.Context())
-			if exist {
-				logParams = append(logParams, "traceID", traceID)
-			}
-
-			if status >= 500 {
-				ctxTyped.Logger.Error("Request Completed", logParams...)
+			if status == 500 {
+				ctxTyped.Logger.Error("Request Completed", "method", req.Method, "path", req.URL.Path, "status", status, "remote_addr", c.RemoteAddr(), "time_ms", int64(timeTakenMs), "size", rw.Size(), "referer", req.Referer())
 			} else {
-				ctxTyped.Logger.Info("Request Completed", logParams...)
+				ctxTyped.Logger.Info("Request Completed", "method", req.Method, "path", req.URL.Path, "status", status, "remote_addr", c.RemoteAddr(), "time_ms", int64(timeTakenMs), "size", rw.Size(), "referer", req.Referer())
 			}
 		}
 	}

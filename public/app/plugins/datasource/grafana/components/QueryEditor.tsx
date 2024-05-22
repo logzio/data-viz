@@ -114,7 +114,7 @@ export class QueryEditor extends PureComponent<Props> {
               placeholder="Select measurements channel"
               isClearable={true}
               noOptionsMessage="Enter channel name"
-              formatCreateLabel={(input: string) => `Connect to: ${input}`}
+              formatCreateLabel={(input: string) => `Conncet to: ${input}`}
             />
           </InlineField>
         </div>

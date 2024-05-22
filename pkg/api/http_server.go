@@ -378,7 +378,7 @@ func (hs *HTTPServer) metricsEndpoint(ctx *macaron.Context) {
 	}
 
 	promhttp.
-		HandlerFor(prometheus.DefaultGatherer, promhttp.HandlerOpts{EnableOpenMetrics: true}).
+		HandlerFor(prometheus.DefaultGatherer, promhttp.HandlerOpts{}).
 		ServeHTTP(ctx.Resp, ctx.Req.Request)
 }
 

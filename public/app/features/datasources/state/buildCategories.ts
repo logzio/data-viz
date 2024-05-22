@@ -1,6 +1,5 @@
 import { DataSourcePluginMeta, PluginType } from '@grafana/data';
 import { DataSourcePluginCategory } from 'app/types';
-import { config } from '../../../core/config';
 
 export function buildCategories(plugins: DataSourcePluginMeta[]): DataSourcePluginCategory[] {
   const categories: DataSourcePluginCategory[] = [
@@ -23,15 +22,10 @@ export function buildCategories(plugins: DataSourcePluginMeta[]): DataSourcePlug
     categoryIndex[category.id] = category;
   }
 
-  const { edition, hasValidLicense } = config.licenseInfo;
-
   for (const plugin of plugins) {
-    const enterprisePlugin = enterprisePlugins.find(item => item.id === plugin.id);
     // Force category for enterprise plugins
-    if (plugin.enterprise || enterprisePlugin) {
+    if (plugin.enterprise || enterprisePlugins.find(item => item.id === plugin.id)) {
       plugin.category = 'enterprise';
-      plugin.unlicensed = edition !== 'Open Source' && !hasValidLicense;
-      plugin.info.links = enterprisePlugin?.info?.links || plugin.info.links;
     }
 
     // Fix link name
@@ -203,7 +197,7 @@ function getPhantomPlugin(options: GetPhantomPluginOptions): DataSourcePluginMet
       author: { name: 'Grafana Labs' },
       links: [
         {
-          url: config.marketplaceUrl + options.id,
+          url: 'https://grafana.com/grafana/plugins/' + options.id,
           name: 'Install now',
         },
       ],

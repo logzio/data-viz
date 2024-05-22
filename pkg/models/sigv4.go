@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
+	"github.com/aws/aws-sdk-go/aws/defaults"
 	"github.com/aws/aws-sdk-go/aws/session"
 	v4 "github.com/aws/aws-sdk-go/aws/signer/v4"
 	"github.com/aws/aws-sdk-go/private/protocol/rest"
@@ -23,17 +24,6 @@ const (
 	Keys        AuthType = "keys"
 	Credentials AuthType = "credentials"
 )
-
-// Host header is likely not necessary here
-// (see https://github.com/golang/go/blob/cad6d1fef5147d31e94ee83934c8609d3ad150b7/src/net/http/request.go#L92)
-// but adding for completeness
-var permittedHeaders = map[string]struct{}{
-	"Host":            {},
-	"Uber-Trace-Id":   {},
-	"User-Agent":      {},
-	"Accept":          {},
-	"Accept-Encoding": {},
-}
 
 type SigV4Middleware struct {
 	Config *Config
@@ -83,36 +73,26 @@ func (m *SigV4Middleware) signRequest(req *http.Request) (http.Header, error) {
 		req.URL.RawPath = rest.EscapePath(req.URL.RawPath, false)
 	}
 
-	stripHeaders(req)
+	// if X-Forwarded-For header is present, omit during signing step as it breaks AWS request verification
+	forwardHeader := req.Header.Get("X-Forwarded-For")
+	if forwardHeader != "" {
+		req.Header.Del("X-Forwarded-For")
+
+		header, err := signer.Sign(req, bytes.NewReader(body), awsServiceNamespace(m.Config.DatasourceType), m.Config.Region, time.Now().UTC())
+
+		// reset pre-existing X-Forwarded-For header value
+		req.Header.Set("X-Forwarded-For", forwardHeader)
+
+		return header, err
+	}
 
 	return signer.Sign(req, bytes.NewReader(body), awsServiceNamespace(m.Config.DatasourceType), m.Config.Region, time.Now().UTC())
 }
 
 func (m *SigV4Middleware) signer() (*v4.Signer, error) {
-	authType := AuthType(m.Config.AuthType)
-
-	var c *credentials.Credentials
-	switch authType {
-	case Keys:
-		c = credentials.NewStaticCredentials(m.Config.AccessKey, m.Config.SecretKey, "")
-	case Credentials:
-		c = credentials.NewSharedCredentials("", m.Config.Profile)
-	case Default:
-		// passing nil credentials will force AWS to allow a more complete credential chain vs the explicit default
-		s, err := session.NewSession(&aws.Config{
-			Region: aws.String(m.Config.Region),
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		if m.Config.AssumeRoleARN != "" {
-			return v4.NewSigner(stscreds.NewCredentials(s, m.Config.AssumeRoleARN)), nil
-		}
-
-		return v4.NewSigner(s.Config.Credentials), nil
-	case "":
-		return nil, fmt.Errorf("invalid SigV4 auth type")
+	c, err := m.credentials()
+	if err != nil {
+		return nil, err
 	}
 
 	if m.Config.AssumeRoleARN != "" {
@@ -127,6 +107,21 @@ func (m *SigV4Middleware) signer() (*v4.Signer, error) {
 	}
 
 	return v4.NewSigner(c), nil
+}
+
+func (m *SigV4Middleware) credentials() (*credentials.Credentials, error) {
+	authType := AuthType(m.Config.AuthType)
+
+	switch authType {
+	case Default:
+		return defaults.CredChain(defaults.Config(), defaults.Handlers()), nil
+	case Keys:
+		return credentials.NewStaticCredentials(m.Config.AccessKey, m.Config.SecretKey, ""), nil
+	case Credentials:
+		return credentials.NewSharedCredentials("", m.Config.Profile), nil
+	}
+
+	return nil, fmt.Errorf("unrecognized authType: %s", authType)
 }
 
 func replaceBody(req *http.Request) ([]byte, error) {
@@ -149,13 +144,5 @@ func awsServiceNamespace(dsType string) string {
 		return "aps"
 	default:
 		panic(fmt.Sprintf("Unsupported datasource %s", dsType))
-	}
-}
-
-func stripHeaders(req *http.Request) {
-	for h := range req.Header {
-		if _, exists := permittedHeaders[h]; !exists {
-			req.Header.Del(h)
-		}
 	}
 }

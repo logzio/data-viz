@@ -2,7 +2,6 @@ package prometheus
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -16,7 +15,7 @@ import (
 	"github.com/grafana/grafana/pkg/infra/log"
 	"github.com/grafana/grafana/pkg/models"
 	"github.com/grafana/grafana/pkg/tsdb"
-	"github.com/prometheus/client_golang/api"
+	api "github.com/prometheus/client_golang/api"
 	apiv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
 )
@@ -216,19 +215,4 @@ func parseResponse(value model.Value, query *PrometheusQuery) (*tsdb.QueryResult
 	}
 
 	return queryRes, nil
-}
-
-func IsAPIError(err error) bool {
-	// Have to use errors.As to compare Prometheus errors, since errors.Is won't work due to Prometheus
-	// errors being pointers and errors.Is ends up comparing them by pointer address
-	var e *apiv1.Error
-	return errors.As(err, &e)
-}
-
-func ConvertAPIError(err error) error {
-	var e *apiv1.Error
-	if errors.As(err, &e) {
-		return fmt.Errorf("%s: %s", e.Msg, e.Detail)
-	}
-	return err
 }

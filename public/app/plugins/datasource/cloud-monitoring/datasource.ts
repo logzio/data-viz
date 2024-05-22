@@ -344,8 +344,7 @@ export default class CloudMonitoringDatasource extends DataSourceApi<CloudMonito
       metricQuery: {
         ...this.interpolateProps(metricQuery, scopedVars),
         projectName: this.templateSrv.replace(
-          metricQuery.projectName ? metricQuery.projectName : this.getDefaultProject(),
-          scopedVars
+          metricQuery.projectName ? metricQuery.projectName : this.getDefaultProject()
         ),
         filters: this.interpolateFilters(metricQuery.filters || [], scopedVars),
         groupBys: this.interpolateGroupBys(metricQuery.groupBys || [], scopedVars),

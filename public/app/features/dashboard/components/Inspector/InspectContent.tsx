@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
-import { DataSourceApi, PanelData, PanelPlugin } from '@grafana/data';
-import { getTemplateSrv } from '@grafana/runtime';
-import { CustomScrollbar, Drawer, TabContent } from '@grafana/ui';
 import { getPanelInspectorStyles } from './styles';
+import { CustomScrollbar, Drawer, TabContent } from '@grafana/ui';
 import { InspectSubtitle } from './InspectSubtitle';
 import { InspectDataTab } from './InspectDataTab';
 import { InspectMetadataTab } from './InspectMetadataTab';
@@ -12,6 +10,7 @@ import { InspectStatsTab } from './InspectStatsTab';
 import { QueryInspector } from './QueryInspector';
 import { InspectTab } from './types';
 import { DashboardModel, PanelModel } from '../../state';
+import { DataSourceApi, PanelData, PanelPlugin } from '@grafana/data';
 import { GetDataOptions } from '../../state/PanelQueryRunner';
 
 interface Props {
@@ -57,11 +56,10 @@ export const InspectContent: React.FC<Props> = ({
   if (!tabs.find(item => item.value === currentTab)) {
     activeTab = InspectTab.JSON;
   }
-  const title = getTemplateSrv().replace(panel.title, panel.scopedVars, 'text');
 
   return (
     <Drawer
-      title={`Inspect: ${title || 'Panel'}`}
+      title={`Inspect: ${panel.title}` || 'Panel inspect'}
       subtitle={
         <InspectSubtitle
           tabs={tabs}

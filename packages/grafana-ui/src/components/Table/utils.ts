@@ -78,7 +78,7 @@ export function getColumns(data: DataFrame, availableWidth: number, columnMinWid
       sortType: selectSortType(field.type),
       width: fieldTableOptions.width,
       minWidth: 50,
-      filter: memoizeOne(filterByValue(field)),
+      filter: memoizeOne(filterByValue),
       justifyContent: getTextAlign(field),
     });
   }
@@ -116,28 +116,23 @@ function getCellComponent(displayMode: TableCellDisplayMode, field: Field) {
   return DefaultCell;
 }
 
-export function filterByValue(field?: Field) {
-  return function(rows: Row[], id: string, filterValues?: SelectableValue[]) {
-    if (rows.length === 0) {
-      return rows;
+export function filterByValue(rows: Row[], id: string, filterValues?: SelectableValue[]) {
+  if (rows.length === 0) {
+    return rows;
+  }
+
+  if (!filterValues) {
+    return rows;
+  }
+
+  return rows.filter(row => {
+    if (!row.values.hasOwnProperty(id)) {
+      return false;
     }
 
-    if (!filterValues) {
-      return rows;
-    }
-
-    if (!field) {
-      return rows;
-    }
-
-    return rows.filter(row => {
-      if (!row.values.hasOwnProperty(id)) {
-        return false;
-      }
-      const value = rowToFieldValue(row, field);
-      return filterValues.find(filter => filter.value === value) !== undefined;
-    });
-  };
+    const value = row.values[id];
+    return filterValues.find(filter => filter.value === value) !== undefined;
+  });
 }
 
 export function calculateUniqueFieldValues(rows: any[], field?: Field) {
@@ -148,23 +143,14 @@ export function calculateUniqueFieldValues(rows: any[], field?: Field) {
   const set: Record<string, any> = {};
 
   for (let index = 0; index < rows.length; index++) {
-    const value = rowToFieldValue(rows[index], field);
-    set[value || '(Blanks)'] = value;
+    const fieldIndex = parseInt(rows[index].id, 10);
+    const fieldValue = field.values.get(fieldIndex);
+    const displayValue = field.display ? field.display(fieldValue) : fieldValue;
+    const value = field.display ? formattedValueToString(displayValue) : displayValue;
+    set[value || '(Blanks)'] = fieldValue;
   }
 
   return set;
-}
-
-export function rowToFieldValue(row: any, field?: Field): string {
-  if (!field || !row) {
-    return '';
-  }
-
-  const fieldValue = field.values.get(row.index);
-  const displayValue = field.display ? field.display(fieldValue) : fieldValue;
-  const value = field.display ? formattedValueToString(displayValue) : displayValue;
-
-  return value;
 }
 
 export function valuesToOptions(unique: Record<string, any>): SelectableValue[] {

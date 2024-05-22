@@ -43,7 +43,7 @@ export class UserPicker extends Component<Props, State> {
     }
 
     return getBackendSrv()
-      .get(`/api/org/users/lookup?query=${query}&limit=100`)
+      .get(`/api/org/users/lookup?query=${query}&limit=10`)
       .then((result: any) => {
         return result.map((user: any) => ({
           id: user.userId,
@@ -71,7 +71,7 @@ export class UserPicker extends Component<Props, State> {
           defaultOptions={true}
           loadOptions={this.debouncedSearch}
           onChange={onSelected}
-          placeholder="Start typing to search for user"
+          placeholder="Select user"
           noOptionsMessage="No users found"
         />
       </div>

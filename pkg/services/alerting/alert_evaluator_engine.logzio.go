@@ -5,7 +5,6 @@ import (
 	"context"
 	"math"
 	"time"
-	"errors"
 
 	"github.com/grafana/grafana/pkg/infra/log"
 	"github.com/grafana/grafana/pkg/registry"
@@ -14,6 +13,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	tlog "github.com/opentracing/opentracing-go/log"
+	"golang.org/x/xerrors"
 
 	"github.com/grafana/grafana/pkg/bus"
 	"github.com/grafana/grafana/pkg/models"
@@ -99,9 +99,9 @@ func (e *AlertEvaluatorEngine) processJob(attemptID int, attemptChan chan int, c
 	evalContext.Ctx = resultHandleCtx
 	evalContext.Rule.State = evalContext.GetNewState()
 	if err := e.resultHandler.handle(evalContext); err != nil {
-		if errors.Is(err, context.Canceled) {
+		if xerrors.Is(err, context.Canceled) {
 			e.log.Debug("Result handler returned context.Canceled")
-		} else if errors.Is(err, context.DeadlineExceeded) {
+		} else if xerrors.Is(err, context.DeadlineExceeded) {
 			e.log.Debug("Result handler returned context.DeadlineExceeded")
 		} else {
 			e.log.Error("Failed to handle result", "err", err)

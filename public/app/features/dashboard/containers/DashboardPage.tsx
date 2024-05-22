@@ -145,7 +145,6 @@ export class DashboardPage extends PureComponent<Props, State> {
         this.setState({
           viewPanel: panel,
           rememberScrollTop: this.state.scrollTop,
-          updateScrollTop: 0,
         });
       });
     }
@@ -322,9 +321,7 @@ export class DashboardPage extends PureComponent<Props, State> {
           >
             <div className="dashboard-content">
               {initError && this.renderInitFailedState()}
-              {!editPanel && (
-                <SubMenu dashboard={dashboard} annotations={dashboard.annotations.list} links={dashboard.links} />
-              )}
+              {!editPanel && <SubMenu dashboard={dashboard} links={dashboard.links} />}
 
               <DashboardGrid
                 dashboard={dashboard}

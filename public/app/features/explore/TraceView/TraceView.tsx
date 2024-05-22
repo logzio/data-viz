@@ -16,18 +16,15 @@ import { useChildrenState } from './useChildrenState';
 import { useDetailState } from './useDetailState';
 import { useHoverIndentGuide } from './useHoverIndentGuide';
 import { colors, useTheme } from '@grafana/ui';
-import { TraceViewData, Trace, TraceSpan, TraceKeyValuePair, TraceLink } from '@grafana/data';
+import { TraceData, TraceSpanData, Trace, TraceSpan, TraceKeyValuePair, TraceLink } from '@grafana/data';
 import { createSpanLinkFactory } from './createSpanLink';
 
 type Props = {
-  trace?: TraceViewData;
+  trace: TraceData & { spans: TraceSpanData[] };
   splitOpenFn: (options: { datasourceUid: string; query: any }) => void;
 };
 
 export function TraceView(props: Props) {
-  if (!props.trace?.traceID) {
-    return null;
-  }
   const { expandOne, collapseOne, childrenToggle, collapseAll, childrenHiddenIDs, expandAll } = useChildrenState();
   const {
     detailStates,
@@ -83,7 +80,6 @@ export function TraceView(props: Props) {
   );
 
   const createSpanLink = useMemo(() => createSpanLinkFactory(props.splitOpenFn), [props.splitOpenFn]);
-  const scrollElement = document.getElementsByClassName('scroll-canvas')[0];
 
   if (!traceProp) {
     return null;
@@ -149,7 +145,6 @@ export function TraceView(props: Props) {
           )}
           uiFind={search}
           createSpanLink={createSpanLink}
-          scrollElement={scrollElement}
         />
       </UIElementsContext.Provider>
     </ThemeProvider>

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { createRef, PureComponent } from 'react';
 import { Icon, Tooltip } from '@grafana/ui';
 import { sanitize, sanitizeUrl } from '@grafana/data/src/text/sanitize';
 import { getBackendSrv } from 'app/core/services/backend_srv';
@@ -6,7 +6,6 @@ import { getLinkSrv } from '../../../panel/panellinks/link_srv';
 import { DashboardLink } from '../../state/DashboardModel';
 import { DashboardSearchHit } from 'app/features/search/types';
 import { selectors } from '@grafana/e2e-selectors';
-import { useAsync } from 'react-use';
 
 interface Props {
   link: DashboardLink;
@@ -14,102 +13,126 @@ interface Props {
   dashboardId: any;
 }
 
-export const DashboardLinksDashboard: React.FC<Props> = props => {
-  const { link, linkInfo } = props;
-  const listRef = useRef<HTMLUListElement>(null);
-  const [opened, setOpened] = useState(0);
-  const resolvedLinks = useResolvedLinks(props, opened);
+interface State {
+  resolvedLinks: ResolvedLinkDTO[];
+}
 
-  if (link.asDropdown) {
-    return (
-      <LinkElement link={link} key="dashlinks-dropdown" aria-label={selectors.components.DashboardLinks.dropDown}>
-        <>
-          <a
-            onClick={() => setOpened(Date.now())}
-            className="gf-form-label gf-form-label--dashlink"
-            data-placement="bottom"
-            data-toggle="dropdown"
-          >
-            <Icon name="bars" style={{ marginRight: '4px' }} />
-            <span>{linkInfo.title}</span>
-          </a>
-          <ul className={`dropdown-menu ${getDropdownLocationCssClass(listRef.current)}`} role="menu" ref={listRef}>
-            {resolvedLinks.length > 0 &&
-              resolvedLinks.map((resolvedLink, index) => {
-                return (
-                  <li key={`dashlinks-dropdown-item-${resolvedLink.id}-${index}`}>
-                    <a
-                      href={resolvedLink.url}
-                      // LOGZ.IO GRAFANA CHANGE :: link open on same tab to open on top frame
-                      // target={link.targetBlank ? '_blank' : '_self'}
-                      target={link.targetBlank ? '_blank' : '_top'}
-                      aria-label={selectors.components.DashboardLinks.link}
-                    >
-                      {resolvedLink.title}
-                    </a>
-                  </li>
-                );
-              })}
-          </ul>
-        </>
-      </LinkElement>
-    );
+export class DashboardLinksDashboard extends PureComponent<Props, State> {
+  state: State = { resolvedLinks: [] };
+  listItemRef = createRef<HTMLUListElement>();
+
+  componentDidMount() {
+    this.searchForDashboards();
   }
 
-  return (
-    <>
-      {resolvedLinks.length > 0 &&
-        resolvedLinks.map((resolvedLink, index) => {
-          return (
-            <LinkElement
-              link={link}
-              key={`dashlinks-list-item-${resolvedLink.id}-${index}`}
-              aria-label={selectors.components.DashboardLinks.container}
-            >
+  componentDidUpdate(prevProps: Readonly<Props>) {
+    if (this.props.link !== prevProps.link || this.props.linkInfo !== prevProps.linkInfo) {
+      this.searchForDashboards();
+    }
+  }
+
+  searchForDashboards = async () => {
+    const { dashboardId, link } = this.props;
+
+    const searchHits = await searchForTags(link);
+    const resolvedLinks = resolveLinks(dashboardId, link, searchHits);
+
+    this.setState({ resolvedLinks });
+  };
+
+  renderElement = (linkElement: JSX.Element, key: string, selector: string) => {
+    const { link } = this.props;
+
+    return (
+      <div className="gf-form" key={key} aria-label={selector}>
+        {link.tooltip && <Tooltip content={link.tooltip}>{linkElement}</Tooltip>}
+        {!link.tooltip && <>{linkElement}</>}
+      </div>
+    );
+  };
+
+  renderList = () => {
+    const { link } = this.props;
+    const { resolvedLinks } = this.state;
+
+    return (
+      <>
+        {resolvedLinks.length > 0 &&
+          resolvedLinks.map((resolvedLink, index) => {
+            const linkElement = (
+              // LOGZ.IO GRAFANA CHANGE :: link open on same tab to open on top frame
+              // <a className="gf-form-label" href={resolvedLink.url} target={link.targetBlank ? '_blank' : '_self'}>
               <a
                 className="gf-form-label"
                 href={resolvedLink.url}
-                // LOGZ.IO GRAFANA CHANGE :: link open on same tab to open on top frame
-                // target={link.targetBlank ? '_blank' : '_self'}
                 target={link.targetBlank ? '_blank' : '_top'}
                 aria-label={selectors.components.DashboardLinks.link}
               >
                 <Icon name="apps" style={{ marginRight: '4px' }} />
                 <span>{resolvedLink.title}</span>
               </a>
-            </LinkElement>
-          );
-        })}
-    </>
-  );
-};
+            );
+            return this.renderElement(
+              linkElement,
+              `dashlinks-list-item-${resolvedLink.id}-${index}`,
+              selectors.components.DashboardLinks.container
+            );
+          })}
+      </>
+    );
+  };
 
-interface LinkElementProps {
-  link: DashboardLink;
-  'aria-label': string;
-  key: string;
-  children: JSX.Element;
-}
+  renderDropdown() {
+    const { link, linkInfo } = this.props;
+    const { resolvedLinks } = this.state;
 
-const LinkElement: React.FC<LinkElementProps> = props => {
-  const { link, children, ...rest } = props;
+    const linkElement = (
+      <>
+        <a
+          className="gf-form-label gf-form-label--dashlink"
+          onClick={this.searchForDashboards}
+          data-placement="bottom"
+          data-toggle="dropdown"
+        >
+          <Icon name="bars" style={{ marginRight: '4px' }} />
+          <span>{linkInfo.title}</span>
+        </a>
+        <ul
+          className={`dropdown-menu ${getDropdownLocationCssClass(this.listItemRef.current)}`}
+          role="menu"
+          ref={this.listItemRef}
+        >
+          {resolvedLinks.length > 0 &&
+            resolvedLinks.map((resolvedLink, index) => {
+              return (
+                <li key={`dashlinks-dropdown-item-${resolvedLink.id}-${index}`}>
+                  {/*// LOGZ.IO GRAFANA CHANGE :: link open on same tab to open on top frame*/}
+                  {/*<a href={resolvedLink.url} target={link.targetBlank ? '_blank' : '_self'}>*/}
+                  <a
+                    href={resolvedLink.url}
+                    target={link.targetBlank ? '_blank' : '_top'}
+                    aria-label={selectors.components.DashboardLinks.link}
+                  >
+                    {resolvedLink.title}
+                  </a>
+                </li>
+              );
+            })}
+        </ul>
+      </>
+    );
 
-  return (
-    <div {...rest} className="gf-form">
-      {link.tooltip && <Tooltip content={link.tooltip}>{children}</Tooltip>}
-      {!link.tooltip && <>{children}</>}
-    </div>
-  );
-};
-
-const useResolvedLinks = ({ link, dashboardId }: Props, opened: number): ResolvedLinkDTO[] => {
-  const { tags } = link;
-  const result = useAsync(() => searchForTags(tags), [tags, opened]);
-  if (!result.value) {
-    return [];
+    return this.renderElement(linkElement, 'dashlinks-dropdown', selectors.components.DashboardLinks.dropDown);
   }
-  return resolveLinks(dashboardId, link, result.value);
-};
+
+  render() {
+    if (this.props.link.asDropdown) {
+      return this.renderDropdown();
+    }
+
+    return this.renderList();
+  }
+}
 
 interface ResolvedLinkDTO {
   id: any;
@@ -118,11 +141,11 @@ interface ResolvedLinkDTO {
 }
 
 export async function searchForTags(
-  tags: any[],
+  link: DashboardLink,
   dependencies: { getBackendSrv: typeof getBackendSrv } = { getBackendSrv }
 ): Promise<DashboardSearchHit[]> {
   const limit = 100;
-  const searchHits: DashboardSearchHit[] = await dependencies.getBackendSrv().search({ tag: tags, limit });
+  const searchHits: DashboardSearchHit[] = await dependencies.getBackendSrv().search({ tag: link.tags, limit });
 
   return searchHits;
 }

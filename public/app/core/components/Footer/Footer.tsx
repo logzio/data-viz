@@ -66,8 +66,7 @@ export function setVersionLinkFn(fn: typeof getFooterLinks) {
 }
 
 export const Footer: FC = React.memo(() => {
-  // LOGZ.IO GRAFANA CHANGE :: DEV-27175 Remove grafana footer links in configuration page
-  const links = getVersionLinks();
+  const links = getFooterLinks().concat(getVersionLinks());
 
   return (
     <footer className="footer">

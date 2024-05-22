@@ -1,12 +1,17 @@
-FROM registry.internal.logz.io:5000/logzio-node:12.19.0-alpine3.12 as js-builder
+FROM registry.internal.logz.io:5000/logzio-node:12.19.0-alpine3.12   as js-builder
 
 WORKDIR /usr/src/app/
 
 COPY package.json yarn.lock ./
 COPY packages packages
 
+# LOGZ.IO GRAFANA CHANGE :: add npms offline packages
+COPY npm-packages-offline-cache npm-packages-offline-cache 
+# LOGZ.IO GRAFANA CHANGE :: add yarnrc
+COPY .yarnrc .yarnrc
+
 # LOGZ.IO GRAFANA CHANGE :: add -- offline to yarn install
-RUN yarn install --pure-lockfile --no-progress
+RUN yarn install --offline --pure-lockfile --no-progress
 
 COPY Gruntfile.js tsconfig.json .eslintrc .editorconfig .browserslistrc .prettierrc.js ./
 COPY public public

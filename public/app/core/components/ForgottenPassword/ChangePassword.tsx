@@ -47,7 +47,7 @@ export const ChangePassword: FC<Props> = ({ onSubmit, onSkip }) => {
 
             {onSkip && (
               <Tooltip
-                content="If you skip you will be prompted to change password next time you log in."
+                content="If you skip you will be prompted to change password next time you login."
                 placement="bottom"
               >
                 <LinkButton variant="link" onClick={onSkip} aria-label={selectors.pages.Login.skip}>

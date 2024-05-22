@@ -1,7 +1,6 @@
 package sqlstore
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -360,15 +359,12 @@ func DeleteDashboard(cmd *models.DeleteDashboardCommand) error {
 
 func deleteDashboard(cmd *models.DeleteDashboardCommand, sess *DBSession) error {
 	dashboard := models.Dashboard{Id: cmd.Id, OrgId: cmd.OrgId}
-	deleteDashboardTimer := StartTimer("DeleteDashboard(): Function", dashboard.OrgId, dashboard.Id, "")         // LOGZ.IO GRAFANA CHANGE
-	timer := StartTimer("DeleteDashboard(): Fetching Dashboard Id", dashboard.OrgId, dashboard.Id, "") // LOGZ.IO GRAFANA CHANGE
 	has, err := sess.Get(&dashboard)
 	if err != nil {
 		return err
 	} else if !has {
 		return models.ErrDashboardNotFound
 	}
-	timer.StopTimer() // LOGZ.IO GRAFANA CHANGE
 
 	deletes := []string{
 		"DELETE FROM dashboard_tag WHERE dashboard_id = ? ",
@@ -378,79 +374,39 @@ func deleteDashboard(cmd *models.DeleteDashboardCommand, sess *DBSession) error 
 		"DELETE FROM dashboard_version WHERE dashboard_id = ?",
 		"DELETE FROM annotation WHERE dashboard_id = ?",
 		"DELETE FROM dashboard_provisioning WHERE dashboard_id = ?",
-		"DELETE FROM dashboard_acl WHERE dashboard_id = ?",
 	}
 
 	if dashboard.IsFolder {
+		deletes = append(deletes, "DELETE FROM dashboard_provisioning WHERE dashboard_id in (select id from dashboard where folder_id = ?)")
 		deletes = append(deletes, "DELETE FROM dashboard WHERE folder_id = ?")
 
 		dashIds := []struct {
 			Id int64
 		}{}
-		timer = StartTimer("DeleteDashboard(): Fetching dashIds", dashboard.OrgId, dashboard.Id, "SELECT id FROM dashboard WHERE folder_id = ?") // LOGZ.IO GRAFANA CHANGE
-		err := sess.SQL("SELECT id FROM dashboard WHERE folder_id = ?", dashboard.Id).Find(&dashIds)
+		err := sess.SQL("select id from dashboard where folder_id = ?", dashboard.Id).Find(&dashIds)
 		if err != nil {
 			return err
 		}
-		timer.StopTimer() // LOGZ.IO GRAFANA CHANGE
 
 		for _, id := range dashIds {
-			timer = StartTimer("DeleteDashboard(): In folder, Delete Alert", dashboard.OrgId, dashboard.Id, "") // LOGZ.IO GRAFANA CHANGE
 			if err := deleteAlertDefinition(id.Id, sess); err != nil {
 				return err
 			}
-			timer.StopTimer() // LOGZ.IO GRAFANA CHANGE
-		}
-
-		if len(dashIds) > 0 {
-			// LOGZ.IO GRAFANA CHANGE - start
-			queryArgs := make([]interface{}, len(dashIds))
-			for i, id := range dashIds {
-				queryArgs[i] = id
-			}
-			dashboardIdPlaceholders := `?` + strings.Repeat(",?", len(queryArgs)-1)
-			childrenDeletes := []string{
-				`DELETE FROM dashboard_tag WHERE dashboard_id IN (` + dashboardIdPlaceholders + `)`,
-				`DELETE FROM star WHERE dashboard_id IN (` + dashboardIdPlaceholders + `)`,
-				`DELETE FROM dashboard_version WHERE dashboard_id IN (` + dashboardIdPlaceholders + `)`,
-				`DELETE FROM annotation WHERE dashboard_id IN (` + dashboardIdPlaceholders + `)`,
-				`DELETE FROM dashboard_provisioning WHERE dashboard_id IN (` + dashboardIdPlaceholders + `)`,
-				`DELETE FROM dashboard_acl WHERE dashboard_id IN (` + dashboardIdPlaceholders + `)`,
-			}
-			// LOGZ.IO GRAFANA CHANGE - end
-			for _, sql := range childrenDeletes {
-				timer = StartTimer("DeleteDashboard(): In folder, Delete Dashboards", dashboard.OrgId, dashboard.Id, sql)  // LOGZ.IO GRAFANA CHANGE
-				tmpQueryArgs := make([]interface{}, len(dashIds)+1)
-				tmpQueryArgs[0] = sql
-				for i, dashId := range dashIds {
-					tmpQueryArgs[i+1] = dashId.Id
-				}
-				_, err := sess.Exec(tmpQueryArgs...)
-				if err != nil {
-					return err
-				}
-				timer.StopTimer() // LOGZ.IO GRAFANA CHANGE
-			}
-
 		}
 	}
 
-	timer = StartTimer("DeleteDashboard(): Delete Alert", dashboard.OrgId, dashboard.Id, "")  // LOGZ.IO GRAFANA CHANGE
 	if err := deleteAlertDefinition(dashboard.Id, sess); err != nil {
 		return err
 	}
-	timer.StopTimer() // LOGZ.IO GRAFANA CHANGE
 
 	for _, sql := range deletes {
-		timer = StartTimer("DeleteDashboard(): Delete Dashboard", dashboard.OrgId, dashboard.Id, sql)  // LOGZ.IO GRAFANA CHANGE
 		_, err := sess.Exec(sql, dashboard.Id)
+
 		if err != nil {
 			return err
 		}
-		timer.StopTimer() // LOGZ.IO GRAFANA CHANGE
 	}
 
-	deleteDashboardTimer.StopTimer() // LOGZ.IO GRAFANA CHANGE
 	return nil
 }
 
@@ -778,28 +734,4 @@ func HasAdminPermissionInFolders(query *models.HasAdminPermissionInFoldersQuery)
 	query.Result = len(resp) > 0 && resp[0].Count > 0
 
 	return nil
-}
-
-type MyTimer struct {
-	start       time.Time
-	msg         string
-	orgId       int64
-	dashboardId int64
-	sqlquery    string
-}
-
-func StartTimer(msg string, orgId int64, dashboardId int64, sqlquery string) *MyTimer {
-	timer := &MyTimer{
-		start:       time.Now(),
-		msg:         msg,
-		orgId:       orgId,
-		dashboardId: dashboardId,
-		sqlquery:    sqlquery,
-	}
-	fmt.Printf("%s state=START orgId=%d dashboardId=%d sqlquery='%s' \n", timer.msg, timer.orgId, timer.dashboardId, timer.sqlquery)
-	return timer
-}
-
-func (o *MyTimer) StopTimer() {
-	fmt.Printf("%s state=END duration=%s orgId=%d dashboardId=%d sqlquery='%s' \n", o.msg, time.Since(o.start), o.orgId, o.dashboardId, o.sqlquery)
 }

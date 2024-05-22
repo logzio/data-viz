@@ -5,9 +5,7 @@ import { Value } from 'slate';
 import { dateTime, HistoryItem, LanguageProvider } from '@grafana/data';
 import { CompletionItem, CompletionItemGroup, TypeaheadInput, TypeaheadOutput } from '@grafana/ui';
 
-// LOGZ.IO GRAFANA CHANGE :: DEV-24838: Remove fixSummariesMetadata
-// import { fixSummariesMetadata, parseSelector, processHistogramLabels, processLabels } from './language_utils';
-import { parseSelector, processHistogramLabels, processLabels } from './language_utils';
+import { fixSummariesMetadata, parseSelector, processHistogramLabels, processLabels } from './language_utils';
 import PromqlSyntax, { FUNCTIONS, RATE_RANGES } from './promql';
 
 import { PrometheusDatasource } from './datasource';
@@ -125,9 +123,7 @@ export default class PromQlLanguageProvider extends LanguageProvider {
 
     this.metrics = await this.request(url, []);
     this.lookupsDisabled = this.metrics.length > this.lookupMetricsThreshold;
-    // LOGZ.IO GRAFANA CHANGE :: DEV-24838: Mock metadata requests
-    // this.metricsMetadata = fixSummariesMetadata(await this.request('/api/v1/metadata', {}));
-    this.metricsMetadata = {};
+    this.metricsMetadata = fixSummariesMetadata(await this.request('/api/v1/metadata', {}));
     this.processHistogramMetrics(this.metrics);
 
     return [];

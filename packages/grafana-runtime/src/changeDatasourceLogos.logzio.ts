@@ -4,8 +4,6 @@ export const changeDatasourceLogos = (datasources: any): any => {
     metrics: 'public/app/plugins/datasource/elasticsearch/img/logzio-metrics.svg',
     logs: 'public/app/plugins/datasource/elasticsearch/img/logzio-logs.svg',
     security: 'public/app/plugins/datasource/elasticsearch/img/logzio-security.svg',
-    timeless: 'public/app/plugins/datasource/elasticsearch/img/logzio-timeless.svg',
-    tracing: 'public/app/plugins/datasource/elasticsearch/img/logzio-tracing.svg',
     query: 'public/img/icn-datasource-logzio.svg',
   };
   const logzDsTypeByName: any = Object.values(datasources).reduce(
@@ -39,16 +37,6 @@ export const changeDatasourceLogos = (datasources: any): any => {
       case 'SECURITY_ACCOUNT': {
         logo = logos.security;
         ds.sort = 'd' + ds.name;
-        break;
-      }
-      case 'TIMELESS_INDEX': {
-        logo = logos.timeless;
-        ds.sort = 'e' + ds.name;
-        break;
-      }
-      case 'TRACING_ACCOUNT': {
-        logo = logos.tracing;
-        ds.sort = 'f' + ds.name;
         break;
       }
       default: {

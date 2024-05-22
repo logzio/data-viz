@@ -4,7 +4,6 @@ import {
   Field,
   FieldType,
   formatLabels,
-  Labels,
   MutableField,
   ScopedVars,
   TIME_SERIES_TIME_FIELD_NAME,
@@ -72,7 +71,7 @@ export function transform(
         meta: options.meta,
         refId: options.refId,
         length: 1,
-        fields: [getTimeField([prometheusResult.result]), getValueField({ data: [prometheusResult.result] })],
+        fields: [getTimeField([prometheusResult.result]), getValueField([prometheusResult.result])],
       },
     ];
   }
@@ -110,7 +109,7 @@ function getPreferredVisualisationType(isInstantQuery?: boolean, mixedQueries?: 
  * Transforms matrix and vector result from Prometheus result to DataFrame
  */
 function transformToDataFrame(data: MatrixOrVectorResult, options: TransformOptions): DataFrame {
-  const { name, labels } = createLabelInfo(data.metric, options);
+  const { name } = createLabelInfo(data.metric, options);
 
   const fields: Field[] = [];
 
@@ -139,10 +138,10 @@ function transformToDataFrame(data: MatrixOrVectorResult, options: TransformOpti
       dps.push([t, null]);
     }
     fields.push(getTimeField(dps, true));
-    fields.push(getValueField({ data: dps, parseValue: false, labels, displayNameFromDS: name }));
+    fields.push(getValueField(dps, undefined, false));
   } else {
     fields.push(getTimeField([data.value]));
-    fields.push(getValueField({ data: [data.value], labels, displayNameFromDS: name }));
+    fields.push(getValueField([data.value]));
   }
 
   return {
@@ -177,7 +176,7 @@ function transformMetricDataToTable(md: MatrixOrVectorResult[], options: Transfo
         values: new ArrayVector(),
       };
     });
-  const valueField = getValueField({ data: [], valueName: valueText });
+  const valueField = getValueField([], valueText);
 
   md.forEach(d => {
     if (isMatrixData(d)) {
@@ -219,28 +218,16 @@ function getTimeField(data: PromValue[], isMs = false): MutableField {
     values: new ArrayVector<number>(data.map(val => (isMs ? val[0] : val[0] * 1000))),
   };
 }
-type ValueFieldOptions = {
-  data: PromValue[];
-  valueName?: string;
-  parseValue?: boolean;
-  labels?: Labels;
-  displayNameFromDS?: string;
-};
 
-function getValueField({
-  data,
-  valueName = TIME_SERIES_VALUE_FIELD_NAME,
-  parseValue = true,
-  labels,
-  displayNameFromDS,
-}: ValueFieldOptions): MutableField {
+function getValueField(
+  data: PromValue[],
+  valueName: string = TIME_SERIES_VALUE_FIELD_NAME,
+  parseValue = true
+): MutableField {
   return {
     name: valueName,
     type: FieldType.number,
-    config: {
-      displayNameFromDS,
-    },
-    labels,
+    config: {},
     values: new ArrayVector<number | null>(data.map(val => (parseValue ? parseSampleValue(val[1]) : val[1]))),
   };
 }

@@ -186,23 +186,23 @@ describe('CloudWatchDatasource', () => {
 
     it('should stop querying when no more data received a number of times in a row', async () => {
       const fakeFrames = genMockFrames(20);
-      const initialRecordsMatched = fakeFrames[0].meta!.stats!.find(stat => stat.displayName === 'Records scanned')!
+      const initialRecordsMatched = fakeFrames[0].meta!.stats!.find(stat => stat.displayName === 'Records matched')!
         .value!;
       for (let i = 1; i < 4; i++) {
         fakeFrames[i].meta!.stats = [
           {
-            displayName: 'Records scanned',
+            displayName: 'Records matched',
             value: initialRecordsMatched,
           },
         ];
       }
 
-      const finalRecordsMatched = fakeFrames[9].meta!.stats!.find(stat => stat.displayName === 'Records scanned')!
+      const finalRecordsMatched = fakeFrames[9].meta!.stats!.find(stat => stat.displayName === 'Records matched')!
         .value!;
       for (let i = 10; i < fakeFrames.length; i++) {
         fakeFrames[i].meta!.stats = [
           {
-            displayName: 'Records scanned',
+            displayName: 'Records matched',
             value: finalRecordsMatched,
           },
         ];
@@ -1198,7 +1198,7 @@ function genMockFrames(numResponses: number): DataFrame[] {
         },
         stats: [
           {
-            displayName: 'Records scanned',
+            displayName: 'Records matched',
             value: (i + 1) * recordIncrement,
           },
         ],

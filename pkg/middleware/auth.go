@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"net/url"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -54,17 +53,16 @@ func notAuthorized(c *models.ReqContext) {
 		redirectTo = setting.AppSubUrl + c.Req.RequestURI
 	}
 
-	// remove any forceLogin=true params
-	redirectTo = removeForceLoginParams(redirectTo)
-
-	WriteCookie(c.Resp, "redirect_to", url.QueryEscape(redirectTo), 0, newCookieOptions)
+	// remove forceLogin query param if it exists
+	if parsed, err := url.ParseRequestURI(redirectTo); err == nil {
+		params := parsed.Query()
+		params.Del("forceLogin")
+		parsed.RawQuery = params.Encode()
+		WriteCookie(c.Resp, "redirect_to", url.QueryEscape(parsed.String()), 0, newCookieOptions)
+	} else {
+		c.Logger.Debug("Failed parsing request URI; redirect cookie will not be set", "redirectTo", redirectTo, "error", err)
+	}
 	c.Redirect(setting.AppSubUrl + "/login")
-}
-
-var forceLoginParamsRegexp = regexp.MustCompile(`&?forceLogin=true`)
-
-func removeForceLoginParams(str string) string {
-	return forceLoginParamsRegexp.ReplaceAllString(str, "")
 }
 
 func EnsureEditorOrViewerCanEdit(c *models.ReqContext) {

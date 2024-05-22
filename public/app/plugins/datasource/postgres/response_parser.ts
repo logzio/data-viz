@@ -72,13 +72,14 @@ export default class ResponseParser {
 
     for (let i = 0; i < rows.length; i++) {
       for (let j = 0; j < rows[i].length; j++) {
-        res.push(rows[i][j]);
+        const value = rows[i][j];
+        if (res.indexOf(value) === -1) {
+          res.push(value);
+        }
       }
     }
 
-    const unique = Array.from(new Set(res));
-
-    return _.map(unique, value => {
+    return _.map(res, value => {
       return { text: value };
     });
   }

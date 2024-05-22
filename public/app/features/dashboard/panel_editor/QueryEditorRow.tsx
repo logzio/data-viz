@@ -88,13 +88,12 @@ export class QueryEditorRow extends PureComponent<Props, State> {
   }
 
   async loadDatasource() {
-    const { query, panel, dataSourceValue } = this.props;
+    const { query, panel } = this.props;
     const dataSourceSrv = getDatasourceSrv();
     let datasource;
 
     try {
-      const datasourceName = dataSourceValue || query.datasource || panel.datasource;
-      datasource = await dataSourceSrv.get(datasourceName);
+      datasource = await dataSourceSrv.get(query.datasource || panel.datasource);
     } catch (error) {
       datasource = await dataSourceSrv.get();
     }

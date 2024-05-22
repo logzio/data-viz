@@ -118,24 +118,22 @@ func (rr *routeRegister) Register(router Router) {
 
 func (rr *routeRegister) route(pattern, method string, handlers ...macaron.Handler) {
 	h := make([]macaron.Handler, 0)
-	fullPattern := rr.prefix + pattern
-
 	for _, fn := range rr.namedMiddleware {
-		h = append(h, fn(fullPattern))
+		h = append(h, fn(pattern))
 	}
 
 	h = append(h, rr.subfixHandlers...)
 	h = append(h, handlers...)
 
 	for _, r := range rr.routes {
-		if r.pattern == fullPattern && r.method == method {
+		if r.pattern == rr.prefix+pattern && r.method == method {
 			panic("cannot add duplicate route")
 		}
 	}
 
 	rr.routes = append(rr.routes, route{
 		method:   method,
-		pattern:  fullPattern,
+		pattern:  rr.prefix + pattern,
 		handlers: h,
 	})
 }

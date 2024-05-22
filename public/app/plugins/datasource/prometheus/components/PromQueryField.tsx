@@ -17,7 +17,14 @@ import Prism from 'prismjs';
 // dom also includes Element polyfills
 import { PromQuery, PromOptions, PromMetricsMetadata } from '../types';
 import { CancelablePromise, makePromiseCancelable } from 'app/core/utils/CancelablePromise';
-import { ExploreQueryFieldProps, QueryHint, isDataFrame, toLegacyResponseData, HistoryItem } from '@grafana/data';
+import {
+  ExploreQueryFieldProps,
+  QueryHint,
+  isDataFrame,
+  toLegacyResponseData,
+  HistoryItem,
+  AbsoluteTimeRange,
+} from '@grafana/data';
 import { DOMUtil, SuggestionsState } from '@grafana/ui';
 import { PrometheusDatasource } from '../datasource';
 
@@ -166,27 +173,21 @@ class PromQueryField extends React.PureComponent<PromQueryFieldProps, PromQueryF
       range,
     } = this.props;
 
-    const rangeChanged =
-      range &&
-      prevProps.range &&
-      !_.isEqual(
-        { from: range.from.valueOf(), to: range.to.valueOf() },
-        {
-          from: prevProps.range.from.valueOf(),
-          to: prevProps.range.to.valueOf(),
-        }
-      );
+    let refreshed = false;
+    if (range && prevProps.range) {
+      const absoluteRange: AbsoluteTimeRange = { from: range.from.valueOf(), to: range.to.valueOf() };
+      const prevAbsoluteRange: AbsoluteTimeRange = {
+        from: prevProps.range.from.valueOf(),
+        to: prevProps.range.to.valueOf(),
+      };
 
-    if (languageProvider !== prevProps.datasource.languageProvider) {
-      // We reset this only on DS change so we do not flesh loading state on every rangeChange which happens on every
-      // query run if using relative range.
-      this.setState({
-        metricsOptions: [],
-        syntaxLoaded: false,
-      });
+      if (!_.isEqual(absoluteRange, prevAbsoluteRange)) {
+        this.refreshMetrics();
+        refreshed = true;
+      }
     }
 
-    if (languageProvider !== prevProps.datasource.languageProvider || rangeChanged) {
+    if (!refreshed && languageProvider !== prevProps.datasource.languageProvider) {
       this.refreshMetrics();
     }
 
@@ -205,35 +206,31 @@ class PromQueryField extends React.PureComponent<PromQueryFieldProps, PromQueryF
 
     const result = isDataFrame(data.series[0]) ? data.series.map(toLegacyResponseData) : data.series;
     const hints = datasource.getQueryHints(query, result);
-    let hint = hints.length > 0 ? hints[0] : null;
-
-    // Hint for big disabled lookups
-    if (!hint && !datasource.lookupsDisabled && datasource.languageProvider.lookupsDisabled) {
-      hint = {
-        label: `Dynamic label lookup is disabled for datasources with more than ${datasource.languageProvider.lookupMetricsThreshold} metrics.`,
-        type: 'INFO',
-      };
-    }
+    const hint = hints.length > 0 ? hints[0] : null;
     this.setState({ hint });
   };
 
-  refreshMetrics = async () => {
+  refreshMetrics = () => {
     const {
       datasource: { languageProvider },
     } = this.props;
 
+    this.setState({
+      syntaxLoaded: false,
+    });
+
     Prism.languages[PRISM_SYNTAX] = languageProvider.syntax;
     this.languageProviderInitializationPromise = makePromiseCancelable(languageProvider.start());
-
-    try {
-      const remainingTasks = await this.languageProviderInitializationPromise.promise;
-      await Promise.all(remainingTasks);
-      this.onUpdateLanguage();
-    } catch (err) {
-      if (!err.isCanceled) {
-        throw err;
-      }
-    }
+    this.languageProviderInitializationPromise.promise
+      .then(remaining => {
+        remaining.map((task: Promise<any>) => task.then(this.onUpdateLanguage).catch(() => {}));
+      })
+      .then(() => this.onUpdateLanguage())
+      .catch(err => {
+        if (!err.isCanceled) {
+          throw err;
+        }
+      });
   };
 
   onChangeMetrics = (values: string[], selectedOptions: CascaderOption[]) => {
@@ -281,9 +278,10 @@ class PromQueryField extends React.PureComponent<PromQueryFieldProps, PromQueryF
 
   onUpdateLanguage = () => {
     const {
+      datasource,
       datasource: { languageProvider },
     } = this.props;
-    const { histogramMetrics, metrics, metricsMetadata } = languageProvider;
+    const { histogramMetrics, metrics, metricsMetadata, lookupMetricsThreshold } = languageProvider;
 
     if (!metrics) {
       return;
@@ -300,7 +298,17 @@ class PromQueryField extends React.PureComponent<PromQueryFieldProps, PromQueryF
           ]
         : metricsByPrefix;
 
-    this.setState({ metricsOptions, syntaxLoaded: true });
+    // Hint for big disabled lookups
+    let hint: QueryHint | null = null;
+
+    if (!datasource.lookupsDisabled && languageProvider.lookupsDisabled) {
+      hint = {
+        label: `Dynamic label lookup is disabled for datasources with more than ${lookupMetricsThreshold} metrics.`,
+        type: 'INFO',
+      };
+    }
+
+    this.setState({ hint, metricsOptions, syntaxLoaded: true });
   };
 
   onTypeahead = async (typeahead: TypeaheadInput): Promise<TypeaheadOutput> => {
@@ -319,6 +327,8 @@ class PromQueryField extends React.PureComponent<PromQueryFieldProps, PromQueryF
       { text, value, prefix, wrapperClasses, labelKey },
       { history }
     );
+
+    // console.log('handleTypeahead', wrapperClasses, text, prefix, labelKey, result.context);
 
     return result;
   };

@@ -62,7 +62,7 @@ function getSignatureDisplayModel(signature?: PluginSignatureStatus): BadgeProps
       };
     case PluginSignatureStatus.missing:
       return {
-        text: 'Missing signature',
+        text: 'Missing signture',
         icon: 'exclamation-triangle',
         color: 'red',
         tooltip: 'Missing plugin signature',

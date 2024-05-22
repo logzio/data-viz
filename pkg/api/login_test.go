@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -17,7 +18,6 @@ import (
 	"github.com/grafana/grafana/pkg/login"
 	"github.com/grafana/grafana/pkg/models"
 	"github.com/grafana/grafana/pkg/services/auth"
-	"github.com/grafana/grafana/pkg/services/hooks"
 	"github.com/grafana/grafana/pkg/services/licensing"
 	"github.com/grafana/grafana/pkg/setting"
 	"github.com/grafana/grafana/pkg/util"
@@ -318,7 +318,6 @@ func TestLoginPostRedirect(t *testing.T) {
 	hs := &HTTPServer{
 		log:              &FakeLogger{},
 		Cfg:              setting.NewCfg(),
-		HooksService:     &hooks.HooksService{},
 		License:          &licensing.OSSLicensingService{},
 		AuthTokenService: auth.NewFakeUserAuthTokenService(),
 	}
@@ -557,23 +556,22 @@ func setupAuthProxyLoginTest(enableLoginToken bool) *scenarioContext {
 	return sc
 }
 
-type loginHookTest struct {
-	info *models.LoginInfo
+type loginLogTestReceiver struct {
+	cmd *models.SendLoginLogCommand
 }
 
-func (r *loginHookTest) LoginHook(loginInfo *models.LoginInfo, req *models.ReqContext) {
-	r.info = loginInfo
+func (r *loginLogTestReceiver) SaveLoginLog(ctx context.Context, cmd *models.SendLoginLogCommand) error {
+	r.cmd = cmd
+	return nil
 }
 
-func TestLoginPostRunLokingHook(t *testing.T) {
+func TestLoginPostSendLoginLog(t *testing.T) {
 	sc := setupScenarioContext("/login")
-	hookService := &hooks.HooksService{}
 	hs := &HTTPServer{
 		log:              log.New("test"),
 		Cfg:              setting.NewCfg(),
 		License:          &licensing.OSSLicensingService{},
 		AuthTokenService: auth.NewFakeUserAuthTokenService(),
-		HooksService:     hookService,
 	}
 
 	sc.defaultHandler = Wrap(func(w http.ResponseWriter, c *models.ReqContext) Response {
@@ -584,26 +582,28 @@ func TestLoginPostRunLokingHook(t *testing.T) {
 		return hs.LoginPost(c, cmd)
 	})
 
-	testHook := loginHookTest{}
-	hookService.AddLoginHook(testHook.LoginHook)
+	testReceiver := loginLogTestReceiver{}
+	bus.AddHandlerCtx("login-log-receiver", testReceiver.SaveLoginLog)
+
+	type sendLoginLogCase struct {
+		desc       string
+		authUser   *models.User
+		authModule string
+		authErr    error
+		cmd        models.SendLoginLogCommand
+	}
 
 	testUser := &models.User{
 		Id:    42,
 		Email: "",
 	}
 
-	testCases := []struct {
-		desc       string
-		authUser   *models.User
-		authModule string
-		authErr    error
-		info       models.LoginInfo
-	}{
+	testCases := []sendLoginLogCase{
 		{
 			desc:    "invalid credentials",
 			authErr: login.ErrInvalidCredentials,
-			info: models.LoginInfo{
-				AuthModule: "",
+			cmd: models.SendLoginLogCommand{
+				LogAction:  "login",
 				HTTPStatus: 401,
 				Error:      login.ErrInvalidCredentials,
 			},
@@ -611,8 +611,8 @@ func TestLoginPostRunLokingHook(t *testing.T) {
 		{
 			desc:    "user disabled",
 			authErr: login.ErrUserDisabled,
-			info: models.LoginInfo{
-				AuthModule: "",
+			cmd: models.SendLoginLogCommand{
+				LogAction:  "login",
 				HTTPStatus: 401,
 				Error:      login.ErrUserDisabled,
 			},
@@ -621,8 +621,8 @@ func TestLoginPostRunLokingHook(t *testing.T) {
 			desc:       "valid Grafana user",
 			authUser:   testUser,
 			authModule: "grafana",
-			info: models.LoginInfo{
-				AuthModule: "grafana",
+			cmd: models.SendLoginLogCommand{
+				LogAction:  "login-grafana",
 				User:       testUser,
 				HTTPStatus: 200,
 			},
@@ -631,8 +631,8 @@ func TestLoginPostRunLokingHook(t *testing.T) {
 			desc:       "valid LDAP user",
 			authUser:   testUser,
 			authModule: "ldap",
-			info: models.LoginInfo{
-				AuthModule: "ldap",
+			cmd: models.SendLoginLogCommand{
+				LogAction:  "login-ldap",
 				User:       testUser,
 				HTTPStatus: 200,
 			},
@@ -650,15 +650,15 @@ func TestLoginPostRunLokingHook(t *testing.T) {
 			sc.m.Post(sc.url, sc.defaultHandler)
 			sc.fakeReqNoAssertions("POST", sc.url).exec()
 
-			info := testHook.info
-			assert.Equal(t, c.info.AuthModule, info.AuthModule)
-			assert.Equal(t, "admin", info.LoginUsername)
-			assert.Equal(t, c.info.HTTPStatus, info.HTTPStatus)
-			assert.Equal(t, c.info.Error, info.Error)
+			cmd := testReceiver.cmd
+			assert.Equal(t, c.cmd.LogAction, cmd.LogAction)
+			assert.Equal(t, "admin", cmd.LoginUsername)
+			assert.Equal(t, c.cmd.HTTPStatus, cmd.HTTPStatus)
+			assert.Equal(t, c.cmd.Error, cmd.Error)
 
-			if c.info.User != nil {
-				require.NotEmpty(t, info.User)
-				assert.Equal(t, c.info.User.Id, info.User.Id)
+			if c.cmd.User != nil {
+				require.NotEmpty(t, cmd.User)
+				assert.Equal(t, c.cmd.User.Id, cmd.User.Id)
 			}
 		})
 	}

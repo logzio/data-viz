@@ -70,9 +70,6 @@ export default class PrometheusMetricFindQuery {
 
     let url: string;
 
-    // LOGZ.IO GRAFANA CHANGE :: DEV-26768 - Use new label resolving api for m3
-    const isLabelResolving = (window as any).logzio.configs.featureFlags.grafanaV2LabelResolving;
-
     if (!metric) {
       const params = new URLSearchParams({
         start: start.toString(),
@@ -86,21 +83,6 @@ export default class PrometheusMetricFindQuery {
           return { text: value };
         });
       });
-    } else if (isLabelResolving) {
-      const params = new URLSearchParams({
-        'match[]': metric,
-        start: start.toString(),
-        end: end.toString(),
-      });
-      // return label values globally
-      url = `/api/v1/label/${label}/values?${params.toString()}`;
-
-      return this.datasource.metadataRequest(url).then((result: any) => {
-        return _.map(result.data.data, value => {
-          return { text: value };
-        });
-      });
-      // LOGZ.IO GRAFANA CHANGE :: end
     } else {
       const params = new URLSearchParams({
         'match[]': metric,

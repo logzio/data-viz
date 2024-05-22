@@ -41,14 +41,8 @@ export const createErrorNotification = (
 ): AppNotification => {
   // LOGZ.IO GRAFANA CHANGE :: DEV-23041 - log to logzio on any error
   const logzLogger = logzioServices.LoggerService;
-  logzLogger.logError({
-    origin: logzLogger.Origin.GRAFANA,
-    message: getMessageFromError(text),
-    error: null,
-    uxType: logzLogger.UxType.TOAST,
-    extra: {
-      title,
-    },
+  logzLogger.logError(logzLogger.Origin.GRAFANA, getMessageFromError(text), null, logzLogger.UXType.TOAST, false, {
+    title,
   });
 
   return {

@@ -1,32 +1,28 @@
 // LOGZ.IO GRAFANA CHANGE :: DEV-17927 use LogzIoHeaders obj to pass on headers
 package models
 
-import "net/http"
+const (
+	AuthTokenHeader   = "X-AUTH-TOKEN"
+	ApiTokenHeader    = "X-API-TOKEN"
+	UserContextHeader = "USER-CONTEXT"
+)
 
 type LogzIoHeaders struct {
-	RequestHeaders http.Header
+	AuthToken   string
+	ApiToken    string
+	UserContext string
 }
 
-var logzioHeadersWhitelist = []string{
-	"x-auth-token",
-	"x-api-token",
-	"user-context",
-	"x-request-id",
-	"cookie",
-	"x-logz-csrf-token",
-	"x-logz-csrf-token-v2",
-}
-
-func (logzioHeaders *LogzIoHeaders) GetDatasourceQueryHeaders(grafanaGeneratedHeaders http.Header) http.Header {
-	datasourceRequestHeaders := grafanaGeneratedHeaders.Clone()
-	logzioGrafanaRequestHeaders := logzioHeaders.RequestHeaders
-
-	for _, whitelistedHeader := range logzioHeadersWhitelist {
-		if requestHeader := logzioGrafanaRequestHeaders.Get(whitelistedHeader); requestHeader != "" {
-			datasourceRequestHeaders.Set(whitelistedHeader, requestHeader)
-		}
+func (h *LogzIoHeaders) GetAuthHeader() (string, string) {
+	if h.ApiToken != "" {
+		return ApiTokenHeader, h.ApiToken
+	} else if h.AuthToken != "" {
+		return AuthTokenHeader, h.AuthToken
+	} else if h.UserContext != "" {
+		return UserContextHeader, h.UserContext
 	}
 
-	return datasourceRequestHeaders
+	return "", ""
 }
+
 // LOGZ.IO GRAFANA CHANGE :: end

@@ -185,10 +185,14 @@ func (c *baseClientImpl) executeRequest(method, uriPath, uriQuery string, body [
 		}
 	}
 
-	req.Header = c.logzIoHeaders.GetDatasourceQueryHeaders(req.Header) // LOGZ.IO GRAFANA CHANGE :: (ALERTS) DEV-16492 Support external alert evaluation
-
 	req.Header.Set("User-Agent", "Grafana")
 	req.Header.Set("Content-Type", "application/json")
+
+	// LOGZ.IO GRAFANA CHANGE :: (ALERTS) DEV-16492 Support external alert evaluation
+	if key, value := c.logzIoHeaders.GetAuthHeader(); value != "" {
+		req.Header.Set(key, value)
+	}
+	// LOGZ.IO GRAFANA CHANGE :: end
 
 	if c.ds.BasicAuth {
 		clientLog.Debug("Request configured to use basic authentication")
@@ -313,12 +317,10 @@ func (c *baseClientImpl) createMultiSearchRequests(searchRequests []*SearchReque
 			mr.header["search_type"] = "count"
 		}
 
-		// LOGZ.IO GRAFANA CHANGE :: DEV-44969 do not set max_concurrent_shard_requests in query metadata or query params
-		//if c.version >= 56 && c.version < 70 {
-		//	maxConcurrentShardRequests := c.getSettings().Get("maxConcurrentShardRequests").MustInt(256)
-		//	mr.header["max_concurrent_shard_requests"] = maxConcurrentShardRequests
-		//}
-		// LOGZ.IO end
+		if c.version >= 56 && c.version < 70 {
+			maxConcurrentShardRequests := c.getSettings().Get("maxConcurrentShardRequests").MustInt(256)
+			mr.header["max_concurrent_shard_requests"] = maxConcurrentShardRequests
+		}
 
 		multiRequests = append(multiRequests, &mr)
 	}
@@ -335,12 +337,10 @@ func (c *baseClientImpl) getMultiSearchQueryParameters() string {
 		q.Set("accountsToSearch", c.ds.Database)
 	}
 
-	// LOGZ.IO GRAFANA CHANGE :: DEV-44969 do not set max_concurrent_shard_requests in query metadata or query params
-	//if c.version >= 70 {
-	//	maxConcurrentShardRequests := c.getSettings().Get("maxConcurrentShardRequests").MustInt(5)
-	//	q.Set("max_concurrent_shard_requests", fmt.Sprintf("%d", maxConcurrentShardRequests))
-	//}
-	// LOGZ.IO end
+	if c.version >= 70 {
+		maxConcurrentShardRequests := c.getSettings().Get("maxConcurrentShardRequests").MustInt(5)
+		q.Set("max_concurrent_shard_requests", fmt.Sprintf("%d", maxConcurrentShardRequests))
+	}
 
 	return q.Encode()
 	// LOGZ.IO GRAFANA CHANGE :: DEV-20400 - end

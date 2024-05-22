@@ -102,8 +102,13 @@ func (proxy *DataSourceProxy) HandleRequest() {
 		return
 	}
 
-	proxyErrorLogger := logger.New("userId", proxy.ctx.UserId, "orgId", proxy.ctx.OrgId, "uname", proxy.ctx.Login,
-		"path", proxy.ctx.Req.URL.Path, "remote_addr", proxy.ctx.RemoteAddr(), "referer", proxy.ctx.Req.Referer())
+	proxyErrorLogger := logger.New("userId", proxy.ctx.UserId, "orgId", proxy.ctx.OrgId, "uname", proxy.ctx.Login, "path", proxy.ctx.Req.URL.Path, "remote_addr", proxy.ctx.RemoteAddr(), "referer", proxy.ctx.Req.Referer())
+
+	reverseProxy := &httputil.ReverseProxy{
+		Director:      proxy.getDirector(),
+		FlushInterval: time.Millisecond * 200,
+		ErrorLog:      log.New(&logWrapper{logger: proxyErrorLogger}, "", 0),
+	}
 
 	transport, err := proxy.ds.GetHttpTransport()
 	if err != nil {
@@ -111,43 +116,16 @@ func (proxy *DataSourceProxy) HandleRequest() {
 		return
 	}
 
-	reverseProxy := &httputil.ReverseProxy{
-		Director:      proxy.director,
-		FlushInterval: time.Millisecond * 200,
-		ErrorLog:      log.New(&logWrapper{logger: proxyErrorLogger}, "", 0),
-		Transport: &handleResponseTransport{
-			transport: transport,
-		},
-		ModifyResponse: func(resp *http.Response) error {
-			if resp.StatusCode == 401 {
-				// The data source rejected the request as unauthorized, convert to 400 (bad request)
-				body, err := ioutil.ReadAll(resp.Body)
-				if err != nil {
-					return fmt.Errorf("failed to read data source response body: %w", err)
-				}
-				_ = resp.Body.Close()
-
-				proxyErrorLogger.Info("Authentication to data source failed", "body", string(body), "statusCode",
-					resp.StatusCode)
-				msg := "Authentication to data source failed"
-				*resp = http.Response{
-					StatusCode:    400,
-					Status:        "Bad Request",
-					Body:          ioutil.NopCloser(strings.NewReader(msg)),
-					ContentLength: int64(len(msg)),
-				}
-			}
-			return nil
-		},
+	reverseProxy.Transport = &handleResponseTransport{
+		transport: transport,
 	}
 
 	proxy.logRequest()
 
 	span, ctx := opentracing.StartSpanFromContext(proxy.ctx.Req.Context(), "datasource reverse proxy")
-	defer span.Finish()
-
 	proxy.ctx.Req.Request = proxy.ctx.Req.WithContext(ctx)
 
+	defer span.Finish()
 	span.SetTag("datasource_id", proxy.ds.Id)
 	span.SetTag("datasource_type", proxy.ds.Type)
 	span.SetTag("user_id", proxy.ctx.SignedInUser.UserId)
@@ -174,64 +152,68 @@ func (proxy *DataSourceProxy) addTraceFromHeaderValue(span opentracing.Span, hea
 	}
 }
 
-func (proxy *DataSourceProxy) director(req *http.Request) {
-	req.URL.Scheme = proxy.targetUrl.Scheme
-	req.URL.Host = proxy.targetUrl.Host
-	req.Host = proxy.targetUrl.Host
+func (proxy *DataSourceProxy) getDirector() func(req *http.Request) {
+	return func(req *http.Request) {
+		req.URL.Scheme = proxy.targetUrl.Scheme
+		req.URL.Host = proxy.targetUrl.Host
+		req.Host = proxy.targetUrl.Host
 
-	reqQueryVals := req.URL.Query()
+		reqQueryVals := req.URL.Query()
 
-	switch proxy.ds.Type {
-	case models.DS_INFLUXDB_08:
-		req.URL.Path = util.JoinURLFragments(proxy.targetUrl.Path, "db/"+proxy.ds.Database+"/"+proxy.proxyPath)
-		reqQueryVals.Add("u", proxy.ds.User)
-		reqQueryVals.Add("p", proxy.ds.DecryptedPassword())
-		req.URL.RawQuery = reqQueryVals.Encode()
-	case models.DS_INFLUXDB:
-		req.URL.Path = util.JoinURLFragments(proxy.targetUrl.Path, proxy.proxyPath)
-		req.URL.RawQuery = reqQueryVals.Encode()
-		if !proxy.ds.BasicAuth {
-			req.Header.Set("Authorization", util.GetBasicAuthHeader(proxy.ds.User, proxy.ds.DecryptedPassword()))
+		switch proxy.ds.Type {
+		case models.DS_INFLUXDB_08:
+			req.URL.Path = util.JoinURLFragments(proxy.targetUrl.Path, "db/"+proxy.ds.Database+"/"+proxy.proxyPath)
+			reqQueryVals.Add("u", proxy.ds.User)
+			reqQueryVals.Add("p", proxy.ds.DecryptedPassword())
+			req.URL.RawQuery = reqQueryVals.Encode()
+		case models.DS_INFLUXDB:
+			req.URL.Path = util.JoinURLFragments(proxy.targetUrl.Path, proxy.proxyPath)
+			req.URL.RawQuery = reqQueryVals.Encode()
+			if !proxy.ds.BasicAuth {
+				req.Header.Del("Authorization")
+				req.Header.Add("Authorization", util.GetBasicAuthHeader(proxy.ds.User, proxy.ds.DecryptedPassword()))
+			}
+		default:
+			req.URL.Path = util.JoinURLFragments(proxy.targetUrl.Path, proxy.proxyPath)
 		}
-	default:
-		req.URL.Path = util.JoinURLFragments(proxy.targetUrl.Path, proxy.proxyPath)
-	}
 
-	if proxy.ds.BasicAuth {
-		req.Header.Set("Authorization", util.GetBasicAuthHeader(proxy.ds.BasicAuthUser,
-			proxy.ds.DecryptedBasicAuthPassword()))
-	}
-
-	dsAuth := req.Header.Get("X-DS-Authorization")
-	if len(dsAuth) > 0 {
-		req.Header.Del("X-DS-Authorization")
-		req.Header.Set("Authorization", dsAuth)
-	}
-
-	applyUserHeader(proxy.cfg.SendUserHeader, req, proxy.ctx.SignedInUser)
-
-	keepCookieNames := []string{}
-	if proxy.ds.JsonData != nil {
-		if keepCookies := proxy.ds.JsonData.Get("keepCookies"); keepCookies != nil {
-			keepCookieNames = keepCookies.MustStringArray()
+		if proxy.ds.BasicAuth {
+			req.Header.Del("Authorization")
+			req.Header.Add("Authorization", util.GetBasicAuthHeader(proxy.ds.BasicAuthUser, proxy.ds.DecryptedBasicAuthPassword()))
 		}
-	}
 
-	proxyutil.ClearCookieHeader(req, keepCookieNames)
-	proxyutil.PrepareProxyRequest(req)
+		dsAuth := req.Header.Get("X-DS-Authorization")
+		if len(dsAuth) > 0 {
+			req.Header.Del("X-DS-Authorization")
+			req.Header.Del("Authorization")
+			req.Header.Add("Authorization", dsAuth)
+		}
 
-	req.Header.Set("User-Agent", fmt.Sprintf("Grafana/%s", setting.BuildVersion))
+		applyUserHeader(proxy.cfg.SendUserHeader, req, proxy.ctx.SignedInUser)
 
-	// Clear Origin and Referer to avoir CORS issues
-	req.Header.Del("Origin")
-	req.Header.Del("Referer")
+		keepCookieNames := []string{}
+		if proxy.ds.JsonData != nil {
+			if keepCookies := proxy.ds.JsonData.Get("keepCookies"); keepCookies != nil {
+				keepCookieNames = keepCookies.MustStringArray()
+			}
+		}
 
-	if proxy.route != nil {
-		ApplyRoute(proxy.ctx.Req.Context(), req, proxy.proxyPath, proxy.route, proxy.ds)
-	}
+		proxyutil.ClearCookieHeader(req, keepCookieNames)
+		proxyutil.PrepareProxyRequest(req)
 
-	if proxy.ds.JsonData != nil && proxy.ds.JsonData.Get("oauthPassThru").MustBool() {
-		addOAuthPassThruAuth(proxy.ctx, req)
+		req.Header.Set("User-Agent", fmt.Sprintf("Grafana/%s", setting.BuildVersion))
+
+		// Clear Origin and Referer to avoir CORS issues
+		req.Header.Del("Origin")
+		req.Header.Del("Referer")
+
+		if proxy.route != nil {
+			ApplyRoute(proxy.ctx.Req.Context(), req, proxy.proxyPath, proxy.route, proxy.ds)
+		}
+
+		if proxy.ds.JsonData != nil && proxy.ds.JsonData.Get("oauthPassThru").MustBool() {
+			addOAuthPassThruAuth(proxy.ctx, req)
+		}
 	}
 }
 

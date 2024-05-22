@@ -650,9 +650,8 @@ export class PrometheusDatasource extends DataSourceApi<PromQuery, PromOptions> 
 
   async loadRules() {
     try {
-      // LOGZ.IO GRAFANA CHANGE :: DEV-24838: Mock rules requests
-      // const res = await this.metadataRequest('/api/v1/rules');
-      const groups = null;
+      const res = await this.metadataRequest('/api/v1/rules');
+      const groups = res.data?.data?.groups;
 
       if (groups) {
         this.ruleMappings = extractRuleMappingFromGroups(groups);

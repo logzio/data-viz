@@ -12,7 +12,6 @@ export interface AnnotationQuery<TQuery extends DataQuery = DataQuery> {
   enable: boolean;
   name: string;
   iconColor: string;
-  hide?: boolean;
 
   // Standard datasource query
   target?: TQuery;

@@ -36,7 +36,8 @@ describe('state functions', () => {
     });
 
     it('returns a valid Explore state from URL parameter', () => {
-      const paramValue = '{"datasource":"Local","queries":[{"expr":"metric"}],"range":{"from":"now-1h","to":"now"}}';
+      const paramValue =
+        '%7B"datasource":"Local","queries":%5B%7B"expr":"metric"%7D%5D,"range":%7B"from":"now-1h","to":"now"%7D%7D';
       expect(parseUrlState(paramValue)).toMatchObject({
         datasource: 'Local',
         queries: [{ expr: 'metric' }],
@@ -48,7 +49,9 @@ describe('state functions', () => {
     });
 
     it('returns a valid Explore state from a compact URL parameter', () => {
-      const paramValue = '["now-1h","now","Local",{"expr":"metric"},{"ui":[true,true,true,"none"]}]';
+      // ["now-1h","now","Local",{"expr":"metric"},{"ui":[true,true,true,"none"]}]
+      const paramValue =
+        '%5B"now-1h","now","Local",%7B"expr":"metric"%7D,%7B%22ui%22:%5Btrue,true,true,%22none%22%5D%7D%5D';
       expect(parseUrlState(paramValue)).toMatchObject({
         datasource: 'Local',
         queries: [{ expr: 'metric' }],
@@ -60,8 +63,9 @@ describe('state functions', () => {
     });
 
     it('should return queries if queryType is present in the url', () => {
+      // ["now-1h","now","x-ray-datasource",{"queryType":"getTraceSummaries"},{"ui":[true,true,true,"none"]}]
       const paramValue =
-        '["now-1h","now","x-ray-datasource",{"queryType":"getTraceSummaries"},{"ui":[true,true,true,"none"]}]';
+        '%5B"now-1h","now","x-ray-datasource",%7B"queryType":"getTraceSummaries"%7D,%7B%22ui%22:%5Btrue,true,true,%22none%22%5D%7D%5D';
       expect(parseUrlState(paramValue)).toMatchObject({
         datasource: 'x-ray-datasource',
         queries: [{ queryType: 'getTraceSummaries' }],

@@ -37,7 +37,6 @@ var (
 	libc    string
 	pkgArch string
 	version string = "v1"
-	buildTags []string
 	// deb & rpm does not support semver so have to handle their version a little differently
 	linuxPackageVersion   string = "v1"
 	linuxPackageIteration string = ""
@@ -60,13 +59,11 @@ func main() {
 	log.SetFlags(0)
 
 	var buildIdRaw string
-	var buildTagsRaw string
 
 	flag.StringVar(&goarch, "goarch", runtime.GOARCH, "GOARCH")
 	flag.StringVar(&goos, "goos", runtime.GOOS, "GOOS")
 	flag.StringVar(&gocc, "cc", "", "CC")
 	flag.StringVar(&libc, "libc", "", "LIBC")
-	flag.StringVar(&buildTagsRaw, "build-tags", "", "Sets custom build tags")
 	flag.BoolVar(&cgo, "cgo-enabled", cgo, "Enable cgo")
 	flag.StringVar(&pkgArch, "pkg-arch", "", "PKG ARCH")
 	flag.BoolVar(&race, "race", race, "Use race detector")
@@ -92,10 +89,6 @@ func main() {
 		return
 	}
 
-	if len(buildTagsRaw) > 0 {
-		buildTags = strings.Split(buildTagsRaw, ",")
-	}
-
 	log.Printf("Version: %s, Linux Version: %s, Package Iteration: %s\n", version, linuxPackageVersion, linuxPackageIteration)
 
 	if flag.NArg() == 0 {
@@ -112,16 +105,16 @@ func main() {
 
 		case "build-srv", "build-server":
 			clean()
-			doBuild("grafana-server", "./pkg/cmd/grafana-server", buildTags)
+			doBuild("grafana-server", "./pkg/cmd/grafana-server", []string{})
 
 		case "build-cli":
 			clean()
-			doBuild("grafana-cli", "./pkg/cmd/grafana-cli", buildTags)
+			doBuild("grafana-cli", "./pkg/cmd/grafana-cli", []string{})
 
 		case "build":
 			//clean()
 			for _, binary := range binaries {
-				doBuild(binary, "./pkg/cmd/"+binary, buildTags)
+				doBuild(binary, "./pkg/cmd/"+binary, []string{})
 			}
 
 		case "build-frontend":

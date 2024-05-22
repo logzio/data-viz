@@ -421,7 +421,7 @@ func toGrafanaUnit(unit string) string {
 		return "cps"
 	case "Percent":
 		return "percent"
-	case "MilliSeconds":
+	case "Milliseconds":
 		return "ms"
 	case "Seconds":
 		return "s"

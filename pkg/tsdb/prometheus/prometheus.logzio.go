@@ -3,7 +3,6 @@
 package prometheus
 
 import (
-	"github.com/grafana/grafana/pkg/infra/log"
 	"github.com/grafana/grafana/pkg/models"
 	"github.com/grafana/grafana/pkg/tsdb"
 	"github.com/prometheus/client_golang/api"
@@ -16,28 +15,12 @@ type logzIoAuthTransport struct {
 	logzIoHeaders *models.LogzIoHeaders
 }
 
-var (
-	clientLog = log.New("tsdb.prometheus.logzio.client")
-)
-
 func (lat logzIoAuthTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	// TODO: DEV-23495 Remove once we support POST method in the m3-query-service for query and query_range
-	// the prometheus client will attempt to do POST request, and on a 405 it will fallback to a GET request
-	if req.Method == "POST" {
-		clientLog.Debug("Forcing GET request fallback", "method", req.Method, "url", req.URL.String())
-
-		return &http.Response {StatusCode: http.StatusMethodNotAllowed}, nil
+	if key, value := lat.logzIoHeaders.GetAuthHeader(); value != "" {
+		req.Header.Set(key, value)
 	}
 
-	clientLog.Debug("Executing request", "method", req.Method, "url", req.URL.String())
-	req.Header = lat.logzIoHeaders.GetDatasourceQueryHeaders(req.Header)
-	resp, err := lat.Transport.RoundTrip(req)
-
-	if resp != nil && (resp.StatusCode < 200 || resp.StatusCode >= 300) {
-		clientLog.Error("got bad response status from datasource", "status", resp.StatusCode, "method", req.Method, "url", req.URL.String())
-	}
-
-	return resp, err
+	return lat.Transport.RoundTrip(req)
 }
 
 func (e *PrometheusExecutor) getLogzioAuthClient(dsInfo *models.DataSource, tsdbQuery *tsdb.TsdbQuery) (apiv1.API, error) {

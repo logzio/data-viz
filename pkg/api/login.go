@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -114,7 +115,7 @@ func (hs *HTTPServer) LoginView(c *models.ReqContext) {
 			}
 		}
 
-		if redirectTo := c.GetCookie("redirect_to"); len(redirectTo) > 0 {
+		if redirectTo, _ := url.QueryUnescape(c.GetCookie("redirect_to")); len(redirectTo) > 0 {
 			if err := hs.ValidateRedirectTo(redirectTo); err != nil {
 				// the user is already logged so instead of rendering the login page with error
 				// it should be redirected to the home page.
@@ -160,7 +161,7 @@ func (hs *HTTPServer) LoginAPIPing(c *models.ReqContext) Response {
 }
 
 func (hs *HTTPServer) LoginPost(c *models.ReqContext, cmd dtos.LoginCommand) Response {
-	authModule := ""
+	action := "login"
 	var user *models.User
 	var response *NormalResponse
 
@@ -169,13 +170,14 @@ func (hs *HTTPServer) LoginPost(c *models.ReqContext, cmd dtos.LoginCommand) Res
 		if err == nil && response.errMessage != "" {
 			err = errors.New(response.errMessage)
 		}
-		hs.HooksService.RunLoginHook(&models.LoginInfo{
-			AuthModule:    authModule,
+		hs.SendLoginLog(&models.SendLoginLogCommand{
+			ReqContext:    c,
+			LogAction:     action,
 			User:          user,
 			LoginUsername: cmd.User,
 			HTTPStatus:    response.status,
 			Error:         err,
-		}, c)
+		})
 	}()
 
 	if setting.DisableLoginForm {
@@ -191,7 +193,9 @@ func (hs *HTTPServer) LoginPost(c *models.ReqContext, cmd dtos.LoginCommand) Res
 	}
 
 	err := bus.Dispatch(authQuery)
-	authModule = authQuery.AuthModule
+	if authQuery.AuthModule != "" {
+		action += fmt.Sprintf("-%s", authQuery.AuthModule)
+	}
 	if err != nil {
 		response = Error(401, "Invalid username or password", err)
 		if err == login.ErrInvalidCredentials || err == login.ErrTooManyLoginAttempts || err == models.ErrUserNotFound {
@@ -221,7 +225,7 @@ func (hs *HTTPServer) LoginPost(c *models.ReqContext, cmd dtos.LoginCommand) Res
 		"message": "Logged in",
 	}
 
-	if redirectTo := c.GetCookie("redirect_to"); len(redirectTo) > 0 {
+	if redirectTo, _ := url.QueryUnescape(c.GetCookie("redirect_to")); len(redirectTo) > 0 {
 		if err := hs.ValidateRedirectTo(redirectTo); err == nil {
 			result["redirectUrl"] = redirectTo
 		} else {
@@ -312,4 +316,12 @@ func (hs *HTTPServer) RedirectResponseWithError(ctx *models.ReqContext, err erro
 	}
 
 	return Redirect(setting.AppSubUrl + "/login")
+}
+
+func (hs *HTTPServer) SendLoginLog(cmd *models.SendLoginLogCommand) {
+	if err := bus.Dispatch(cmd); err != nil {
+		if err != bus.ErrHandlerNotFound {
+			hs.log.Warn("Error while sending login log", "err", err)
+		}
+	}
 }

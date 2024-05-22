@@ -18,12 +18,7 @@ export function getScaleCalculator(field: Field, theme: GrafanaTheme): ScaleCalc
   const info = getMinMaxAndDelta(field);
 
   return (value: number) => {
-    let percent = 0;
-
-    if (value !== -Infinity) {
-      percent = (value - info.min!) / info.delta;
-    }
-
+    const percent = (value - info.min!) / info.delta;
     const threshold = getActiveThresholdForValue(field, value, percent);
 
     return {

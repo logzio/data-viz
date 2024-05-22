@@ -219,18 +219,4 @@ func addDashboardMigration(mg *Migrator) {
 		Cols: []string{"title"},
 		Type: IndexType,
 	}))
-
-	mg.AddMigration("delete tags for deleted dashboards", NewRawSqlMigration(
-		"DELETE FROM dashboard_tag WHERE dashboard_id NOT IN (SELECT id FROM dashboard)"))
-
-	mg.AddMigration("delete stars for deleted dashboards", NewRawSqlMigration(
-		"DELETE FROM star WHERE dashboard_id NOT IN (SELECT id FROM dashboard)"))
-
-	// LOGZ.IO GRAFANA CHANGE :: DEV-26550 - adding index for 'folder_id'
-	// this will speed up deletion of dashboards by folder id
-	mg.AddMigration("Add index for folder_id in dashboard", NewAddIndexMigration(dashboardV2, &Index{
-		Cols: []string{"folder_id"},
-		Type: IndexType,
-	}))
-	// LOGZ.IO GRAFANA CHANGE :: DEV-26550 - end
 }

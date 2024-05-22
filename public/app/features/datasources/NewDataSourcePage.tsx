@@ -129,9 +129,10 @@ interface DataSourceTypeCardProps {
 const DataSourceTypeCard: FC<DataSourceTypeCardProps> = props => {
   const { plugin, onLearnMoreClick } = props;
   const isPhantom = plugin.module === 'phantom';
-  const onClick = !isPhantom && !plugin.unlicensed ? props.onClick : () => {};
+  const onClick = !isPhantom ? props.onClick : () => {};
+
   // find first plugin info link
-  const learnMoreLink = plugin.info?.links?.length > 0 ? plugin.info.links[0] : null;
+  const learnMoreLink = plugin.info.links && plugin.info.links.length > 0 ? plugin.info.links[0] : null;
 
   return (
     <Card
@@ -153,7 +154,7 @@ const DataSourceTypeCard: FC<DataSourceTypeCardProps> = props => {
               {learnMoreLink.name}
             </LinkButton>
           )}
-          {!isPhantom && <Button disabled={plugin.unlicensed}>Select</Button>}
+          {!isPhantom && <Button>Select</Button>}
         </>
       }
       labels={

@@ -49,7 +49,7 @@ export const DefaultCell: FC<TableCellProps> = props => {
           {value}
         </a>
       )}
-      {showFilters && cell.value !== undefined && <FilterActions {...props} />}
+      {showFilters && cell.value && <FilterActions {...props} />}
     </div>
   );
 };

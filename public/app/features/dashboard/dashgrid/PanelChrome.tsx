@@ -9,6 +9,7 @@ import { ErrorBoundary } from '@grafana/ui';
 import { getTimeSrv, TimeSrv } from '../services/TimeSrv';
 import { applyPanelTimeOverrides } from 'app/features/dashboard/utils/panel';
 import { profiler } from 'app/core/profiler';
+import { getProcessedDataFrames } from '../state/runRequest';
 import config from 'app/core/config';
 import { updateLocation } from 'app/core/actions';
 // Types
@@ -27,7 +28,6 @@ import {
   PanelPluginMeta,
 } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
-import { loadSnapshotData } from '../utils/loadSnapshotData';
 
 const DEFAULT_PLUGIN_ERROR = 'Error in plugin';
 
@@ -81,7 +81,11 @@ export class PanelChrome extends PureComponent<Props, State> {
     // Move snapshot data into the query response
     if (this.hasPanelSnapshot) {
       this.setState({
-        data: loadSnapshotData(panel, dashboard),
+        data: {
+          ...this.state.data,
+          state: LoadingState.Done,
+          series: getProcessedDataFrames(panel.snapshotData),
+        },
         isFirstLoad: false,
       });
       return;

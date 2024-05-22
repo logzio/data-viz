@@ -88,11 +88,12 @@ func buildSearchExpression(query *cloudWatchQuery, stat string) string {
 	}
 
 	if query.MatchExact {
-		schema := fmt.Sprintf("%q", query.Namespace)
+		schema := query.Namespace
 		if len(dimensionNames) > 0 {
 			sort.Strings(dimensionNames)
 			schema += fmt.Sprintf(",%s", join(dimensionNames, ",", `"`, `"`))
 		}
+
 		return fmt.Sprintf("REMOVE_EMPTY(SEARCH('{%s} %s', '%s', %s))", schema, searchTerm, stat, strconv.Itoa(query.Period))
 	}
 

@@ -133,11 +133,16 @@ func AlertTest(c *models.ReqContext, dto dtos.AlertTestCommand) Response {
 	}
 
 	backendCmd := alerting.AlertTestCommand{
-		OrgID:         c.OrgId,
-		Dashboard:     dto.Dashboard,
-		PanelID:       dto.PanelId,
-		User:          c.SignedInUser,
-		LogzIoHeaders: &models.LogzIoHeaders{RequestHeaders: c.Req.Header}, // LOGZ.IO GRAFANA CHANGE :: DEV-17927 - add LogzIoHeaders
+		OrgID:     c.OrgId,
+		Dashboard: dto.Dashboard,
+		PanelID:   dto.PanelId,
+		User:      c.SignedInUser,
+		// LOGZ.IO GRAFANA CHANGE :: DEV-17927 - add LogzIoHeaders
+		LogzIoHeaders: &models.LogzIoHeaders{
+			AuthToken:   c.Req.Header.Get(models.AuthTokenHeader),
+			ApiToken:    c.Req.Header.Get(models.ApiTokenHeader),
+		},
+		// LOGZ.IO GRAFANA CHANGE :: DEV-17927 - end
 	}
 
 	if err := bus.Dispatch(&backendCmd); err != nil {
@@ -180,27 +185,27 @@ func EvaluateAlert(c *models.ReqContext, dto dtos.EvaluateAlertRequestCommand) R
 
 	for _, ds := range dto.CustomDataSources {
 		dsItem := models.DataSource{
-			Id:                ds.Id,
-			OrgId:             ds.OrgId,
-			Version:           ds.Version,
-			Name:              ds.Name,
-			Type:              ds.Type,
-			Access:            models.DsAccess(ds.Access),
-			Url:               ds.Url,
-			Password:          ds.Password,
-			User:              ds.User,
-			Database:          ds.Database,
-			BasicAuth:         ds.BasicAuth,
-			BasicAuthUser:     ds.BasicAuthUser,
-			BasicAuthPassword: ds.BasicAuthPassword,
-			WithCredentials:   ds.WithCredentials,
-			IsDefault:         ds.IsDefault,
-			JsonData:          ds.JsonData,
-			SecureJsonData:    ds.SecureJsonData,
-			ReadOnly:          ds.ReadOnly,
-			Uid:               ds.Uid,
-			Created:           ds.Created,
-			Updated:           ds.Updated,
+			Id:                  ds.Id,
+			OrgId:               ds.OrgId,
+			Version:             ds.Version,
+			Name:                ds.Name,
+			Type:                ds.Type,
+			Access:              models.DsAccess(ds.Access),
+			Url:                 ds.Url,
+			Password:            ds.Password,
+			User:                ds.User,
+			Database:            ds.Database,
+			BasicAuth:           ds.BasicAuth,
+			BasicAuthUser:       ds.BasicAuthUser,
+			BasicAuthPassword:   ds.BasicAuthPassword,
+			WithCredentials:     ds.WithCredentials,
+			IsDefault:           ds.IsDefault,
+			JsonData:            ds.JsonData,
+			SecureJsonData:      ds.SecureJsonData,
+			ReadOnly:            ds.ReadOnly,
+			Uid:                 ds.Uid,
+			Created:             ds.Created,
+			Updated:             ds.Updated,
 		}
 
 		customDataSources = append(customDataSources, &dsItem)
@@ -229,9 +234,11 @@ func EvaluateAlert(c *models.ReqContext, dto dtos.EvaluateAlertRequestCommand) R
 			Updated:        dto.Alert.Updated,
 			For:            dto.Alert.For,
 		},
-		EvalTime:          dto.EvalTime,
-		DataSourceUrl:     dto.DataSourceUrl,
-		LogzIoHeaders:     &models.LogzIoHeaders{RequestHeaders: c.Req.Header},
+		EvalTime:      dto.EvalTime,
+		DataSourceUrl: dto.DataSourceUrl,
+		LogzIoHeaders: &models.LogzIoHeaders{
+			UserContext: c.Req.Header.Get(models.UserContextHeader),
+		},
 		CustomDataSources: customDataSources,
 	}
 
@@ -271,9 +278,13 @@ func EvaluateAlert(c *models.ReqContext, dto dtos.EvaluateAlertRequestCommand) R
 // POST /api/alerts/evaluate-alert-by-id
 func EvaluateAlertById(c *models.ReqContext, dto dtos.EvaluateAlertByIdCommand) Response {
 	evaluateAlertByIdCommand := alerting.EvaluateAlertByIdCommand{
-		AlertId:       dto.AlertId,
-		EvalTime:      dto.EvalTime,
-		LogzIoHeaders: &models.LogzIoHeaders{RequestHeaders: c.Req.Header},
+		AlertId:  dto.AlertId,
+		EvalTime: dto.EvalTime,
+		LogzIoHeaders: &models.LogzIoHeaders{
+			AuthToken:   c.Req.Header.Get(models.AuthTokenHeader),
+			ApiToken:    c.Req.Header.Get(models.ApiTokenHeader),
+			UserContext: c.Req.Header.Get(models.UserContextHeader),
+		},
 	}
 
 	if err := bus.Dispatch(&evaluateAlertByIdCommand); err != nil {

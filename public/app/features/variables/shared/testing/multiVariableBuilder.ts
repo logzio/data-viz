@@ -6,8 +6,4 @@ export class MultiVariableBuilder<T extends VariableWithMultiSupport> extends Op
     this.variable.multi = multi;
     return this;
   }
-  withIncludeAll(includeAll = true) {
-    this.variable.includeAll = includeAll;
-    return this;
-  }
 }

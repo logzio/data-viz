@@ -1,5 +1,4 @@
-import { getCurrentText, getVariableRefresh, isAllVariable } from './utils';
-import { VariableRefresh } from './types';
+import { getCurrentText, isAllVariable } from './utils';
 
 describe('isAllVariable', () => {
   it.each`
@@ -46,20 +45,5 @@ describe('getCurrentText', () => {
     ${{ current: { text: { prop1: 'test' } } }} | ${''}
   `("when called with params: 'variable': '$variable' then result should be '$expected'", ({ variable, expected }) => {
     expect(getCurrentText(variable)).toEqual(expected);
-  });
-});
-
-describe('getVariableRefresh', () => {
-  it.each`
-    variable                                           | expected
-    ${null}                                            | ${VariableRefresh.never}
-    ${undefined}                                       | ${VariableRefresh.never}
-    ${{}}                                              | ${VariableRefresh.never}
-    ${{ refresh: VariableRefresh.never }}              | ${VariableRefresh.never}
-    ${{ refresh: VariableRefresh.onTimeRangeChanged }} | ${VariableRefresh.onTimeRangeChanged}
-    ${{ refresh: VariableRefresh.onDashboardLoad }}    | ${VariableRefresh.onDashboardLoad}
-    ${{ refresh: 'invalid' }}                          | ${VariableRefresh.never}
-  `("when called with params: 'variable': '$variable' then result should be '$expected'", ({ variable, expected }) => {
-    expect(getVariableRefresh(variable)).toEqual(expected);
   });
 });
