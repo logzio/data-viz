@@ -355,7 +355,9 @@ func (sn *SlackNotifier) SendResolved() bool {
 func (sn *SlackNotifier) minify(src []byte) string {
 	dst := &bytes.Buffer{}
     if err := json.Compact(dst, []byte(src)); err != nil {
-    	return strings.ReplaceAll(string(src), "\n", "")
+	   	r := strings.NewReplacer("\n", "","\"", " ")
+		return r.Replace(string(src))
     }
-    return dst.String()
+
+    return strings.ReplaceAll(dst.String(), "\"", " ")
 }
