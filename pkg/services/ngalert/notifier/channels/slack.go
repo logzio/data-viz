@@ -190,7 +190,9 @@ func (sn *SlackNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, 
 		return false, fmt.Errorf("marshal json: %w", err)
 	}
 
-	logger.Info("Sending Slack API request", "url", sn.URL.String(), "data", string(b))
+	//logger.Info("Sending Slack API request", "url", sn.URL.String(), "data", string(b))
+	logger.Info("Sending Slack API request", "url", sn.URL.String(), "body", "testbody")
+
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, sn.URL.String(), bytes.NewReader(b))
 	if err != nil {
 		return false, fmt.Errorf("failed to create HTTP request: %w", err)
