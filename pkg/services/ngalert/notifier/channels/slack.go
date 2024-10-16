@@ -190,7 +190,7 @@ func (sn *SlackNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, 
 		return false, fmt.Errorf("marshal json: %w", err)
 	}
 
-	logger.Info("Sending Slack API request", "url", sn.URL.String(), "body", sn.minify(b))
+	logger.Info("Sending Slack API request", "url", sn.URL.String(), "body", minify(b))
 
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, sn.URL.String(), bytes.NewReader(b))
 	if err != nil {
