@@ -190,7 +190,6 @@ func (sn *SlackNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, 
 		return false, fmt.Errorf("marshal json: %w", err)
 	}
 
-	//logger.Info("Sending Slack API request", "url", sn.URL.String(), "data", string(b))
 	logger.Info("Sending Slack API request", "url", sn.URL.String(), "body", sn.minify(b))
 
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, sn.URL.String(), bytes.NewReader(b))
@@ -352,7 +351,7 @@ func (sn *SlackNotifier) SendResolved() bool {
 	return !sn.GetDisableResolveMessage()
 }
 
-func (sn *SlackNotifier) minify(src []byte) string {
+func minify(src []byte) string {
 	dst := &bytes.Buffer{}
     if err := json.Compact(dst, []byte(src)); err != nil {
 	   	r := strings.NewReplacer("\n", "","\"", " ")

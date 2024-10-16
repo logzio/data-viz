@@ -16,6 +16,7 @@ import (
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
+	"github.com/google/uuid"
 )
 
 const (
@@ -106,29 +107,42 @@ func NewOpsgenieNotifier(config *OpsgenieConfig, ns notifications.WebhookSender,
 
 // Notify sends an alert notification to Opsgenie
 func (on *OpsgenieNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
-	on.log.Debug("Executing Opsgenie notification", "notification", on.Name)
+
+	id := uuid.New()
+    logger := on.log.New("notificationId", id.String())
+
+	logger.Info("Executing Opsgenie notification", "notification", on.Name)
 
 	alerts := types.Alerts(as...)
 	if alerts.Status() == model.AlertResolved && !on.SendResolved() {
-		on.log.Debug("Not sending a trigger to Opsgenie", "status", alerts.Status(), "auto resolve", on.SendResolved())
+		logger.Info("Not sending a trigger to Opsgenie", "status", alerts.Status(), "auto resolve", on.SendResolved())
 		return true, nil
 	}
 
 	bodyJSON, url, err := on.buildOpsgenieMessage(ctx, alerts, as)
 	if err != nil {
-		return false, fmt.Errorf("build Opsgenie message: %w", err)
+		error := fmt.Errorf("build Opsgenie message: %w", err)
+		logger.Error(error.Error())
+		return false, error
 	}
 
 	if url == "" {
 		// Resolved alert with no auto close.
 		// Hence skip sending anything.
+		logger.Info("Resolved alert with no auto close, not sending anything")
 		return true, nil
 	}
 
+
+
 	body, err := json.Marshal(bodyJSON)
 	if err != nil {
-		return false, fmt.Errorf("marshal json: %w", err)
+		error := fmt.Errorf("marshal json: %w", err)
+		logger.Error(error.Error())
+		return false, error
 	}
+
+	logger.Info("Sending Opsgenie API request", "url", url, "body", minify(body))
 
 	cmd := &models.SendWebhookSync{
 		Url:        url,
@@ -141,9 +155,12 @@ func (on *OpsgenieNotifier) Notify(ctx context.Context, as ...*types.Alert) (boo
 	}
 
 	if err := on.ns.SendWebhookSync(ctx, cmd); err != nil {
-		return false, fmt.Errorf("send notification to Opsgenie: %w", err)
+		error := fmt.Errorf("send notification to Opsgenie: %w", err)
+		logger.Error(error.Error())
+		return false, error
 	}
 
+	logger.Info("Sending Opsgenie API request succeeded", "url", url)
 	return true, nil
 }
 
