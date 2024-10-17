@@ -14,6 +14,7 @@ import (
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 	"net/http"
+	"github.com/google/uuid"
 )
 
 // LOGZ.IO GRAFANA CHANGE :: DEV-35483 - Add type for logzio Opsgenie integration
@@ -81,11 +82,15 @@ func NewLogzioOpsgenieNotifier(config *LogzioOpsgenieConfig, ns notifications.We
 }
 
 func (on *LogzioOpsgenieNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
-	on.log.Debug("Executing Opsgenie (Logzio Integration) notification", "notification", on.Name)
+
+	id := uuid.New()
+    logger := on.log.New("notificationId", id.String())
+
+	logger.Info("Executing Opsgenie (Logzio Integration) notification", "notification", on.Name)
 
 	alerts := types.Alerts(as...)
 	if alerts.Status() == model.AlertResolved && !on.SendResolved() {
-		on.log.Debug("Not sending a trigger to Opsgenie", "status", alerts.Status(), "auto resolve", on.SendResolved())
+		logger.Info("Not sending a trigger to Opsgenie", "status", alerts.Status(), "auto resolve", on.SendResolved())
 		return true, nil
 	}
 
