@@ -178,7 +178,7 @@ type attachment struct {
 func (sn *SlackNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 
 	id := uuid.New()
-	logger := sn.log.New("notificationId", id.String(), "contactpointId", sn.UID)
+	logger := sn.log.New("requestId", id.String(), "notificationId", sn.UID)
 
 	msg, err := sn.buildSlackMessage(ctx, as)
 	if err != nil {

@@ -100,7 +100,7 @@ func NewOpsgenieNotifier(config *OpsgenieConfig, ns notifications.WebhookSender,
 		OverridePriority: config.OverridePriority,
 		SendTagsAs:       config.SendTagsAs,
 		tmpl:             t,
-		log:              log.New("alerting.notifier." + config.Name),
+		log:              log.New("alerting.notifier.opsgenie"),
 		ns:               ns,
 	}
 }
@@ -109,7 +109,7 @@ func NewOpsgenieNotifier(config *OpsgenieConfig, ns notifications.WebhookSender,
 func (on *OpsgenieNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 
 	id := uuid.New()
-    logger := on.log.New("notificationId", id.String(), "contactpointId", on.UID)
+    logger := on.log.New("requestId", id.String(), "notificationId", on.UID)
 
 	logger.Info("Executing Opsgenie notification", "notification", on.Name)
 
