@@ -109,7 +109,7 @@ func NewOpsgenieNotifier(config *OpsgenieConfig, ns notifications.WebhookSender,
 func (on *OpsgenieNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 
 	id := uuid.New()
-    logger := on.log.New("notificationId", id.String())
+    logger := on.log.New("notificationId", id.String(), "contactpointId", on.UID)
 
 	logger.Info("Executing Opsgenie notification", "notification", on.Name)
 
@@ -155,7 +155,7 @@ func (on *OpsgenieNotifier) Notify(ctx context.Context, as ...*types.Alert) (boo
 	}
 
 	if err := on.ns.SendWebhookSync(ctx, cmd); err != nil {
-		error := fmt.Errorf("send notification to Opsgenie: %w", err)
+		error := fmt.Errorf("Sending Opsgenie API request failed: %w", err)
 		logger.Error(error.Error())
 		return false, error
 	}
