@@ -19,6 +19,7 @@ import (
 	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
+	"github.com/google/uuid"
 )
 
 var SlackAPIEndpoint = "https://slack.com/api/chat.postMessage"
@@ -175,6 +176,10 @@ type attachment struct {
 
 // Notify sends an alert notification to Slack.
 func (sn *SlackNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
+
+	id := uuid.New()
+	logger := sn.log.New("requestId", id.String(), "notificationId", sn.UID)
+
 	msg, err := sn.buildSlackMessage(ctx, as)
 	if err != nil {
 		return false, fmt.Errorf("build slack message: %w", err)
@@ -185,7 +190,8 @@ func (sn *SlackNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, 
 		return false, fmt.Errorf("marshal json: %w", err)
 	}
 
-	sn.log.Debug("Sending Slack API request", "url", sn.URL.String(), "data", string(b))
+	logger.Info("Sending Slack API request", "url", sn.URL.String(), "body", minify(b))
+
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, sn.URL.String(), bytes.NewReader(b))
 	if err != nil {
 		return false, fmt.Errorf("failed to create HTTP request: %w", err)
@@ -198,11 +204,11 @@ func (sn *SlackNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, 
 			panic("Token should be set when using the Slack chat API")
 		}
 	} else {
-		sn.log.Debug("Adding authorization header to HTTP request")
+		logger.Debug("Adding authorization header to HTTP request")
 		request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", sn.Token))
 	}
 
-	if err := sendSlackRequest(request, sn.log); err != nil {
+	if err := sendSlackRequest(request, logger); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -237,6 +243,7 @@ var sendSlackRequest = func(request *http.Request, logger log.Logger) error {
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		logger.Error("failed to read response body", "url", request.URL.String())
 		return fmt.Errorf("failed to read response body: %w", err)
 	}
 
@@ -264,7 +271,7 @@ var sendSlackRequest = func(request *http.Request, logger log.Logger) error {
 		return fmt.Errorf("failed to make Slack API request: %s", rslt.Err)
 	}
 
-	logger.Debug("Sending Slack API request succeeded", "url", request.URL.String(), "statusCode", resp.Status)
+	logger.Info("Sending Slack API request succeeded", "url", request.URL.String(), "statusCode", resp.Status)
 	return nil
 }
 
@@ -342,4 +349,14 @@ func (sn *SlackNotifier) buildSlackMessage(ctx context.Context, as []*types.Aler
 
 func (sn *SlackNotifier) SendResolved() bool {
 	return !sn.GetDisableResolveMessage()
+}
+
+func minify(src []byte) string {
+	dst := &bytes.Buffer{}
+    if err := json.Compact(dst, []byte(src)); err != nil {
+	   	r := strings.NewReplacer("\n", "","\"", " ")
+		return r.Replace(string(src))
+    }
+
+    return strings.ReplaceAll(dst.String(), "\"", " ")
 }
