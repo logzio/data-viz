@@ -76,7 +76,7 @@ func NewLogzioOpsgenieNotifier(config *LogzioOpsgenieConfig, ns notifications.We
 		APIKey: config.APIKey,
 		APIUrl: config.APIUrl,
 		tmpl:   t,
-		log:    log.New("alerting.notifier." + config.Name),
+		log:    log.New("alerting.notifier.logzio_opsgenie"),
 		ns:     ns,
 	}
 }
@@ -84,7 +84,7 @@ func NewLogzioOpsgenieNotifier(config *LogzioOpsgenieConfig, ns notifications.We
 func (on *LogzioOpsgenieNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 
 	id := uuid.New()
-    logger := on.log.New("notificationId", id.String())
+    logger := on.log.New("requestId", id.String(), "notificationId", on.UID)
 
 	logger.Info("Executing Opsgenie (Logzio Integration) notification", "notification", on.Name)
 
@@ -96,15 +96,22 @@ func (on *LogzioOpsgenieNotifier) Notify(ctx context.Context, as ...*types.Alert
 
 	bodyJSON, err := on.buildOpsgenieMessage(ctx, alerts, as)
 	if err != nil {
-		return false, fmt.Errorf("build Opsgenie message: %w", err)
+		error := fmt.Errorf("build Opsgenie message: %w", err)
+		logger.Error(error.Error())
+		return false, error
 	}
 
 	body, err := json.Marshal(bodyJSON)
 	if err != nil {
-		return false, fmt.Errorf("marshal json: %w", err)
+		error := fmt.Errorf("marshal json: %w", err)
+		logger.Error(error.Error())
+		return false, error
 	}
 
 	url := fmt.Sprintf("%s?apiKey=%s", on.APIUrl, on.APIKey)
+
+
+	logger.Info("Sending Opsgenie (Logzio Integration) API request", "url", on.APIUrl, "body", minify(body))
 
 	cmd := &models.SendWebhookSync{
 		Url:        url,
@@ -116,9 +123,12 @@ func (on *LogzioOpsgenieNotifier) Notify(ctx context.Context, as ...*types.Alert
 	}
 
 	if err := on.ns.SendWebhookSync(ctx, cmd); err != nil {
-		return false, fmt.Errorf("send notification to Opsgenie (Logzio Integration): %w", err)
+		error := fmt.Errorf("Sending Opsgenie (Logzio Integration) API request failed: %w", err)
+		logger.Error(error.Error())
+		return false, error
 	}
 
+	logger.Info("Sending Opsgenie API request succeeded", "url", on.APIUrl)
 	return true, nil
 }
 
