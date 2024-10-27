@@ -137,6 +137,8 @@ func (e *EmbeddedContactPoint) SecretKeys() ([]string, error) {
 		return []string{"url", "token"}, nil
 	case "teams":
 		return []string{}, nil
+	case "teams_workflows":
+		return []string{}, nil
 	case "telegram":
 		return []string{"bottoken"}, nil
 	case "threema":
