@@ -97,12 +97,6 @@ func (tn *TeamsWorkflowsNotifier) Notify(ctx context.Context, as ...*types.Alert
 							"size":   "medium",
 						},
 						{
-							"type":    "TextBlock",
-							"text":    "Details",
-							"weight":  "bolder",
-							"spacing": "medium",
-						},
-						{
 							"type": "TextBlock",
 							"text": tmpl(tn.Message),
 							"wrap": true,
