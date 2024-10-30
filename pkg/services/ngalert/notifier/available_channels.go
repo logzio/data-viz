@@ -575,7 +575,7 @@ func GetAvailableNotifiers() []*alerting.NotifierPlugin {
 		{
 			Type:        "teams_workflows",
 			Name:        "Microsoft Teams Workflows",
-			Description: "Sends notifications using Incoming Webhook connector to Microsoft Teams Workflows",
+			Description: "Sends notifications using Workflows to Microsoft Teams",
 			Heading:     "Teams Workflows settings",
 			Options: []alerting.NotifierOption{
 				{

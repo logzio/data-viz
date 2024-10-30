@@ -84,7 +84,7 @@ func (tn *TeamsWorkflowsNotifier) Notify(ctx context.Context, as ...*types.Alert
 		"type": "message",
 		"attachments": []map[string]interface{}{
 			{
-				"contentType": "application/vnd.microsoft.card.adaptive", // Adaptive Card content type
+				"contentType": "application/vnd.microsoft.card.adaptive",
 				"content": map[string]interface{}{
 					"$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
 					"type":    "AdaptiveCard",
@@ -95,6 +95,12 @@ func (tn *TeamsWorkflowsNotifier) Notify(ctx context.Context, as ...*types.Alert
 							"text":   title,
 							"weight": "bolder",
 							"size":   "medium",
+						},
+						{
+							"type":    "TextBlock",
+							"text":    "Details",
+							"weight":  "bolder",
+							"spacing": "medium",
 						},
 						{
 							"type": "TextBlock",
@@ -110,7 +116,7 @@ func (tn *TeamsWorkflowsNotifier) Notify(ctx context.Context, as ...*types.Alert
 						},
 					},
 					"backgroundImage": map[string]interface{}{
-						"color": getAlertStatusColor(types.Alerts(as...).Status()), // Use the theme color as the background
+						"color": getAlertStatusColor(types.Alerts(as...).Status()),
 					},
 				},
 			},
