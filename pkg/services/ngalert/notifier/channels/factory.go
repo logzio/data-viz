@@ -35,7 +35,7 @@ func NewFactoryConfig(config *NotificationChannelConfig, notificationService not
 	}, nil
 }
 
-//LOGZ.IO GRAFANA CHANGE :: DEV-32721 - Remove upsupported contact points
+// LOGZ.IO GRAFANA CHANGE :: DEV-32721 - Remove upsupported contact points
 var receiverFactories = map[string]func(FactoryConfig) (NotificationChannel, error){
 	//"prometheus-alertmanager": AlertmanagerFactory,
 	//"dingding":                DingDingFactory,
@@ -49,8 +49,9 @@ var receiverFactories = map[string]func(FactoryConfig) (NotificationChannel, err
 	"pagerduty":       PagerdutyFactory,
 	//"pushover":   PushoverFactory,
 	//"sensugo":    SensuGoFactory,
-	"slack": SlackFactory,
-	"teams": TeamsFactory,
+	"slack":           SlackFactory,
+	"teams":           TeamsFactory,
+	"teams_workflows": TeamsWorkflowsFactory,
 	//"telegram":   TelegramFactory,
 	//"threema":    ThreemaFactory,
 	"victorops": VictorOpsFactory,

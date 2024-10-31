@@ -573,6 +573,28 @@ func GetAvailableNotifiers() []*alerting.NotifierPlugin {
 			},
 		},
 		{
+			Type:        "teams_workflows",
+			Name:        "Microsoft Teams Workflows",
+			Description: "Sends notifications using Workflows to Microsoft Teams",
+			Heading:     "Teams Workflows settings",
+			Options: []alerting.NotifierOption{
+				{
+					Label:        "URL",
+					Element:      alerting.ElementTypeInput,
+					InputType:    alerting.InputTypeText,
+					Placeholder:  "Teams Workflows incoming webhook url",
+					PropertyName: "url",
+					Required:     true,
+				},
+				{ // New in 8.0.
+					Label:        "Message",
+					Element:      alerting.ElementTypeTextArea,
+					Placeholder:  `{{ template "default.message" . }}`,
+					PropertyName: "message",
+				},
+			},
+		},
+		{
 			Type:        "telegram",
 			Name:        "Telegram",
 			Description: "Sends notifications to Telegram",
