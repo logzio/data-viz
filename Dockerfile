@@ -1,4 +1,4 @@
-FROM registry.internal.logz.io:5000/logzio-node:16-alpine3.15 as js-builder
+FROM 406095609952.dkr.ecr.us-east-1.amazonaws.com/logzio-node:16-alpine3.15 as js-builder
 
 ENV NODE_OPTIONS=--max_old_space_size=8000
 
@@ -20,7 +20,7 @@ COPY grafana/emails emails
 ENV NODE_ENV production
 RUN yarn build
 
-FROM registry.internal.logz.io:5000/logzio-golang:1.17.9-alpine3.15 as go-builder
+FROM 406095609952.dkr.ecr.us-east-1.amazonaws.com/logzio-golang:1.17.9-alpine3.15 as go-builder
 
 RUN apk add --no-cache gcc g++ make
 
@@ -40,7 +40,7 @@ RUN go mod verify
 RUN make build-go
 
 # Final stage
-FROM registry.internal.logz.io:5000/logzio-alpine:3.15
+FROM 406095609952.dkr.ecr.us-east-1.amazonaws.com/logzio-alpine:3.15
 
 LABEL maintainer="Grafana team <hello@grafana.com>"
 
