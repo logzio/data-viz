@@ -1,4 +1,4 @@
-FROM 406095609952.dkr.ecr.us-east-1.amazonaws.com/docker-hub/library/node:16-alpine3.15 as js-builder
+FROM 406095609952.dkr.ecr.us-east-1.amazonaws.com/logzio-node:16-alpine3.15 as js-builder
 
 ENV NODE_OPTIONS=--max_old_space_size=8000
 
@@ -20,7 +20,7 @@ COPY grafana/emails emails
 ENV NODE_ENV production
 RUN yarn build
 
-FROM 406095609952.dkr.ecr.us-east-1.amazonaws.com/docker-hub/library/golang:1.17.9-alpine3.15 as go-builder
+FROM 406095609952.dkr.ecr.us-east-1.amazonaws.com/logzio-golang:1.17.9-alpine3.15 as go-builder
 
 RUN apk add --no-cache gcc g++ make
 
